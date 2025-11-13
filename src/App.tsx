@@ -62,8 +62,9 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              <Route path="/payment-success" element={<PaymentSuccess />} />
-              <Route path="*" element={<NotFound />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+            <Route path="*" element={<NotFound />} />
             </Routes>
             <ChatWidget />
           </AuthProvider>
