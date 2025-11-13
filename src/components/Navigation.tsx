@@ -47,7 +47,7 @@ const Navigation = () => {
             <a href="/login">
               <Button variant="ghost">Sign In</Button>
             </a>
-            <a href="/register">
+            <a href="/booking">
               <Button variant="hero">{t('hero.cta')}</Button>
             </a>
           </div>
