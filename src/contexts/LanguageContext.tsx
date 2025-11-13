@@ -77,6 +77,8 @@ const translations = {
     'dashboard.viewManageBookings': 'View and manage your service bookings',
     'dashboard.support': 'Support',
     'dashboard.contactSupport': 'Contact our support team',
+    'dashboard.cancelBooking': 'Cancel Booking',
+    'dashboard.bookingCancelled': 'Booking cancelled successfully',
     
     // About
     'about.title': 'About Exavo AI',
@@ -86,12 +88,15 @@ const translations = {
     // Services
     'services.title': 'Our Services',
     'services.subtitle': 'Comprehensive AI solutions tailored to your business needs',
+    'services.orderNow': 'Order Now',
+    'services.bookConsultation': 'Book Consultation',
     
     // Pricing
     'pricing.title': 'Pricing Plans',
     'pricing.subtitle': 'Choose the perfect plan for your business',
     'pricing.monthly': 'Monthly',
     'pricing.yearly': 'Yearly',
+    'pricing.from': 'From',
     
     // Contact
     'contact.title': 'Get in Touch',
@@ -190,6 +195,8 @@ const translations = {
     'dashboard.viewManageBookings': 'عرض وإدارة حجوزات الخدمات',
     'dashboard.support': 'الدعم',
     'dashboard.contactSupport': 'تواصل مع فريق الدعم',
+    'dashboard.cancelBooking': 'إلغاء الحجز',
+    'dashboard.bookingCancelled': 'تم إلغاء الحجز بنجاح',
     
     // About
     'about.title': 'عن Exavo AI',
@@ -199,12 +206,15 @@ const translations = {
     // Services
     'services.title': 'خدماتنا',
     'services.subtitle': 'حلول ذكاء اصطناعي شاملة مصممة لاحتياجات عملك',
+    'services.orderNow': 'اطلب الآن',
+    'services.bookConsultation': 'احجز استشارة',
     
     // Pricing
     'pricing.title': 'خطط الأسعار',
     'pricing.subtitle': 'اختر الخطة المثالية لعملك',
     'pricing.monthly': 'شهري',
     'pricing.yearly': 'سنوي',
+    'pricing.from': 'من',
     
     // Contact
     'contact.title': 'تواصل معنا',

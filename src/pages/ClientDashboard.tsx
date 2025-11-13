@@ -146,18 +146,40 @@ const ClientDashboard = () => {
                 {appointments.map((apt) => (
                   <Card key={apt.id} className="p-6 bg-gradient-card border-border">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-2">
+                      <div className="space-y-2 flex-1">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-lg">Service Booking</h3>
+                          <h3 className="font-semibold text-lg">{apt.full_name}</h3>
                           <span className={`px-2 py-1 rounded text-xs ${getStatusColor(apt.status)}`}>{t(`booking.${apt.status}`)}</span>
                         </div>
                         <div className="text-sm text-muted-foreground space-y-1">
-                          <p><strong>{t('booking.date')}:</strong> {new Date(apt.appointment_date).toLocaleDateString()}</p>
-                          <p><strong>{t('booking.time')}:</strong> {apt.appointment_time}</p>
-                          <p><strong>{t('contact.phone')}:</strong> {apt.phone}</p>
-                          {apt.notes && <p><strong>{t('booking.notes')}:</strong> {apt.notes}</p>}
+                          <p>📅 {apt.appointment_date} at {apt.appointment_time}</p>
+                          <p>📧 {apt.email}</p>
+                          <p>📞 {apt.phone}</p>
+                          {apt.notes && <p>📝 {apt.notes}</p>}
                         </div>
                       </div>
+                      {apt.status === 'pending' && (
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              const { error } = await supabase
+                                .from('appointments')
+                                .update({ status: 'cancelled' })
+                                .eq('id', apt.id);
+                              
+                              if (error) throw error;
+                              toast.success(t('dashboard.bookingCancelled'));
+                              fetchAppointments();
+                            } catch (error: any) {
+                              toast.error(error.message);
+                            }
+                          }}
+                        >
+                          {t('dashboard.cancelBooking')}
+                        </Button>
+                      )}
                     </div>
                   </Card>
                 ))}
