@@ -1,63 +1,40 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles } from "lucide-react";
-import heroDashboard from "@/assets/hero-dashboard.jpg";
+import { ArrowRight, Sparkles, Play } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Hero = () => {
+  const { t } = useLanguage();
+
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20 pt-20 pb-32">
-      <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-5"></div>
+    <section className="relative overflow-hidden pt-20 pb-32 min-h-[90vh] flex items-center">
+      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5"></div>
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/30 rounded-full blur-[128px] animate-pulse"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/30 rounded-full blur-[128px] animate-pulse" style={{ animationDelay: '1s' }}></div>
       
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-          {/* Left content */}
-          <div className="flex-1 text-center lg:text-left space-y-8 animate-fade-in">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary border border-primary/20">
-              <Sparkles className="w-4 h-4" />
-              <span className="text-sm font-medium">AI Solutions for Modern Business</span>
-            </div>
-            
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
-              Your One-Stop{" "}
-              <span className="bg-gradient-hero bg-clip-text text-transparent">AI Marketplace</span>
-            </h1>
-            
-            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto lg:mx-0">
-              Simplify AI adoption with ready-to-use tools, expert services, and an all-in-one control panel. 
-              Reduce costs, eliminate complexity, and make smarter decisions.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Button variant="hero" size="lg" className="group">
-                Get Started Free
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              <Button variant="outline" size="lg">
-                Explore AI Tools
-              </Button>
-            </div>
-            
-            <div className="flex items-center gap-8 justify-center lg:justify-start text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-accent"></div>
-                <span className="text-muted-foreground">No credit card required</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-accent"></div>
-                <span className="text-muted-foreground">Setup in minutes</span>
-              </div>
-            </div>
+        <div className="max-w-5xl mx-auto text-center space-y-8 animate-fade-in">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-accent border border-primary/20 backdrop-blur-sm">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">{t('hero.badge')}</span>
           </div>
           
-          {/* Right content - Dashboard preview */}
-          <div className="flex-1 w-full animate-fade-in-up">
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/50">
-              <img 
-                src={heroDashboard} 
-                alt="AI Control Panel Dashboard" 
-                className="w-full h-auto"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent"></div>
-            </div>
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold leading-tight">
+            {t('hero.title')}<br />
+            <span className="bg-gradient-hero bg-clip-text text-transparent animate-pulse">{t('hero.titleHighlight')}</span>
+          </h1>
+          
+          <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto">{t('hero.subtitle')}</p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+            <Button variant="hero" size="lg" className="group shadow-glow hover:shadow-glow-lg">
+              {t('hero.cta')}
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Button>
+            <Button variant="outline" size="lg" className="group">
+              <Play className="w-4 h-4" />
+              {t('hero.ctaSecondary')}
+            </Button>
           </div>
         </div>
       </div>
