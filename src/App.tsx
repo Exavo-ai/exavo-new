@@ -13,6 +13,7 @@ import Pricing from "./pages/Pricing";
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Booking from "./pages/Booking";
 import AdminDashboard from "./pages/AdminDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
 import NotFound from "./pages/NotFound";
@@ -35,6 +36,14 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route
+                path="/booking"
+                element={
+                  <ProtectedRoute>
+                    <Booking />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/admin"
                 element={
