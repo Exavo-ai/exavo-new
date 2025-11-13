@@ -1,9 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Play } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Hero = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   return (
     <section className="relative overflow-hidden pt-20 pb-32 min-h-[90vh] flex items-center">
@@ -45,11 +49,21 @@ const Hero = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-            <Button variant="hero" size="lg" className="group shadow-glow hover:shadow-glow-lg hover:scale-105 transition-all">
+            <Button 
+              variant="hero" 
+              size="lg" 
+              className="group shadow-glow hover:shadow-glow-lg hover:scale-105 transition-all"
+              onClick={() => navigate(user ? '/booking' : '/register')}
+            >
               {t('hero.cta')}
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Button>
-            <Button variant="outline" size="lg" className="group hover:scale-105 transition-transform">
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="group hover:scale-105 transition-transform"
+              onClick={() => navigate('/landing')}
+            >
               <Play className="w-4 h-4" />
               {t('hero.ctaSecondary')}
             </Button>

@@ -1,9 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Calendar } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const CTA = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   return (
     <section className="py-24 relative overflow-hidden">
@@ -14,11 +18,20 @@ const CTA = () => {
             Ready to Transform Your Business with <span className="bg-gradient-hero bg-clip-text text-transparent">AI?</span>
           </h2>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button variant="hero" size="lg" className="group shadow-glow">
+            <Button 
+              variant="hero" 
+              size="lg" 
+              className="group shadow-glow"
+              onClick={() => navigate(user ? '/booking' : '/register')}
+            >
               {t('common.getStarted')}
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Button>
-            <Button variant="outline" size="lg">
+            <Button 
+              variant="outline" 
+              size="lg"
+              onClick={() => navigate('/booking')}
+            >
               <Calendar className="w-4 h-4" />
               {t('common.bookDemo')}
             </Button>

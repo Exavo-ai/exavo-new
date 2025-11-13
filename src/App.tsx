@@ -21,6 +21,8 @@ import ClientDashboard from "./pages/ClientDashboard";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import Analytics from "./pages/Analytics";
 import Landing from "./pages/Landing";
+import FAQ from "./pages/FAQ";
+import Blog from "./pages/Blog";
 import NotFound from "./pages/NotFound";
 import ChatWidget from "./components/ChatWidget";
 import SEO from "./components/SEO";
@@ -43,6 +45,8 @@ const App = () => (
               <Route path="/services" element={<Services />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/blog" element={<Blog />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/password-reset" element={<PasswordReset />} />

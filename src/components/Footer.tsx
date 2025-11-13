@@ -22,12 +22,15 @@ const Footer = () => {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="/services" className="hover:text-primary transition-colors">AI Chatbot</a></li>
               <li><a href="/services" className="hover:text-primary transition-colors">Automation</a></li>
+              <li><a href="/services" className="hover:text-primary transition-colors">Analytics</a></li>
             </ul>
           </div>
           <div>
             <h4 className="font-semibold mb-4">Company</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="/about" className="hover:text-primary transition-colors">{t('nav.about')}</a></li>
+              <li><a href="/blog" className="hover:text-primary transition-colors">Blog</a></li>
+              <li><a href="/faq" className="hover:text-primary transition-colors">FAQ</a></li>
               <li><a href="/contact" className="hover:text-primary transition-colors">{t('nav.contact')}</a></li>
             </ul>
           </div>

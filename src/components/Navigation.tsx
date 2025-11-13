@@ -33,6 +33,9 @@ const Navigation = () => {
               <a href="/pricing" className="text-sm font-medium hover:text-primary transition-all hover:scale-105">
                 {t('nav.pricing')}
               </a>
+              <a href="/blog" className="text-sm font-medium hover:text-primary transition-all hover:scale-105">
+                Blog
+              </a>
               <a href="/contact" className="text-sm font-medium hover:text-primary transition-all hover:scale-105">
                 {t('nav.contact')}
               </a>
@@ -63,6 +66,7 @@ const Navigation = () => {
             <a href="/about" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">{t('nav.about')}</a>
             <a href="/services" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">{t('nav.services')}</a>
             <a href="/pricing" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">{t('nav.pricing')}</a>
+            <a href="/blog" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">Blog</a>
             <a href="/contact" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">{t('nav.contact')}</a>
             <div className="flex flex-col gap-2 pt-4">
               <Button variant="outline" onClick={toggleLanguage} className="w-full gap-2">
