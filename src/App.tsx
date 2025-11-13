@@ -20,6 +20,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import Analytics from "./pages/Analytics";
+import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import ChatWidget from "./components/ChatWidget";
 import SEO from "./components/SEO";
@@ -37,6 +38,7 @@ const App = () => (
             <SEO />
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/landing" element={<Landing />} />
               <Route path="/about" element={<About />} />
               <Route path="/services" element={<Services />} />
               <Route path="/pricing" element={<Pricing />} />

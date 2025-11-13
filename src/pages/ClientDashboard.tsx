@@ -87,8 +87,9 @@ const ClientDashboard = () => {
 
   const handleBookingSuccess = () => {
     setBookingDialogOpen(false);
+    setSelectedService(null);
     fetchAppointments();
-    toast.success('Booking created successfully!');
+    toast.success('Booking created successfully! Check your email for confirmation.');
   };
 
   const getStatusColor = (status: string) => {
