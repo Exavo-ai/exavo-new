@@ -15,8 +15,19 @@ interface BookingData {
   notes?: string;
 }
 
-async function sendEmail(to: string[], subject: string, html: string) {
+async function sendEmail(to: string[], subject: string, html: string, attachments?: any[]) {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  
+  const emailPayload: any = {
+    from: "Exavo AI <onboarding@resend.dev>",
+    to,
+    subject,
+    html,
+  };
+
+  if (attachments && attachments.length > 0) {
+    emailPayload.attachments = attachments;
+  }
   
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -24,15 +35,16 @@ async function sendEmail(to: string[], subject: string, html: string) {
       "Authorization": `Bearer ${RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from: "Exavo AI <onboarding@resend.dev>",
-      to,
-      subject,
-      html,
-    }),
+    body: JSON.stringify(emailPayload),
   });
 
   return await response.json();
+}
+
+function generateCSV(booking: BookingData): string {
+  const headers = "Name,Email,Phone,Service,Date,Time,Notes\n";
+  const row = `"${booking.full_name}","${booking.email}","${booking.phone}","${booking.service}","${booking.appointment_date}","${booking.appointment_time}","${booking.notes || 'N/A'}"`;
+  return headers + row;
 }
 
 serve(async (req) => {
@@ -43,7 +55,15 @@ serve(async (req) => {
   try {
     const booking: BookingData = await req.json();
 
-    // Email to admin
+    // Generate CSV attachment
+    const csvContent = generateCSV(booking);
+    const csvBase64 = btoa(csvContent);
+    const csvAttachment = {
+      filename: `booking-${booking.full_name.replace(/\s+/g, '-')}-${Date.now()}.csv`,
+      content: csvBase64,
+    };
+
+    // Email to admin with CSV attachment
     const adminEmail = await sendEmail(
       ["ahmed@exavoai.io"],
       `New Booking: ${booking.service}`,
@@ -63,9 +83,10 @@ serve(async (req) => {
             <p><strong>Time:</strong> ${booking.appointment_time}</p>
             ${booking.notes ? `<p><strong>Notes:</strong> ${booking.notes}</p>` : ''}
           </div>
-          <p style="color: #666;">Please review and confirm this booking in the admin dashboard.</p>
+          <p style="color: #666;">Please review and confirm this booking in the admin dashboard. See attached CSV for details.</p>
         </div>
-      `
+      `,
+      [csvAttachment]
     );
 
     // Confirmation email to client
