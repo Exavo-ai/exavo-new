@@ -44,7 +44,12 @@ const Navigation = () => {
               <Globe className="w-4 h-4" />
               <span className="text-sm">{language === 'en' ? 'AR' : 'EN'}</span>
             </Button>
-            <Button variant="hero">{t('hero.cta')}</Button>
+            <a href="/login">
+              <Button variant="ghost">Sign In</Button>
+            </a>
+            <a href="/register">
+              <Button variant="hero">{t('hero.cta')}</Button>
+            </a>
           </div>
           
           <button className="md:hidden" onClick={() => setIsOpen(!isOpen)} aria-label="Toggle menu">
