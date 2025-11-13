@@ -16,6 +16,7 @@ const ClientDashboard = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [recentPayments, setRecentPayments] = useState<any[]>([]);
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState('');
 
@@ -23,6 +24,7 @@ const ClientDashboard = () => {
     if (user) {
       fetchProfile();
       fetchAppointments();
+      fetchRecentPayments();
     }
   }, [user]);
 
@@ -37,6 +39,17 @@ const ClientDashboard = () => {
   const fetchAppointments = async () => {
     const { data } = await supabase.from('appointments').select('*').eq('user_id', user?.id).order('appointment_date', { ascending: false });
     setAppointments(data || []);
+  };
+
+  const fetchRecentPayments = async () => {
+    const { data } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('user_id', user?.id)
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    setRecentPayments(data || []);
   };
 
   const handleUpdateProfile = async () => {
@@ -130,6 +143,23 @@ const ClientDashboard = () => {
           </TabsContent>
 
           <TabsContent value="bookings" className="space-y-6">
+            {recentPayments.length > 0 && (
+              <Card className="p-6 bg-gradient-card border-border">
+                <h3 className="text-lg font-semibold mb-4">{t('dashboard.recentPayments')}</h3>
+                <div className="space-y-3">
+                  {recentPayments.map((payment) => (
+                    <div key={payment.id} className="flex justify-between items-center p-3 bg-background/50 rounded-lg">
+                      <div>
+                        <p className="font-medium">{payment.amount} {payment.currency}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(payment.created_at).toLocaleDateString()}</p>
+                      </div>
+                      <span className="text-xs px-2 py-1 bg-primary/20 text-primary rounded">{t('booking.completed')}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">{t('dashboard.myBookings')}</h2>
               <Button variant="hero" onClick={() => navigate('/booking')}><Plus className="w-4 h-4" />{t('dashboard.newBooking')}</Button>

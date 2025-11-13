@@ -5,20 +5,26 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Settings, BarChart3, LogOut, Globe, Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Settings, BarChart3, LogOut, Globe, Calendar, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
   const { user, signOut } = useAuth();
   const { t, language, setLanguage } = useLanguage();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ totalUsers: 0, admins: 0, clients: 0, totalBookings: 0 });
   const [users, setUsers] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [chatSessions, setChatSessions] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
     fetchStats();
     fetchUsers();
     fetchAppointments();
+    fetchChatSessions();
+    fetchRecentActivity();
   }, []);
 
   const fetchStats = async () => {
@@ -51,6 +57,54 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchChatSessions = async () => {
+    const { data } = await supabase
+      .from('chat_messages')
+      .select('session_id, user_id, created_at, content, role')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    
+    // Group by session_id
+    const sessions = data?.reduce((acc: any[], msg) => {
+      const existing = acc.find(s => s.session_id === msg.session_id);
+      if (!existing) {
+        acc.push({
+          session_id: msg.session_id,
+          user_id: msg.user_id,
+          last_message: msg.content,
+          created_at: msg.created_at,
+          message_count: 1
+        });
+      } else {
+        existing.message_count += 1;
+      }
+      return acc;
+    }, []);
+    
+    setChatSessions(sessions || []);
+  };
+
+  const fetchRecentActivity = async () => {
+    const { data: recentBookings } = await supabase
+      .from('appointments')
+      .select('*, profiles(full_name, email)')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const { data: recentPayments } = await supabase
+      .from('payments')
+      .select('*, profiles(full_name, email)')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const combined = [
+      ...(recentBookings?.map(b => ({ type: 'booking', ...b })) || []),
+      ...(recentPayments?.map(p => ({ type: 'payment', ...p })) || [])
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10);
+
+    setRecentActivity(combined);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed': return 'bg-accent/20 text-accent';
@@ -75,6 +129,7 @@ const AdminDashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/analytics')}><TrendingUp className="w-4 h-4" /></Button>
               <Button variant="ghost" size="sm" onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}><Globe className="w-4 h-4" /></Button>
               <Button variant="outline" onClick={signOut}><LogOut className="w-4 h-4" />{t('auth.signOut')}</Button>
             </div>
@@ -84,10 +139,12 @@ const AdminDashboard = () => {
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="overview">
-          <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-3 mb-8">
+          <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-5 mb-8">
             <TabsTrigger value="overview">{t('dashboard.overview')}</TabsTrigger>
             <TabsTrigger value="users">{t('dashboard.users')}</TabsTrigger>
             <TabsTrigger value="bookings">{t('dashboard.bookings')}</TabsTrigger>
+            <TabsTrigger value="chats">{t('dashboard.chatHistory')}</TabsTrigger>
+            <TabsTrigger value="activity">{t('dashboard.recentActivity')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -148,6 +205,72 @@ const AdminDashboard = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="chats">
+            <Card className="p-6 bg-card border-border">
+              <h2 className="text-xl font-bold mb-4">{t('dashboard.chatHistory')}</h2>
+              <div className="space-y-4">
+                {chatSessions.map((session) => (
+                  <Card key={session.session_id} className="p-4 bg-gradient-card border-border hover:border-primary/50 transition-all">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs text-muted-foreground">Session: {session.session_id.slice(0, 8)}...</span>
+                          <span className="text-xs text-muted-foreground">•</span>
+                          <span className="text-xs text-muted-foreground">{session.message_count} messages</span>
+                        </div>
+                        <p className="text-sm text-foreground line-clamp-2">{session.last_message}</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {new Date(session.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+                {chatSessions.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    {t('dashboard.noChats')}
+                  </div>
+                )}
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="activity">
+            <Card className="p-6 bg-card border-border">
+              <h2 className="text-xl font-bold mb-4">{t('dashboard.recentActivity')}</h2>
+              <div className="space-y-3">
+                {recentActivity.map((activity, index) => (
+                  <div key={index} className="flex items-start gap-4 p-4 bg-gradient-card border border-border rounded-lg hover:border-primary/50 transition-all">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activity.type === 'booking' ? 'bg-accent/20' : 'bg-primary/20'}`}>
+                      {activity.type === 'booking' ? <Calendar className="w-5 h-5 text-accent" /> : <BarChart3 className="w-5 h-5 text-primary" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">
+                        {activity.type === 'booking' ? t('dashboard.newBooking') : t('dashboard.newPayment')}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {activity.profiles?.full_name || activity.profiles?.email || 'Unknown user'}
+                      </p>
+                      {activity.type === 'payment' && (
+                        <p className="text-sm text-primary font-medium mt-1">
+                          {activity.amount} {activity.currency}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(activity.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {recentActivity.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    {t('dashboard.noActivity')}
+                  </div>
+                )}
               </div>
             </Card>
           </TabsContent>
