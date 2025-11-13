@@ -17,8 +17,10 @@ import Booking from "./pages/Booking";
 import AdminDashboard from "./pages/AdminDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 import ChatWidget from "./components/ChatWidget";
+import SEO from "./components/SEO";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +32,7 @@ const App = () => (
       <BrowserRouter>
         <LanguageProvider>
           <AuthProvider>
+            <SEO />
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/about" element={<About />} />
