@@ -2,3 +2,15 @@ project_id = "ihxrkmnieckgvscfqgwb"
 
 [functions.send-booking-notification]
 verify_jwt = false
+
+[functions.ai-chat]
+verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.send-payment-confirmation]
+verify_jwt = false

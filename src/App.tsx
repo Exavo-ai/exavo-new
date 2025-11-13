@@ -16,7 +16,9 @@ import Register from "./pages/Register";
 import Booking from "./pages/Booking";
 import AdminDashboard from "./pages/AdminDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
+import PaymentSuccess from "./pages/PaymentSuccess";
 import NotFound from "./pages/NotFound";
+import ChatWidget from "./components/ChatWidget";
 
 const queryClient = new QueryClient();
 
@@ -60,8 +62,10 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route path="/payment-success" element={<PaymentSuccess />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <ChatWidget />
           </AuthProvider>
         </LanguageProvider>
       </BrowserRouter>
