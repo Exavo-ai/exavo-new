@@ -13,6 +13,8 @@ import Pricing from "./pages/Pricing";
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import PasswordReset from "./pages/PasswordReset";
+import UpdatePassword from "./pages/UpdatePassword";
 import Booking from "./pages/Booking";
 import AdminDashboard from "./pages/AdminDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
@@ -41,6 +43,8 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/password-reset" element={<PasswordReset />} />
+              <Route path="/update-password" element={<UpdatePassword />} />
               <Route
                 path="/booking"
                 element={

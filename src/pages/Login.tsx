@@ -124,7 +124,14 @@ const Login = () => {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-2">
+              <button
+                type="button"
+                onClick={() => navigate('/password-reset')}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                Forgot password?
+              </button>
               <p className="text-sm text-muted-foreground">
                 {t('auth.noAccount')}{' '}
                 <a href="/register" className="text-primary hover:underline">

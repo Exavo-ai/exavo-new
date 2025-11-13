@@ -3,12 +3,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { User, LogOut, Globe, Camera, Calendar, Plus } from 'lucide-react';
+import { User, LogOut, Globe, Camera, Calendar, Plus, ShoppingBag, MessageSquare, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import BookingDialog from '@/components/BookingDialog';
+import { Badge } from '@/components/ui/badge';
 
 const ClientDashboard = () => {
   const { user, signOut } = useAuth();
@@ -17,22 +19,33 @@ const ClientDashboard = () => {
   const [profile, setProfile] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
       fetchProfile();
       fetchAppointments();
       fetchRecentPayments();
+      fetchServices();
     }
   }, [user]);
+
+  const fetchServices = async () => {
+    const { data } = await supabase.from('services').select('*').eq('active', true).order('created_at', { ascending: false });
+    setServices(data || []);
+  };
 
   const fetchProfile = async () => {
     const { data } = await supabase.from('profiles').select('*').eq('id', user?.id).single();
     if (data) {
       setProfile(data);
       setFullName(data.full_name || '');
+      setPhone(data.phone || '');
     }
   };
 
@@ -54,7 +67,10 @@ const ClientDashboard = () => {
 
   const handleUpdateProfile = async () => {
     try {
-      const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', user?.id);
+      const { error } = await supabase.from('profiles').update({ 
+        full_name: fullName,
+        phone 
+      }).eq('id', user?.id);
       if (error) throw error;
       toast.success(t('dashboard.profileUpdated'));
       setEditing(false);
@@ -62,6 +78,17 @@ const ClientDashboard = () => {
     } catch (error: any) {
       toast.error(error.message);
     }
+  };
+
+  const handleBookService = (service: any) => {
+    setSelectedService(service);
+    setBookingDialogOpen(true);
+  };
+
+  const handleBookingSuccess = () => {
+    setBookingDialogOpen(false);
+    fetchAppointments();
+    toast.success('Booking created successfully!');
   };
 
   const getStatusColor = (status: string) => {
@@ -96,11 +123,58 @@ const ClientDashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="profile">
-          <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-2 mb-8">
-            <TabsTrigger value="profile">{t('dashboard.myProfile')}</TabsTrigger>
-            <TabsTrigger value="bookings">{t('dashboard.myBookings')}</TabsTrigger>
+        <Tabs defaultValue="services">
+          <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-4 mb-8">
+            <TabsTrigger value="services"><ShoppingBag className="w-4 h-4 mr-2" />Services</TabsTrigger>
+            <TabsTrigger value="profile"><User className="w-4 h-4 mr-2" />{t('dashboard.myProfile')}</TabsTrigger>
+            <TabsTrigger value="bookings"><Calendar className="w-4 h-4 mr-2" />{t('dashboard.myBookings')}</TabsTrigger>
+            <TabsTrigger value="payments"><CreditCard className="w-4 h-4 mr-2" />Payments</TabsTrigger>
           </TabsList>
+
+          {/* Services Tab */}
+          <TabsContent value="services" className="space-y-6">
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle className="text-2xl">Available Services</CardTitle>
+                <CardDescription>Browse and book our AI services</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {services.map((service) => (
+                    <Card key={service.id} className="border-border hover:border-primary/50 transition-all hover:shadow-lg">
+                      <CardHeader>
+                        {service.image_url && (
+                          <img src={service.image_url} alt={service.name} className="w-full h-40 object-cover rounded-lg mb-4" />
+                        )}
+                        <CardTitle className="text-lg">{service.name}</CardTitle>
+                        <CardDescription className="line-clamp-2">{service.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-2xl font-bold text-primary">
+                            {service.price} {service.currency}
+                          </span>
+                          <Badge variant="secondary">Active</Badge>
+                        </div>
+                        <Button 
+                          onClick={() => handleBookService(service)}
+                          className="w-full"
+                        >
+                          Book Now
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                {services.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <p>No services available at the moment</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="profile">
             <Card className="p-8 bg-gradient-card border-border max-w-2xl">
@@ -121,14 +195,18 @@ const ClientDashboard = () => {
                 <div className="flex-1 space-y-4">
                   <h3 className="text-lg font-semibold mb-4">{t('dashboard.profileInfo')}</h3>
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">{t('contact.name')}</label>
-                      {editing ? <Input value={fullName} onChange={(e) => setFullName(e.target.value)} /> : <p className="text-muted-foreground">{profile?.full_name || '-'}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">{t('contact.email')}</label>
-                      <p className="text-muted-foreground">{user?.email}</p>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">{t('contact.name')}</label>
+                    {editing ? <Input value={fullName} onChange={(e) => setFullName(e.target.value)} /> : <p className="text-muted-foreground">{profile?.full_name || '-'}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Phone</label>
+                    {editing ? <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+20 123 456 7890" /> : <p className="text-muted-foreground">{profile?.phone || '-'}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">{t('contact.email')}</label>
+                    <p className="text-muted-foreground">{user?.email}</p>
+                  </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">{t('dashboard.memberSince')}</label>
                       <p className="text-muted-foreground">{profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : '-'}</p>
@@ -218,6 +296,16 @@ const ClientDashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Booking Dialog */}
+      {selectedService && (
+        <BookingDialog
+          open={bookingDialogOpen}
+          onOpenChange={setBookingDialogOpen}
+          serviceName={selectedService.name}
+          serviceId={selectedService.id}
+        />
+      )}
     </div>
   );
 };
