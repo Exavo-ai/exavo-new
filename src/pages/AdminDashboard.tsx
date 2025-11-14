@@ -37,6 +37,47 @@ const AdminDashboard = () => {
     fetchRecentActivity();
     fetchServices();
     fetchPayments();
+
+    // Set up real-time subscription for new bookings
+    const appointmentsChannel = supabase
+      .channel('appointments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments'
+        },
+        () => {
+          fetchAppointments();
+          fetchStats();
+          fetchRecentActivity();
+        }
+      )
+      .subscribe();
+
+    // Set up real-time subscription for new payments
+    const paymentsChannel = supabase
+      .channel('payments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'payments'
+        },
+        () => {
+          fetchPayments();
+          fetchStats();
+          fetchRecentActivity();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(appointmentsChannel);
+      supabase.removeChannel(paymentsChannel);
+    };
   }, []);
 
   const fetchServices = async () => {
@@ -80,8 +121,18 @@ const AdminDashboard = () => {
   };
 
   const fetchUsers = async () => {
-    const { data } = await supabase.from('profiles').select(`*, user_roles (role)`).order('created_at', { ascending: false }).limit(10);
-    setUsers(data || []);
+    const { data } = await supabase
+      .from('profiles')
+      .select('*, user_roles(role)')
+      .order('created_at', { ascending: false });
+    
+    // Transform data to include role from user_roles array
+    const usersWithRoles = data?.map((user: any) => ({
+      ...user,
+      role: user.user_roles?.[0]?.role || 'client'
+    })) || [];
+    
+    setUsers(usersWithRoles);
   };
 
   const fetchAppointments = async () => {
@@ -284,29 +335,58 @@ const AdminDashboard = () => {
                 <CardDescription>View all payment transactions and Stripe data</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {payments.map((payment: any) => (
-                    <Card key={payment.id} className="border-border">
-                      <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold">{payment.profiles?.full_name || 'Unknown'}</p>
-                            <p className="text-sm text-muted-foreground">{payment.profiles?.email}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
+                {payments.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <CreditCard className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No payment transactions yet</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left p-3 text-sm">User</th>
+                          <th className="text-left p-3 text-sm">Amount</th>
+                          <th className="text-left p-3 text-sm">Status</th>
+                          <th className="text-left p-3 text-sm">Payment Method</th>
+                          <th className="text-left p-3 text-sm">Session ID</th>
+                          <th className="text-left p-3 text-sm">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payments.map((payment: any) => (
+                          <tr key={payment.id} className="border-b border-border/50 hover:bg-muted/50">
+                            <td className="p-3">
+                              <div>
+                                <p className="font-medium">{payment.profiles?.full_name || 'Unknown'}</p>
+                                <p className="text-xs text-muted-foreground">{payment.profiles?.email}</p>
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <p className="font-semibold text-primary">{payment.amount} {payment.currency}</p>
+                            </td>
+                            <td className="p-3">
+                              <Badge className={
+                                payment.status === 'completed' ? 'bg-accent/20 text-accent' : 
+                                payment.status === 'pending' ? 'bg-muted' :
+                                'bg-destructive/20 text-destructive'
+                              }>
+                                {payment.status}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-sm">{payment.payment_method || '-'}</td>
+                            <td className="p-3">
+                              <code className="text-xs bg-muted px-2 py-1 rounded">{payment.stripe_session_id || '-'}</code>
+                            </td>
+                            <td className="p-3 text-sm text-muted-foreground">
                               {new Date(payment.created_at).toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xl font-bold text-primary">{payment.amount} {payment.currency}</p>
-                            <Badge className={payment.status === 'completed' ? 'bg-accent/20 text-accent' : 'bg-muted'}>
-                              {payment.status}
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -318,11 +398,11 @@ const AdminDashboard = () => {
                 <table className="w-full">
                   <thead><tr className="border-b border-border"><th className="text-left p-3 text-sm">{t('contact.name')}</th><th className="text-left p-3 text-sm">{t('contact.email')}</th><th className="text-left p-3 text-sm">{t('dashboard.role')}</th><th className="text-left p-3 text-sm">{t('dashboard.joinedDate')}</th></tr></thead>
                   <tbody>
-                    {users.map((u) => (
+                  {users.map((u) => (
                       <tr key={u.id} className="border-b border-border/50 hover:bg-muted/50">
                         <td className="p-3">{u.full_name || '-'}</td>
                         <td className="p-3">{u.email}</td>
-                        <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${u.user_roles?.[0]?.role === 'admin' ? 'bg-primary/20 text-primary' : 'bg-secondary/20 text-secondary'}`}>{u.user_roles?.[0]?.role || 'client'}</span></td>
+                        <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${u.role === 'admin' ? 'bg-primary/20 text-primary' : 'bg-secondary/20 text-secondary'}`}>{u.role}</span></td>
                         <td className="p-3 text-sm text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</td>
                       </tr>
                     ))}
