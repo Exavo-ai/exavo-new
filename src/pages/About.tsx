@@ -53,7 +53,7 @@ const About = () => {
                 >
                   <div className="absolute inset-0 bg-gradient-card"></div>
                   <img 
-                    src="https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg" 
+                    src="https://img.youtube.com/vi/aircAruvnKk/maxresdefault.jpg" 
                     alt="Demo video thumbnail"
                     className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity"
                   />
@@ -72,7 +72,7 @@ const About = () => {
                 <VideoModal 
                   open={videoOpen}
                   onOpenChange={setVideoOpen}
-                  videoUrl="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                  videoUrl="https://www.youtube.com/embed/aircAruvnKk"
                   title="Exavo AI Platform Demo"
                 />
               </div>
