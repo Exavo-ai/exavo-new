@@ -44,10 +44,18 @@ const About = () => {
                     providing intuitive tools, expert guidance, and seamless integration solutions.
                   </p>
                 </div>
-                <div className="relative h-96 rounded-2xl overflow-hidden shadow-card animate-fade-in-up">
+                <div className="relative h-96 rounded-2xl overflow-hidden shadow-card animate-fade-in-up group cursor-pointer">
                   <div className="absolute inset-0 bg-gradient-card"></div>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-64 h-64 bg-primary/20 rounded-full blur-3xl"></div>
+                    <div className="text-center space-y-4">
+                      <div className="w-20 h-20 mx-auto rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg className="w-10 h-10 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                        </svg>
+                      </div>
+                      <p className="text-lg font-medium">Watch Our Demo</p>
+                      <p className="text-sm text-muted-foreground">See Exavo AI in action</p>
+                    </div>
                   </div>
                 </div>
               </div>

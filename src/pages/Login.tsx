@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Mail, Lock, Globe } from 'lucide-react';
@@ -13,37 +14,30 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { t, language, setLanguage } = useLanguage();
+  const { user, userRole } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user && userRole && !loading) {
+      navigate(userRole === 'admin' ? '/admin' : '/client');
+    }
+  }, [user, userRole, loading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
-
-      // Get user role
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', data.user.id)
-        .single();
-
-      // Redirect based on role
-      if (roleData?.role === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/client');
-      }
-
       toast.success(t('auth.loginSuccess'));
+      // AuthContext will handle redirect via useEffect above
     } catch (error: any) {
       toast.error(error.message || t('auth.loginError'));
-    } finally {
       setLoading(false);
     }
   };

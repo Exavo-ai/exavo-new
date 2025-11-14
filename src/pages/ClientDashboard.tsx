@@ -295,6 +295,69 @@ const ClientDashboard = () => {
               </div>
             )}
           </TabsContent>
+
+          {/* Payments Tab */}
+          <TabsContent value="payments" className="space-y-6">
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle className="text-2xl flex items-center gap-2">
+                  <CreditCard className="w-6 h-6" />
+                  Payment History
+                </CardTitle>
+                <CardDescription>View all your transactions and invoices</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {recentPayments.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <CreditCard className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <p>No payments yet</p>
+                    <p className="text-sm mt-2">Your payment history will appear here after booking services</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentPayments.map((payment) => (
+                      <Card key={payment.id} className="border-border hover:border-primary/50 transition-all">
+                        <CardContent className="p-6">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-hero flex items-center justify-center">
+                                  <CreditCard className="w-5 h-5 text-primary-foreground" />
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-lg">{payment.amount} {payment.currency}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Transaction #{payment.id.slice(0, 8)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-sm text-muted-foreground ml-13 space-y-1">
+                                <p>📅 {new Date(payment.created_at).toLocaleDateString()} at {new Date(payment.created_at).toLocaleTimeString()}</p>
+                                {payment.stripe_session_id && (
+                                  <p className="font-mono text-xs">Session: {payment.stripe_session_id.slice(0, 20)}...</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-2 items-end">
+                              <Badge 
+                                variant={payment.status === 'completed' ? 'default' : 'secondary'}
+                                className="text-sm"
+                              >
+                                {payment.status === 'completed' ? '✓ Paid' : payment.status}
+                              </Badge>
+                              <Button variant="outline" size="sm">
+                                Download Invoice
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
 

@@ -7,6 +7,8 @@ import UseCases from "@/components/UseCases";
 import PricingSection from "@/components/Pricing";
 import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
+import SocialProof from "@/components/SocialProof";
+import ChatWidget from "@/components/ChatWidget";
 
 const Index = () => {
   return (
@@ -15,6 +17,7 @@ const Index = () => {
       <main>
         <Hero />
         <Features />
+        <SocialProof />
         <Stats />
         <UseCases />
         <Testimonials />
@@ -22,6 +25,7 @@ const Index = () => {
         <CTA />
       </main>
       <Footer />
+      <ChatWidget />
     </div>
   );
 };

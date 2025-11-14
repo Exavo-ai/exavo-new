@@ -8,18 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Users, Settings, BarChart3, LogOut, Globe, Calendar, CheckCircle, XCircle, TrendingUp, MessageSquare, CreditCard, Package, UserPlus } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { Users, Settings, BarChart3, LogOut, Globe, Calendar, CheckCircle, XCircle, TrendingUp, MessageSquare, CreditCard, Package } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import AdminSettings from '@/components/AdminSettings';
 
 const AdminDashboard = () => {
   const { user, signOut } = useAuth();
@@ -188,7 +182,7 @@ const AdminDashboard = () => {
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-7 gap-2">
+          <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-8 gap-2">
             <TabsTrigger value="overview">{t('dashboard.overview')}</TabsTrigger>
             <TabsTrigger value="users"><Users className="w-4 h-4 mr-1" />{t('dashboard.users')}</TabsTrigger>
             <TabsTrigger value="services"><Package className="w-4 h-4 mr-1" />Services</TabsTrigger>
@@ -196,6 +190,7 @@ const AdminDashboard = () => {
             <TabsTrigger value="payments"><CreditCard className="w-4 h-4 mr-1" />Payments</TabsTrigger>
             <TabsTrigger value="chats"><MessageSquare className="w-4 h-4 mr-1" />Chats</TabsTrigger>
             <TabsTrigger value="activity"><TrendingUp className="w-4 h-4 mr-1" />Activity</TabsTrigger>
+            <TabsTrigger value="settings"><Settings className="w-4 h-4 mr-1" />Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -437,6 +432,11 @@ const AdminDashboard = () => {
                 ))}
               </div>
             </Card>
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings">
+            <AdminSettings />
           </TabsContent>
         </Tabs>
       </main>
