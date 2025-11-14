@@ -1,10 +1,34 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@3.2.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+async function sendEmail(to: string[], subject: string, html: string) {
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Exavo AI <noreply@exavoai.io>",
+      to,
+      subject,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to send email: ${error}`);
+  }
+
+  return await response.json();
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -12,14 +36,12 @@ serve(async (req) => {
   }
 
   try {
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
     const { email, full_name } = await req.json();
 
-    await resend.emails.send({
-      from: "Exavo AI <noreply@exavoai.io>",
-      to: [email],
-      subject: "Welcome to Exavo AI! 🎉",
-      html: `
+    await sendEmail(
+      [email],
+      "Welcome to Exavo AI! 🎉",
+      `
         <!DOCTYPE html>
         <html>
           <head>
@@ -59,15 +81,15 @@ serve(async (req) => {
             </div>
           </body>
         </html>
-      `,
-    });
+      `
+    );
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

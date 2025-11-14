@@ -1,11 +1,35 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { Resend } from "npm:resend@3.2.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+async function sendEmail(to: string[], subject: string, html: string) {
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Exavo AI <noreply@exavoai.io>",
+      to,
+      subject,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to send email: ${error}`);
+  }
+
+  return await response.json();
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -17,8 +41,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
-
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
     // Find users who started booking but didn't complete (abandoned bookings)
     // This is a scheduled function that should run daily
@@ -39,11 +61,10 @@ serve(async (req) => {
 
       // If no appointments, send reminder
       if (!appointments || appointments.length === 0) {
-        await resend.emails.send({
-          from: "Exavo AI <noreply@exavoai.io>",
-          to: [profile.email],
-          subject: "Complete Your Booking - Exavo AI",
-          html: `
+        await sendEmail(
+          [profile.email],
+          "Complete Your Booking - Exavo AI",
+          `
             <!DOCTYPE html>
             <html>
               <head>
@@ -78,8 +99,8 @@ serve(async (req) => {
                 </div>
               </body>
             </html>
-          `,
-        });
+          `
+        );
       }
     }
 
@@ -88,7 +109,7 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
