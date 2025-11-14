@@ -20,10 +20,13 @@ const Register = () => {
     setLoading(true);
 
     try {
+      const redirectUrl = `${window.location.origin}/`;
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: redirectUrl,
           data: {
             full_name: fullName,
           },
@@ -33,7 +36,16 @@ const Register = () => {
       if (error) throw error;
 
       toast.success(t('auth.registerSuccess'));
-      navigate('/login');
+      
+      // Auto-login after successful registration
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (signInError) {
+        navigate('/login');
+      }
     } catch (error: any) {
       toast.error(error.message || t('auth.registerError'));
     } finally {

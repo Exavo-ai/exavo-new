@@ -1,10 +1,13 @@
+import { useState } from "react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import VideoModal from "@/components/VideoModal";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Target, Eye, Users, Zap } from "lucide-react";
 
 const About = () => {
   const { t } = useLanguage();
+  const [videoOpen, setVideoOpen] = useState(false);
 
   return (
     <div className="min-h-screen">
@@ -44,11 +47,19 @@ const About = () => {
                     providing intuitive tools, expert guidance, and seamless integration solutions.
                   </p>
                 </div>
-                <div className="relative h-96 rounded-2xl overflow-hidden shadow-card animate-fade-in-up group cursor-pointer">
+                <div 
+                  onClick={() => setVideoOpen(true)}
+                  className="relative h-96 rounded-2xl overflow-hidden shadow-card animate-fade-in-up group cursor-pointer"
+                >
                   <div className="absolute inset-0 bg-gradient-card"></div>
+                  <img 
+                    src="https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg" 
+                    alt="Demo video thumbnail"
+                    className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity"
+                  />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center space-y-4">
-                      <div className="w-20 h-20 mx-auto rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <div className="w-20 h-20 mx-auto rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform shadow-glow">
                         <svg className="w-10 h-10 text-primary" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                         </svg>
@@ -58,6 +69,12 @@ const About = () => {
                     </div>
                   </div>
                 </div>
+                <VideoModal 
+                  open={videoOpen}
+                  onOpenChange={setVideoOpen}
+                  videoUrl="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                  title="Exavo AI Platform Demo"
+                />
               </div>
             </div>
           </div>

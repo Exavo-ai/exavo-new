@@ -16,10 +16,11 @@ const Login = () => {
   const { t, language, setLanguage } = useLanguage();
   const { user, userRole } = useAuth();
 
-  // Redirect if already logged in
   useEffect(() => {
+    // Redirect if already logged in with proper role
     if (user && userRole && !loading) {
-      navigate(userRole === 'admin' ? '/admin' : '/client');
+      const targetPath = userRole === 'admin' ? '/admin' : '/client';
+      navigate(targetPath, { replace: true });
     }
   }, [user, userRole, loading, navigate]);
 
@@ -35,7 +36,7 @@ const Login = () => {
 
       if (error) throw error;
       toast.success(t('auth.loginSuccess'));
-      // AuthContext will handle redirect via useEffect above
+      // Navigation will be handled by the useEffect above
     } catch (error: any) {
       toast.error(error.message || t('auth.loginError'));
       setLoading(false);

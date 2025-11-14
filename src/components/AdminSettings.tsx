@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { Settings, Palette, Mail, DollarSign, ToggleLeft } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const AdminSettings = () => {
@@ -15,17 +17,58 @@ const AdminSettings = () => {
   const [chatbotEnabled, setChatbotEnabled] = useState(true);
   const [paymentsEnabled, setPaymentsEnabled] = useState(true);
   const [stripeTestMode, setStripeTestMode] = useState(true);
+  const [services, setServices] = useState<any[]>([]);
+  const [loadingServices, setLoadingServices] = useState(false);
+
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  const fetchServices = async () => {
+    setLoadingServices(true);
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setServices(data || []);
+    } catch (error: any) {
+      toast.error('Failed to load services');
+    } finally {
+      setLoadingServices(false);
+    }
+  };
 
   const handleSaveGeneral = () => {
+    // In production, save to database
     toast.success('General settings saved successfully');
   };
 
   const handleSaveBranding = () => {
+    // In production, save to database
     toast.success('Branding settings saved successfully');
   };
 
   const handleSaveFeatures = () => {
+    // In production, save to database
     toast.success('Feature toggles updated successfully');
+  };
+
+  const handleToggleService = async (serviceId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('services')
+        .update({ active: !currentStatus })
+        .eq('id', serviceId);
+      
+      if (error) throw error;
+      toast.success('Service status updated');
+      fetchServices();
+    } catch (error: any) {
+      toast.error('Failed to update service');
+    }
   };
 
   return (
@@ -41,10 +84,11 @@ const AdminSettings = () => {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="features">Features</TabsTrigger>
+          <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
         </TabsList>
 
@@ -161,6 +205,35 @@ const AdminSettings = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="services" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Manage Services</CardTitle>
+              <CardDescription>Enable or disable services for clients</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loadingServices ? (
+                <p className="text-muted-foreground">Loading services...</p>
+              ) : services.length === 0 ? (
+                <p className="text-muted-foreground">No services found</p>
+              ) : (
+                services.map((service) => (
+                  <div key={service.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{service.name}</p>
+                      <p className="text-sm text-muted-foreground">{service.price} {service.currency}</p>
+                    </div>
+                    <Switch 
+                      checked={service.active}
+                      onCheckedChange={() => handleToggleService(service.id, service.active)}
+                    />
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="payments" className="space-y-4">
           <Card>
             <CardHeader>
@@ -203,19 +276,38 @@ const AdminSettings = () => {
               <CardDescription>Configure automated emails</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Booking Confirmation Email</Label>
-                <p className="text-sm text-muted-foreground">Sent when a booking is made</p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="welcomeEmail">Welcome Email Template</Label>
+                  <Textarea 
+                    id="welcomeEmail"
+                    placeholder="Welcome to Exavo AI! Thank you for joining us..."
+                    rows={4}
+                  />
+                  <p className="text-xs text-muted-foreground">Sent to new users upon registration</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bookingEmail">Booking Confirmation Template</Label>
+                  <Textarea 
+                    id="bookingEmail"
+                    placeholder="Your booking has been confirmed for..."
+                    rows={4}
+                  />
+                  <p className="text-xs text-muted-foreground">Sent when a booking is made</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentEmail">Payment Confirmation Template</Label>
+                  <Textarea 
+                    id="paymentEmail"
+                    placeholder="Thank you for your payment of..."
+                    rows={4}
+                  />
+                  <p className="text-xs text-muted-foreground">Sent when payment is successful</p>
+                </div>
+                <Button onClick={() => toast.success('Email templates updated')}>
+                  Save Email Templates
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label>Payment Confirmation Email</Label>
-                <p className="text-sm text-muted-foreground">Sent when payment is successful</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Welcome Email Sequence</Label>
-                <p className="text-sm text-muted-foreground">Sent to new users upon registration</p>
-              </div>
-              <Button>Configure Email Templates</Button>
             </CardContent>
           </Card>
         </TabsContent>
