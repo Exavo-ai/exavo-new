@@ -204,7 +204,28 @@ const Services = () => {
             </p>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-8">
+          <div className="flex flex-col lg:flex-row gap-8 relative">
+            {/* Floating Toggle Button (visible when sidebar is closed) */}
+            {!sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="fixed left-4 top-32 z-40 lg:flex hidden items-center justify-center w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-glow hover:shadow-glow-lg transition-all hover:scale-110"
+                aria-label="Show Filters"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="21" x2="4" y2="14"></line>
+                  <line x1="4" y1="10" x2="4" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12" y2="3"></line>
+                  <line x1="20" y1="21" x2="20" y2="16"></line>
+                  <line x1="20" y1="12" x2="20" y2="3"></line>
+                  <line x1="2" y1="14" x2="6" y2="14"></line>
+                  <line x1="10" y1="8" x2="14" y2="8"></line>
+                  <line x1="18" y1="16" x2="22" y2="16"></line>
+                </svg>
+              </button>
+            )}
+
             {/* Sidebar Filters */}
             <aside className={`transition-all duration-300 flex-shrink-0 ${sidebarOpen ? 'lg:w-64' : 'lg:w-0 overflow-hidden'}`}>
               <div className="sticky top-24">

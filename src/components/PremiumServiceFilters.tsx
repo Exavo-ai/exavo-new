@@ -42,6 +42,7 @@ export const PremiumServiceFilters = ({
   onToggle,
 }: PremiumServiceFiltersProps) => {
   const { language } = useLanguage();
+  const isMobile = useIsMobile();
   const [emailAlert, setEmailAlert] = useState('');
 
   const hasActiveFilters = searchQuery || selectedCategories.length > 0 || 
