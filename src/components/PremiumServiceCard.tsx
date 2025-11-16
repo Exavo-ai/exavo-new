@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import exavoLogo from "@/assets/exavo-logo.png";
+import fallbackImage from "@/assets/ai-pattern.jpg";
 
 interface PremiumServiceCardProps {
   id: string;
@@ -53,20 +54,12 @@ export const PremiumServiceCard = ({
     <Card className="group overflow-hidden bg-card hover:shadow-2xl transition-all duration-500 flex flex-col border-border/50 hover:border-primary/30 hover:-translate-y-1 h-full">
       {/* Image Section */}
       <div className="relative h-48 bg-gradient-to-br from-primary/10 via-background to-accent/10 overflow-hidden">
-        {image_url ? (
-          <>
-            <img 
-              src={image_url} 
-              alt={serviceName}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent"></div>
-          </>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Icon className="w-20 h-20 text-primary/20" strokeWidth={1} />
-          </div>
-        )}
+        <img 
+          src={image_url || fallbackImage} 
+          alt={serviceName}
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent"></div>
         
         {/* Logo Badge */}
         <div className="absolute top-4 right-4 w-12 h-12 rounded-xl bg-background/90 backdrop-blur-md shadow-lg flex items-center justify-center ring-2 ring-primary/20 p-2">
