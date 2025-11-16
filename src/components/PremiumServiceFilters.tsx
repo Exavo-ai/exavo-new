@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Search, X, ChevronLeft, SlidersHorizontal } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Search, X, ChevronLeft, SlidersHorizontal } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface PremiumServiceFiltersProps {
@@ -49,49 +49,52 @@ export const PremiumServiceFilters = ({
   const [emailAlert, setEmailAlert] = useState('');
 
   const hasActiveFilters = searchQuery || selectedCategories.length > 0 || 
-    (priceRange[0] !== 0 || priceRange[1] !== maxPrice);
+    priceRange[0] !== 0 || priceRange[1] !== maxPrice;
 
-  return (
+  const filterContent = (
     <div className="space-y-4">
-      {/* Toggle Button */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onToggle}
-        className="w-full lg:w-auto flex items-center gap-2 mb-4"
-      >
-        <Menu className="w-4 h-4" />
-        {isOpen ? (language === 'ar' ? 'إخفاء الفلاتر' : 'Hide Filters') : (language === 'ar' ? 'عرض الفلاتر' : 'Show Filters')}
-      </Button>
+      {/* Toggle Button - Desktop Only */}
+      <div className="hidden lg:flex items-center justify-between mb-2">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <span className="w-1 h-4 bg-primary rounded-full"></span>
+          {language === 'ar' ? 'فلاتر' : 'Filters'}
+        </h3>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onToggle}
+          className="h-8 w-8 p-0"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      </div>
 
-      {isOpen && (
-        <div className="space-y-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder={language === 'ar' ? 'ابحث...' : 'Search...'}
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 h-10 bg-card border-border/50 rounded-lg focus:ring-2 focus:ring-primary/20 transition-all text-sm"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => onSearchChange('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder={language === 'ar' ? 'ابحث...' : 'Search...'}
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="pl-10 h-9 bg-card border-border/50 rounded-lg focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => onSearchChange('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
+      </div>
 
-          {/* Categories */}
-          <div className="space-y-2">
-            <h3 className="text-xs font-semibold text-foreground">
-              {language === 'ar' ? 'الفئات' : 'Categories'}
-            </h3>
-            <div className="flex flex-wrap gap-1.5">
+      {/* Categories */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-semibold text-foreground">
+          {language === 'ar' ? 'الفئات' : 'Categories'}
+        </h3>
+        <div className="flex flex-wrap gap-1.5">
           {categories.map((category) => {
             const count = categoryCounts[category.id] || 0;
             const isSelected = selectedCategories.includes(category.id);
@@ -104,18 +107,17 @@ export const PremiumServiceFilters = ({
                   group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs
                   transition-all duration-300 hover:scale-105
                   ${isSelected 
-                    ? 'bg-gradient-hero text-primary-foreground shadow-glow' 
-                    : 'bg-card border border-border/50 hover:border-primary/30 text-foreground'
+                    ? 'bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30' 
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
                   }
                 `}
               >
-                <span className="text-sm">{category.icon}</span>
+                <span className="text-base leading-none">{category.icon}</span>
                 <span>{language === 'ar' ? category.name_ar : category.name}</span>
                 <Badge 
-                  variant={isSelected ? "secondary" : "outline"}
-                  className={`
-                    ml-0.5 h-4 min-w-4 flex items-center justify-center text-xs px-1
-                    ${isSelected ? 'bg-white/20 text-white border-0' : ''}
+                  variant="secondary" 
+                  className={`ml-1 px-1.5 py-0 text-[10px] min-w-[18px] h-4 flex items-center justify-center
+                    ${isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background/50'}
                   `}
                 >
                   {count}
@@ -127,87 +129,89 @@ export const PremiumServiceFilters = ({
       </div>
 
       {/* Price Range */}
-      <div className="space-y-3 p-4 bg-card/50 rounded-lg border border-border/50">
-        <h3 className="text-xs font-semibold text-foreground">
-          {language === 'ar' ? 'نطاق السعر' : 'Price Range'}
-        </h3>
-        
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold text-foreground">
+            {language === 'ar' ? 'نطاق السعر' : 'Price Range'}
+          </h3>
+          <div className="text-xs font-medium text-primary">
+            {priceRange[0].toLocaleString()} - {priceRange[1].toLocaleString()} EGP
+          </div>
+        </div>
         <Slider
           value={priceRange}
           onValueChange={(value) => onPriceRangeChange(value as [number, number])}
           max={maxPrice}
-          step={100}
+          step={1000}
           className="w-full"
         />
-        
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">
-              {language === 'ar' ? 'الحد الأدنى' : 'Min'}
-            </label>
-            <Input
-              type="number"
-              value={priceRange[0]}
-              onChange={(e) => onPriceRangeChange([Number(e.target.value), priceRange[1]])}
-              className="h-8 rounded-lg text-xs"
-              min={0}
-              max={priceRange[1]}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">
-              {language === 'ar' ? 'الحد الأقصى' : 'Max'}
-            </label>
-            <Input
-              type="number"
-              value={priceRange[1]}
-              onChange={(e) => onPriceRangeChange([priceRange[0], Number(e.target.value)])}
-              className="h-8 rounded-lg text-xs"
-              min={priceRange[0]}
-              max={maxPrice}
-            />
-          </div>
+        <div className="flex justify-between text-[10px] text-muted-foreground">
+          <span>0 EGP</span>
+          <span>{maxPrice.toLocaleString()} EGP</span>
         </div>
       </div>
 
       {/* Clear Filters */}
       {hasActiveFilters && (
-        <Button 
-          variant="outline" 
-          className="w-full rounded-lg hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all text-sm h-9"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onClearFilters}
+          className="w-full h-9 text-xs border-border/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
         >
-          <X className="w-3 h-3 mr-2" />
+          <X className="w-3 h-3 mr-1" />
           {language === 'ar' ? 'مسح الفلاتر' : 'Clear Filters'}
         </Button>
       )}
 
-        {/* Newsletter */}
-        <div className="bg-gradient-accent rounded-xl p-4 border border-primary/20">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <h3 className="font-semibold text-sm text-foreground">
-              {language === 'ar' ? 'ابق على اطلاع' : 'Stay in the loop'}
-            </h3>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-            {language === 'ar' 
-              ? 'احصل على إشعارات حول الخدمات الجديدة والعروض والمزيد!' 
-              : 'Get notified about new services!'}
-          </p>
-          <Input
-            type="email"
-            placeholder={language === 'ar' ? 'بريدك الإلكتروني' : 'your@email.com'}
-            value={emailAlert}
-            onChange={(e) => setEmailAlert(e.target.value)}
-            className="mb-2 rounded-lg h-9 text-sm"
-          />
-          <Button className="w-full rounded-lg bg-gradient-hero hover:opacity-90 shadow-glow h-9 text-sm">
-            {language === 'ar' ? 'إنشاء تنبيهات' : 'Create alerts'}
-          </Button>
-        </div>
+      {/* Newsletter Signup */}
+      <div className="pt-4 border-t border-border/50">
+        <h4 className="text-xs font-semibold text-foreground mb-2">
+          {language === 'ar' ? 'اشترك في النشرة' : 'Newsletter'}
+        </h4>
+        <Input 
+          placeholder={language === 'ar' ? 'بريدك الإلكتروني' : 'Your email'}
+          className="mb-2 h-9 text-sm"
+          value={emailAlert}
+          onChange={(e) => setEmailAlert(e.target.value)}
+        />
+        <Button className="w-full h-9 text-xs bg-gradient-hero">
+          {language === 'ar' ? 'اشترك' : 'Subscribe'}
+        </Button>
       </div>
-      )}
     </div>
+  );
+
+  // Mobile: Show filters in a Sheet (drawer)
+  if (isMobile) {
+    return (
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="fixed bottom-4 right-4 z-40 rounded-full w-14 h-14 shadow-glow"
+          >
+            <SlidersHorizontal className="h-5 w-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-80 overflow-y-auto">
+          <div className="py-4">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <span className="w-1 h-5 bg-primary rounded-full"></span>
+              {language === 'ar' ? 'فلاتر' : 'Filters'}
+            </h3>
+            {filterContent}
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  // Desktop: Show filters in a Card
+  return (
+    <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
+      {filterContent}
+    </Card>
   );
 };
