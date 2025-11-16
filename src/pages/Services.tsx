@@ -4,9 +4,9 @@ import Footer from "@/components/Footer";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import BookingDialog from "@/components/BookingDialog";
-import { ServiceCard } from "@/components/ServiceCard";
-import { ServiceFilters } from "@/components/ServiceFilters";
-import { Bot, Workflow, LineChart, Mail, FileText, BarChart3 } from "lucide-react";
+import { PremiumServiceCard } from "@/components/PremiumServiceCard";
+import { PremiumServiceFilters } from "@/components/PremiumServiceFilters";
+import { Bot, Workflow, LineChart, Mail, FileText, BarChart3, Brain, Zap, Shield, Target } from "lucide-react";
 
 interface Service {
   id: string;
@@ -26,17 +26,59 @@ const iconMap: Record<string, any> = {
   'Predictive Analytics': LineChart,
   'Marketing Automation': Mail,
   'Content Generation': FileText,
-  'Data Visualization': BarChart3
+  'Data Visualization': BarChart3,
+  'AI': Brain,
+  'Automation': Zap,
+  'Analytics': LineChart,
+  'Security': Shield,
+  'Business': Target
 };
 
 // Map services to categories
 const serviceToCategoryMap: Record<string, string> = {
-  'AI Chatbot': 'ai',
-  'Workflow Automation': 'automation',
-  'Predictive Analytics': 'analytics',
-  'Marketing Automation': 'marketing',
-  'Content Generation': 'content',
-  'Data Visualization': 'analytics'
+  'Customer Support': 'ai',
+  'Lead': 'marketing',
+  'Workflow': 'automation',
+  'Analytics': 'analytics',
+  'Predictive': 'analytics',
+  'Marketing': 'marketing',
+  'Bot': 'automation',
+  'HR': 'business',
+  'Fraud': 'ai',
+  'KPI': 'analytics',
+  'Competitor': 'analytics',
+  'Financial': 'analytics',
+  'Email': 'marketing',
+  'Social': 'marketing',
+  'Document': 'business',
+  'Sales': 'business',
+  'Inventory': 'business',
+  'Sentiment': 'analytics',
+  'Voice': 'ai',
+  'Content': 'ai',
+  'Price': 'business',
+  'Quality': 'automation',
+  'Translation': 'ai',
+  'Video': 'ai',
+  'Recruitment': 'business',
+  'Energy': 'analytics',
+  'Supply': 'analytics',
+  'Personalization': 'ai',
+  'Churn': 'analytics',
+  'Legal': 'business',
+  'Healthcare': 'ai',
+  'Real Estate': 'business',
+  'Credit': 'business',
+  'Scheduling': 'business',
+  'Product': 'business',
+  'Network': 'ai'
+};
+
+const getServiceCategory = (serviceName: string): string => {
+  for (const [keyword, category] of Object.entries(serviceToCategoryMap)) {
+    if (serviceName.includes(keyword)) return category;
+  }
+  return 'business';
 };
 
 const Services = () => {
@@ -63,7 +105,6 @@ const Services = () => {
     
     if (data) {
       setServices(data);
-      // Set max price range based on data
       const maxPrice = Math.max(...data.map(s => s.price), 50000);
       setPriceRange([0, maxPrice]);
     }
@@ -89,10 +130,9 @@ const Services = () => {
     setPriceRange([0, maxPrice]);
   };
 
-  // Filtered services based on all filters
+  // Filtered services
   const filteredServices = useMemo(() => {
     return services.filter(service => {
-      // Search filter
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch = 
         service.name.toLowerCase().includes(searchLower) ||
@@ -100,13 +140,11 @@ const Services = () => {
         service.description.toLowerCase().includes(searchLower) ||
         service.description_ar.includes(searchQuery);
 
-      // Category filter
-      const serviceCategory = serviceToCategoryMap[service.name];
+      const serviceCategory = getServiceCategory(service.name);
       const matchesCategory = 
         selectedCategories.length === 0 || 
         selectedCategories.includes(serviceCategory);
 
-      // Price filter
       const matchesPrice = 
         service.price >= priceRange[0] && 
         service.price <= priceRange[1];
@@ -115,19 +153,19 @@ const Services = () => {
     });
   }, [services, searchQuery, selectedCategories, priceRange]);
 
-  // Calculate category counts
+  // Category counts
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {
       ai: 0,
       automation: 0,
       analytics: 0,
       marketing: 0,
-      content: 0,
+      business: 0,
     };
 
     services.forEach(service => {
-      const category = serviceToCategoryMap[service.name];
-      if (category && counts[category] !== undefined) {
+      const category = getServiceCategory(service.name);
+      if (counts[category] !== undefined) {
         counts[category]++;
       }
     });
@@ -140,69 +178,95 @@ const Services = () => {
     [services]
   );
 
+  // Get icon for service
+  const getServiceIcon = (serviceName: string) => {
+    for (const [key, icon] of Object.entries(iconMap)) {
+      if (serviceName.includes(key)) return icon;
+    }
+    return Bot;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
       <main className="pt-24 pb-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-[1400px]">
-          <div className="flex flex-col lg:flex-row gap-6">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-[1600px]">
+          {/* Header */}
+          <div className="mb-8 text-center">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-hero bg-clip-text text-transparent">
+              {language === 'ar' ? 'خدمات الذكاء الاصطناعي المتميزة' : 'Premium AI Services'}
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              {language === 'ar' 
+                ? 'اكتشف مجموعتنا الكاملة من حلول الذكاء الاصطناعي المتقدمة لتحويل أعمالك'
+                : 'Discover our complete collection of advanced AI solutions to transform your business'}
+            </p>
+          </div>
+
+          <div className="flex flex-col lg:flex-row gap-8">
             {/* Sidebar Filters */}
-            <ServiceFilters
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              selectedCategories={selectedCategories}
-              onCategoryToggle={handleCategoryToggle}
-              priceRange={priceRange}
-              onPriceRangeChange={setPriceRange}
-              maxPrice={maxPrice}
-              categoryCounts={categoryCounts}
-              onClearFilters={handleClearFilters}
-            />
+            <aside className="lg:w-80 flex-shrink-0">
+              <div className="sticky top-24">
+                <PremiumServiceFilters
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  selectedCategories={selectedCategories}
+                  onCategoryToggle={handleCategoryToggle}
+                  priceRange={priceRange}
+                  onPriceRangeChange={setPriceRange}
+                  maxPrice={maxPrice}
+                  categoryCounts={categoryCounts}
+                  onClearFilters={handleClearFilters}
+                />
+              </div>
+            </aside>
 
             {/* Main Content */}
             <div className="flex-1 min-w-0">
-              {/* Header */}
-              <div className="mb-6">
-                <h1 className="text-3xl font-bold text-foreground">
+              {/* Results Count */}
+              <div className="mb-6 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-foreground">
                   {language === 'ar' 
-                    ? `عرض ${filteredServices.length} خدمة` 
-                    : `Showing ${filteredServices.length} services`}
-                </h1>
+                    ? `${filteredServices.length} خدمة متاحة` 
+                    : `${filteredServices.length} services available`}
+                </h2>
               </div>
 
-              {/* Services Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredServices.map((service) => {
-                  const Icon = iconMap[service.name] || Bot;
-                  
-                  return (
-                    <ServiceCard
-                      key={service.id}
-                      id={service.id}
-                      name={service.name}
-                      name_ar={service.name_ar}
-                      description={service.description}
-                      description_ar={service.description_ar}
-                      price={service.price}
-                      currency={service.currency}
-                      image_url={service.image_url}
-                      Icon={Icon}
-                      onBook={() => handleBookService(service)}
-                    />
-                  );
-                })}
+              {/* Horizontal Scroll Container */}
+              <div className="relative">
+                <div className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
+                  {filteredServices.map((service) => {
+                    const Icon = getServiceIcon(service.name);
+                    
+                    return (
+                      <PremiumServiceCard
+                        key={service.id}
+                        id={service.id}
+                        name={service.name}
+                        name_ar={service.name_ar}
+                        description={service.description}
+                        description_ar={service.description_ar}
+                        price={service.price}
+                        currency={service.currency}
+                        image_url={service.image_url}
+                        Icon={Icon}
+                        onBook={() => handleBookService(service)}
+                      />
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Empty State */}
               {filteredServices.length === 0 && (
                 <div className="text-center py-20">
-                  <div className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4">
-                    <Bot className="w-full h-full" />
+                  <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
+                    <Bot className="w-12 h-12 text-muted-foreground" />
                   </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-2">
+                  <h3 className="text-2xl font-bold text-foreground mb-2">
                     {language === 'ar' ? 'لا توجد نتائج' : 'No results found'}
                   </h3>
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground mb-6">
                     {language === 'ar' 
                       ? 'جرب تعديل البحث أو الفلاتر' 
                       : 'Try adjusting your search or filters'}
