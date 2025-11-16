@@ -1,15 +1,21 @@
 import { Button } from "@/components/ui/button";
-import { Menu, X, Globe } from "lucide-react";
+import { Menu, X, Globe, Sun, Moon } from "lucide-react";
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/hooks/useTheme";
 import exavoLogo from "@/assets/exavo-logo.png";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { language, setLanguage, t } = useLanguage();
+  const { theme, setTheme } = useTheme();
 
   const toggleLanguage = () => {
     setLanguage(language === 'en' ? 'ar' : 'en');
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   return (
@@ -45,6 +51,9 @@ const Navigation = () => {
           </div>
           
           <div className="hidden md:flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={toggleTheme} className="hover:scale-105 transition-transform" aria-label="Toggle theme">
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </Button>
             <Button variant="ghost" size="sm" onClick={toggleLanguage} className="gap-2 hover:scale-105 transition-transform">
               <Globe className="w-4 h-4" />
               <span className="text-sm">{language === 'en' ? 'AR' : 'EN'}</span>
@@ -71,6 +80,10 @@ const Navigation = () => {
             <a href="/blog" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">Blog</a>
             <a href="/contact" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">{t('nav.contact')}</a>
             <div className="flex flex-col gap-2 pt-4">
+              <Button variant="outline" onClick={toggleTheme} className="w-full gap-2">
+                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              </Button>
               <Button variant="outline" onClick={toggleLanguage} className="w-full gap-2">
                 <Globe className="w-4 h-4" />
                 {language === 'en' ? 'العربية' : 'English'}
