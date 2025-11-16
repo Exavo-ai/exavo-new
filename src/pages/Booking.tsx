@@ -4,9 +4,12 @@ import Footer from '@/components/Footer';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import BookingDialog from '@/components/BookingDialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Bot, Workflow, LineChart, Mail, FileText, BarChart3 } from 'lucide-react';
+import { Bot, Workflow, LineChart, Mail, FileText, BarChart3, Search, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const iconMap: Record<string, any> = {
@@ -23,8 +26,11 @@ const Booking = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [services, setServices] = useState<any[]>([]);
+  const [filteredServices, setFilteredServices] = useState<any[]>([]);
   const [selectedService, setSelectedService] = useState<{ name: string; id: string } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [emailAlert, setEmailAlert] = useState('');
 
   useEffect(() => {
     if (!user) {
@@ -42,7 +48,22 @@ const Booking = () => {
       .order('name');
 
     setServices(data || []);
+    setFilteredServices(data || []);
   };
+
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const filtered = services.filter(service => {
+        const name = language === 'ar' ? service.name_ar : service.name;
+        const description = language === 'ar' ? service.description_ar : service.description;
+        return name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+               description.toLowerCase().includes(searchQuery.toLowerCase());
+      });
+      setFilteredServices(filtered);
+    } else {
+      setFilteredServices(services);
+    }
+  }, [searchQuery, services, language]);
 
   const handleBookService = (service: any) => {
     setSelectedService({
@@ -53,56 +74,159 @@ const Booking = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Navigation />
-      <main>
-        <section className="relative overflow-hidden pt-32 pb-20">
-          <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5"></div>
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="max-w-4xl mx-auto text-center space-y-6">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold">
-                {t('booking.title')}
-              </h1>
-              <p className="text-xl text-muted-foreground">
-                {t('services.subtitle')}
-              </p>
-            </div>
-          </div>
-        </section>
+      <main className="pt-24 pb-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Sidebar */}
+            <aside className="lg:w-64 flex-shrink-0">
+              <div className="sticky top-24 space-y-6">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder={language === 'ar' ? 'ابحث عن أي شيء' : 'Search for anything'}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 bg-card border-border"
+                  />
+                </div>
 
-        <section className="py-20">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto">
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {services.map((service, index) => {
+                {/* Filters */}
+                <Card className="p-4 bg-card border-border">
+                  <button className="flex items-center justify-between w-full mb-3">
+                    <span className="font-semibold text-foreground">{language === 'ar' ? 'الفئات' : 'Categories'}</span>
+                    <Filter className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                  <Button variant="outline" className="w-full justify-start">
+                    {language === 'ar' ? 'مسح الفلاتر' : 'Clear filters'}
+                  </Button>
+                </Card>
+
+                {/* Newsletter */}
+                <Card className="p-6 bg-card border-border">
+                  <h3 className="font-semibold mb-2 text-foreground">
+                    {language === 'ar' ? 'ابق على اطلاع' : 'Stay in the loop'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {language === 'ar' ? 'احصل على إشعارات حول الخدمات الجديدة والعروض' : 'Get notified about new services, discounts, and much more!'}
+                  </p>
+                  <Input
+                    type="email"
+                    placeholder={language === 'ar' ? 'بريدك الإلكتروني' : 'your@email.com'}
+                    value={emailAlert}
+                    onChange={(e) => setEmailAlert(e.target.value)}
+                    className="mb-3 bg-background border-border"
+                  />
+                  <Button variant="default" className="w-full">
+                    {language === 'ar' ? 'إنشاء تنبيهات' : 'Create alerts'}
+                  </Button>
+                </Card>
+              </div>
+            </aside>
+
+            {/* Main Content */}
+            <div className="flex-1">
+              <div className="mb-8">
+                <h1 className="text-4xl font-bold text-foreground mb-2">
+                  {language === 'ar' ? `عرض ${filteredServices.length} خدمة` : `Showing ${filteredServices.length} services`}
+                </h1>
+              </div>
+
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredServices.map((service) => {
                   const Icon = iconMap[service.name] || Bot;
                   return (
                     <Card
                       key={service.id}
-                      className="p-8 bg-card border-border hover:border-primary/50 transition-all hover:-translate-y-2 shadow-card cursor-pointer"
-                      onClick={() => handleBookService(service)}
+                      className="overflow-hidden bg-card border-border hover:shadow-elegant transition-all cursor-pointer group"
                     >
-                      <div className="w-14 h-14 rounded-lg bg-gradient-hero flex items-center justify-center mb-6">
-                        <Icon className="w-7 h-7 text-primary-foreground" />
+                      {/* Image */}
+                      <div className="relative h-48 bg-gradient-to-br from-primary/20 to-primary/5 overflow-hidden">
+                        {service.image_url ? (
+                          <img 
+                            src={service.image_url} 
+                            alt={language === 'ar' ? service.name_ar : service.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Icon className="w-20 h-20 text-primary/30" />
+                          </div>
+                        )}
+                        <div className="absolute top-4 left-4 w-12 h-12 rounded-lg bg-primary/90 backdrop-blur-sm flex items-center justify-center">
+                          <Icon className="w-6 h-6 text-primary-foreground" />
+                        </div>
                       </div>
-                      
-                      <h3 className="text-2xl font-bold mb-3">
-                        {language === 'ar' ? service.name_ar : service.name}
-                      </h3>
-                      <p className="text-muted-foreground mb-4">
-                        {language === 'ar' ? service.description_ar : service.description}
-                      </p>
-                      
-                      <div className="text-primary font-semibold mb-6">
-                        {service.price.toLocaleString()} {service.currency}/mo
+
+                      {/* Content */}
+                      <div className="p-6">
+                        <h3 className="text-xl font-bold mb-2 text-foreground group-hover:text-primary transition-colors">
+                          {language === 'ar' ? service.name_ar : service.name}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                          {language === 'ar' ? service.description_ar : service.description}
+                        </p>
+
+                        {/* Tags */}
+                        <div className="flex gap-2 mb-4">
+                          <Badge variant="secondary" className="text-xs">
+                            {language === 'ar' ? 'الذكاء الاصطناعي' : 'AI Service'}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {language === 'ar' ? 'متاح الآن' : 'Available'}
+                          </Badge>
+                        </div>
+
+                        {/* Price & Details */}
+                        <div className="flex items-center justify-between text-sm text-muted-foreground mb-4 pb-4 border-b border-border">
+                          <span className="font-semibold text-primary">
+                            {service.price.toLocaleString()} {service.currency}
+                          </span>
+                          <span>{language === 'ar' ? 'شهرياً' : '/month'}</span>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate('/services');
+                            }}
+                          >
+                            {language === 'ar' ? 'التفاصيل' : 'Details'}
+                          </Button>
+                          <Button 
+                            variant="default"
+                            className="flex-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleBookService(service);
+                            }}
+                          >
+                            {language === 'ar' ? 'احجز الآن' : 'Book now'}
+                          </Button>
+                        </div>
                       </div>
                     </Card>
                   );
                 })}
               </div>
+
+              {filteredServices.length === 0 && (
+                <div className="text-center py-20">
+                  <p className="text-muted-foreground text-lg">
+                    {language === 'ar' ? 'لا توجد خدمات متاحة' : 'No services found'}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
-        </section>
+        </div>
       </main>
       <Footer />
 
