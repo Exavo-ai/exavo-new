@@ -1,5 +1,6 @@
 import { Linkedin, Twitter, Mail, MapPin, Phone } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import exavoLogo from "@/assets/exavo-logo.png";
 
 const Footer = () => {
   const { t } = useLanguage();
@@ -9,7 +10,10 @@ const Footer = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div className="space-y-4">
-            <h3 className="text-lg font-bold bg-gradient-hero bg-clip-text text-transparent">Exavo AI</h3>
+            <div className="flex items-center gap-2">
+              <img src={exavoLogo} alt="Exavo AI" className="h-8 w-8" />
+              <h3 className="text-lg font-bold bg-gradient-hero bg-clip-text text-transparent">Exavo AI</h3>
+            </div>
             <p className="text-sm text-muted-foreground">Making AI accessible for every business.</p>
             <div className="flex gap-4">
               <a href="#" className="text-muted-foreground hover:text-primary transition-colors"><Twitter className="w-5 h-5" /></a>

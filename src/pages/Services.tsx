@@ -86,6 +86,7 @@ const Services = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -205,7 +206,7 @@ const Services = () => {
 
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Sidebar Filters */}
-            <aside className="lg:w-80 flex-shrink-0">
+            <aside className={`transition-all duration-300 flex-shrink-0 ${sidebarOpen ? 'lg:w-64' : 'lg:w-0 overflow-hidden'}`}>
               <div className="sticky top-24">
                 <PremiumServiceFilters
                   searchQuery={searchQuery}
@@ -217,44 +218,35 @@ const Services = () => {
                   maxPrice={maxPrice}
                   categoryCounts={categoryCounts}
                   onClearFilters={handleClearFilters}
+                  isOpen={sidebarOpen}
+                  onToggle={() => setSidebarOpen(!sidebarOpen)}
                 />
               </div>
             </aside>
 
             {/* Main Content */}
             <div className="flex-1 min-w-0">
-              {/* Results Count */}
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-foreground">
-                  {language === 'ar' 
-                    ? `${filteredServices.length} خدمة متاحة` 
-                    : `${filteredServices.length} services available`}
-                </h2>
-              </div>
-
-              {/* Horizontal Scroll Container */}
-              <div className="relative">
-                <div className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
-                  {filteredServices.map((service) => {
-                    const Icon = getServiceIcon(service.name);
-                    
-                    return (
-                      <PremiumServiceCard
-                        key={service.id}
-                        id={service.id}
-                        name={service.name}
-                        name_ar={service.name_ar}
-                        description={service.description}
-                        description_ar={service.description_ar}
-                        price={service.price}
-                        currency={service.currency}
-                        image_url={service.image_url}
-                        Icon={Icon}
-                        onBook={() => handleBookService(service)}
-                      />
-                    );
-                  })}
-                </div>
+              {/* Grid Container */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredServices.map((service) => {
+                  const Icon = getServiceIcon(service.name);
+                  
+                  return (
+                    <PremiumServiceCard
+                      key={service.id}
+                      id={service.id}
+                      name={service.name}
+                      name_ar={service.name_ar}
+                      description={service.description}
+                      description_ar={service.description_ar}
+                      price={service.price}
+                      currency={service.currency}
+                      image_url={service.image_url}
+                      Icon={Icon}
+                      onBook={() => handleBookService(service)}
+                    />
+                  );
+                })}
               </div>
 
               {/* Empty State */}

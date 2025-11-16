@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, Globe } from "lucide-react";
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import exavoLogo from "@/assets/exavo-logo.png";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,8 +17,9 @@ const Navigation = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
-            <a href="/" className="text-xl font-bold bg-gradient-hero bg-clip-text text-transparent hover:scale-105 transition-transform">
-              Exavo AI
+            <a href="/" className="flex items-center gap-2 hover:scale-105 transition-transform">
+              <img src={exavoLogo} alt="Exavo AI" className="h-8 w-8" />
+              <span className="text-xl font-bold bg-gradient-hero bg-clip-text text-transparent">Exavo AI</span>
             </a>
             
             <div className="hidden md:flex items-center gap-6">

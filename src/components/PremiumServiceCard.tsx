@@ -5,6 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
 import { Calendar, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import exavoLogo from "@/assets/exavo-logo.png";
 
 interface PremiumServiceCardProps {
   id: string;
@@ -49,9 +50,9 @@ export const PremiumServiceCard = ({
   };
 
   return (
-    <Card className="group overflow-hidden bg-card hover:shadow-2xl transition-all duration-500 flex flex-col min-w-[320px] max-w-[380px] snap-center border-border/50 hover:border-primary/30 hover:-translate-y-1">
+    <Card className="group overflow-hidden bg-card hover:shadow-2xl transition-all duration-500 flex flex-col border-border/50 hover:border-primary/30 hover:-translate-y-1 h-full">
       {/* Image Section */}
-      <div className="relative h-56 bg-gradient-to-br from-primary/10 via-background to-accent/10 overflow-hidden">
+      <div className="relative h-48 bg-gradient-to-br from-primary/10 via-background to-accent/10 overflow-hidden">
         {image_url ? (
           <>
             <img 
@@ -63,13 +64,13 @@ export const PremiumServiceCard = ({
           </>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Icon className="w-24 h-24 text-primary/20" strokeWidth={1} />
+            <Icon className="w-20 h-20 text-primary/20" strokeWidth={1} />
           </div>
         )}
         
-        {/* Icon Badge */}
-        <div className="absolute top-4 right-4 w-12 h-12 rounded-xl bg-background/90 backdrop-blur-md shadow-lg flex items-center justify-center ring-2 ring-primary/20">
-          <Icon className="w-6 h-6 text-primary" strokeWidth={2.5} />
+        {/* Logo Badge */}
+        <div className="absolute top-4 right-4 w-12 h-12 rounded-xl bg-background/90 backdrop-blur-md shadow-lg flex items-center justify-center ring-2 ring-primary/20 p-2">
+          <img src={exavoLogo} alt="Exavo" className="w-full h-full object-contain" />
         </div>
       </div>
 
