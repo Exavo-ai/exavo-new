@@ -30,13 +30,13 @@ const Testimonials = () => {
   ];
 
   return (
-    <section className="py-24 bg-gradient-accent/50">
+    <section className="py-20 lg:py-24 bg-muted/30">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16 animate-fade-in">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
             Trusted by <span className="bg-gradient-hero bg-clip-text text-transparent">Industry Leaders</span>
           </h2>
-          <p className="text-xl text-muted-foreground">
+          <p className="text-lg text-muted-foreground">
             See what our clients say about transforming their businesses with AI
           </p>
         </div>

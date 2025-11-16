@@ -8,11 +8,11 @@ const CTA = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-hero"></div>
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff1a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff1a_1px,transparent_1px)] bg-[size:4rem_4rem]"></div>
+    <section className="py-20 lg:py-24 relative overflow-hidden bg-gradient-to-br from-primary via-primary/95 to-secondary">
+      {/* Subtle pattern overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:3rem_3rem]"></div>
       
-      {/* Animated orbs */}
+      {/* Ambient glow */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-white/10 rounded-full blur-[120px] animate-pulse"></div>
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
       
@@ -23,7 +23,7 @@ const CTA = () => {
               ? 'هل أنت مستعد لتحويل أعمالك؟'
               : 'Ready to Transform Your Business?'}
           </h2>
-          <p className="text-lg sm:text-xl opacity-90 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {language === 'ar'
               ? 'انضم إلى آلاف الشركات التي تستخدم Exavo لاتخاذ قرارات مدعومة بالبيانات'
               : 'Join thousands of businesses using Exavo to make data-driven decisions'}
@@ -32,7 +32,7 @@ const CTA = () => {
             <Button 
               variant="secondary" 
               size="lg"
-              className="shadow-glow hover:shadow-glow-lg hover:scale-105 transition-all text-lg px-8"
+              className="shadow-glow hover:shadow-glow-lg hover:scale-105 transition-all text-base sm:text-lg px-8 h-12 sm:h-14"
               onClick={() => navigate('/contact')}
             >
               {language === 'ar' ? 'ابدأ الآن' : 'Get Started Now'}
@@ -41,7 +41,7 @@ const CTA = () => {
             <Button 
               variant="outline" 
               size="lg"
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:scale-105 transition-all text-lg px-8"
+              className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:scale-105 transition-all text-base sm:text-lg px-8 h-12 sm:h-14"
               onClick={() => navigate('/services')}
             >
               {language === 'ar' ? 'استكشف الخدمات' : 'Explore Services'}
