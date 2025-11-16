@@ -70,7 +70,7 @@ const App = () => (
                 }
               />
               <Route
-                path="/client"
+                path="/client/*"
                 element={
                   <ProtectedRoute requireRole="client">
                     <ClientDashboard />

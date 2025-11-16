@@ -1,376 +1,53 @@
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { User, LogOut, Globe, Camera, Calendar, Plus, ShoppingBag, MessageSquare, CreditCard } from 'lucide-react';
-import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
-import BookingDialog from '@/components/BookingDialog';
-import { Badge } from '@/components/ui/badge';
+import { Navigate, Route, Routes } from "react-router-dom";
+import { PortalLayout } from "@/components/portal/PortalLayout";
+import DashboardPage from "./portal/Dashboard";
+import ClientsPage from "./portal/crm/Clients";
+import LeadsPage from "./portal/crm/Leads";
+import SubscriptionsPage from "./portal/Subscriptions";
+import TicketsPage from "./portal/Tickets";
+import OrdersPage from "./portal/Orders";
+import AIToolsPage from "./portal/AITools";
+import TeamPage from "./portal/Team";
+import SettingsPage from "./portal/Settings";
+
+// Placeholder components for routes that weren't fully built yet
+const PlaceholderPage = ({ title }: { title: string }) => (
+  <div className="space-y-6">
+    <div>
+      <h1 className="text-3xl font-bold">{title}</h1>
+      <p className="text-muted-foreground">This page is under construction</p>
+    </div>
+  </div>
+);
 
 const ClientDashboard = () => {
-  const { user, signOut } = useAuth();
-  const { t, language, setLanguage } = useLanguage();
-  const navigate = useNavigate();
-  const [profile, setProfile] = useState<any>(null);
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [recentPayments, setRecentPayments] = useState<any[]>([]);
-  const [services, setServices] = useState<any[]>([]);
-  const [editing, setEditing] = useState(false);
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<any>(null);
-
-  useEffect(() => {
-    if (user) {
-      fetchProfile();
-      fetchAppointments();
-      fetchRecentPayments();
-      fetchServices();
-    }
-  }, [user]);
-
-  const fetchServices = async () => {
-    const { data } = await supabase.from('services').select('*').eq('active', true).order('created_at', { ascending: false });
-    setServices(data || []);
-  };
-
-  const fetchProfile = async () => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', user?.id).single();
-    if (data) {
-      setProfile(data);
-      setFullName(data.full_name || '');
-      setPhone(data.phone || '');
-    }
-  };
-
-  const fetchAppointments = async () => {
-    const { data } = await supabase.from('appointments').select('*').eq('user_id', user?.id).order('appointment_date', { ascending: false });
-    setAppointments(data || []);
-  };
-
-  const fetchRecentPayments = async () => {
-    const { data } = await supabase
-      .from('payments')
-      .select('*')
-      .eq('user_id', user?.id)
-      .eq('status', 'completed')
-      .order('created_at', { ascending: false })
-      .limit(5);
-    setRecentPayments(data || []);
-  };
-
-  const handleUpdateProfile = async () => {
-    try {
-      const { error } = await supabase.from('profiles').update({ 
-        full_name: fullName,
-        phone 
-      }).eq('id', user?.id);
-      if (error) throw error;
-      toast.success(t('dashboard.profileUpdated'));
-      setEditing(false);
-      fetchProfile();
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
-
-  const handleBookService = (service: any) => {
-    setSelectedService(service);
-    setBookingDialogOpen(true);
-  };
-
-  const handleBookingSuccess = () => {
-    setBookingDialogOpen(false);
-    setSelectedService(null);
-    fetchAppointments();
-    toast.success('Booking created successfully! Check your email for confirmation.');
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'bg-accent/20 text-accent';
-      case 'cancelled': return 'bg-destructive/20 text-destructive';
-      case 'completed': return 'bg-primary/20 text-primary';
-      default: return 'bg-muted text-muted-foreground';
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-card border-b border-border">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-hero flex items-center justify-center">
-                <User className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold">{t('dashboard.myDashboard')}</h1>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}><Globe className="w-4 h-4" /></Button>
-              <Button variant="outline" onClick={signOut}><LogOut className="w-4 h-4" />{t('auth.signOut')}</Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="services">
-          <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-4 mb-8">
-            <TabsTrigger value="services"><ShoppingBag className="w-4 h-4 mr-2" />Services</TabsTrigger>
-            <TabsTrigger value="profile"><User className="w-4 h-4 mr-2" />{t('dashboard.myProfile')}</TabsTrigger>
-            <TabsTrigger value="bookings"><Calendar className="w-4 h-4 mr-2" />{t('dashboard.myBookings')}</TabsTrigger>
-            <TabsTrigger value="payments"><CreditCard className="w-4 h-4 mr-2" />Payments</TabsTrigger>
-          </TabsList>
-
-          {/* Services Tab */}
-          <TabsContent value="services" className="space-y-6">
-            <Card className="border-primary/20">
-              <CardHeader>
-                <CardTitle className="text-2xl">Available Services</CardTitle>
-                <CardDescription>Browse and book our AI services</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {services.map((service) => (
-                    <Card key={service.id} className="border-border hover:border-primary/50 transition-all hover:shadow-lg">
-                      <CardHeader>
-                        {service.image_url && (
-                          <img src={service.image_url} alt={service.name} className="w-full h-40 object-cover rounded-lg mb-4" />
-                        )}
-                        <CardTitle className="text-lg">{service.name}</CardTitle>
-                        <CardDescription className="line-clamp-2">{service.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-2xl font-bold text-primary">
-                            {service.price} {service.currency}
-                          </span>
-                          <Badge variant="secondary">Active</Badge>
-                        </div>
-                        <Button 
-                          onClick={() => handleBookService(service)}
-                          className="w-full"
-                        >
-                          Book Now
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-                {services.length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p>No services available at the moment</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="profile">
-            <Card className="p-8 bg-gradient-card border-border max-w-2xl">
-              <div className="flex flex-col md:flex-row gap-8">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="w-32 h-32 rounded-full bg-gradient-hero flex items-center justify-center relative group">
-                    <User className="w-16 h-16 text-primary-foreground" />
-                    <button className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Camera className="w-6 h-6 text-white" />
-                    </button>
-                  </div>
-                  <div className="text-center">
-                    <h2 className="font-bold text-xl">{profile?.full_name || t('dashboard.unnamed')}</h2>
-                    <p className="text-sm text-muted-foreground">{user?.email}</p>
-                  </div>
-                </div>
-
-                <div className="flex-1 space-y-4">
-                  <h3 className="text-lg font-semibold mb-4">{t('dashboard.profileInfo')}</h3>
-                  <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">{t('contact.name')}</label>
-                    {editing ? <Input value={fullName} onChange={(e) => setFullName(e.target.value)} /> : <p className="text-muted-foreground">{profile?.full_name || '-'}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Phone</label>
-                    {editing ? <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+20 123 456 7890" /> : <p className="text-muted-foreground">{profile?.phone || '-'}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">{t('contact.email')}</label>
-                    <p className="text-muted-foreground">{user?.email}</p>
-                  </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">{t('dashboard.memberSince')}</label>
-                      <p className="text-muted-foreground">{profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : '-'}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 pt-4">
-                    {editing ? (<><Button onClick={handleUpdateProfile} variant="hero">{t('dashboard.saveChanges')}</Button><Button onClick={() => setEditing(false)} variant="outline">{t('dashboard.cancel')}</Button></>) : (<Button onClick={() => setEditing(true)} variant="outline">{t('dashboard.editProfile')}</Button>)}
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="bookings" className="space-y-6">
-            {recentPayments.length > 0 && (
-              <Card className="p-6 bg-gradient-card border-border">
-                <h3 className="text-lg font-semibold mb-4">{t('dashboard.recentPayments')}</h3>
-                <div className="space-y-3">
-                  {recentPayments.map((payment) => (
-                    <div key={payment.id} className="flex justify-between items-center p-3 bg-background/50 rounded-lg">
-                      <div>
-                        <p className="font-medium">{payment.amount} {payment.currency}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(payment.created_at).toLocaleDateString()}</p>
-                      </div>
-                      <span className="text-xs px-2 py-1 bg-primary/20 text-primary rounded">{t('booking.completed')}</span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">{t('dashboard.myBookings')}</h2>
-              <Button variant="hero" onClick={() => navigate('/booking')}><Plus className="w-4 h-4" />{t('dashboard.newBooking')}</Button>
-            </div>
-
-            {appointments.length === 0 ? (
-              <Card className="p-12 text-center bg-card border-border">
-                <Calendar className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground mb-4">{t('dashboard.noBookings')}</p>
-                <Button variant="hero" onClick={() => navigate('/booking')}>{t('dashboard.bookFirstService')}</Button>
-              </Card>
-            ) : (
-              <div className="grid gap-4">
-                {appointments.map((apt) => (
-                  <Card key={apt.id} className="p-6 bg-gradient-card border-border">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-2 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-lg">{apt.full_name}</h3>
-                          <span className={`px-2 py-1 rounded text-xs ${getStatusColor(apt.status)}`}>{t(`booking.${apt.status}`)}</span>
-                        </div>
-                        <div className="text-sm text-muted-foreground space-y-1">
-                          <p>📅 {apt.appointment_date} at {apt.appointment_time}</p>
-                          <p>📧 {apt.email}</p>
-                          <p>📞 {apt.phone}</p>
-                          {apt.notes && <p>📝 {apt.notes}</p>}
-                        </div>
-                      </div>
-                      {apt.status === 'pending' && (
-                        <Button 
-                          variant="destructive" 
-                          size="sm"
-                          onClick={async () => {
-                            try {
-                              const { error } = await supabase
-                                .from('appointments')
-                                .update({ status: 'cancelled' })
-                                .eq('id', apt.id);
-                              
-                              if (error) throw error;
-                              toast.success(t('dashboard.bookingCancelled'));
-                              fetchAppointments();
-                            } catch (error: any) {
-                              toast.error(error.message);
-                            }
-                          }}
-                        >
-                          {t('dashboard.cancelBooking')}
-                        </Button>
-                      )}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Payments Tab */}
-          <TabsContent value="payments" className="space-y-6">
-            <Card className="border-primary/20">
-              <CardHeader>
-                <CardTitle className="text-2xl flex items-center gap-2">
-                  <CreditCard className="w-6 h-6" />
-                  Payment History
-                </CardTitle>
-                <CardDescription>View all your transactions and invoices</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {recentPayments.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <CreditCard className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p>No payments yet</p>
-                    <p className="text-sm mt-2">Your payment history will appear here after booking services</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {recentPayments.map((payment) => (
-                      <Card key={payment.id} className="border-border hover:border-primary/50 transition-all">
-                        <CardContent className="p-6">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="space-y-2 flex-1">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-hero flex items-center justify-center">
-                                  <CreditCard className="w-5 h-5 text-primary-foreground" />
-                                </div>
-                                <div>
-                                  <p className="font-semibold text-lg">{payment.amount} {payment.currency}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    Transaction #{payment.id.slice(0, 8)}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="text-sm text-muted-foreground ml-13 space-y-1">
-                                <p>📅 {new Date(payment.created_at).toLocaleDateString()} at {new Date(payment.created_at).toLocaleTimeString()}</p>
-                                {payment.stripe_session_id && (
-                                  <p className="font-mono text-xs">Session: {payment.stripe_session_id.slice(0, 20)}...</p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex flex-col gap-2 items-end">
-                              <Badge 
-                                variant={payment.status === 'completed' ? 'default' : 'secondary'}
-                                className="text-sm"
-                              >
-                                {payment.status === 'completed' ? '✓ Paid' : payment.status}
-                              </Badge>
-                              <Button variant="outline" size="sm">
-                                Download Invoice
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
-
-      {/* Booking Dialog */}
-      {selectedService && (
-        <BookingDialog
-          open={bookingDialogOpen}
-          onOpenChange={setBookingDialogOpen}
-          serviceName={selectedService.name}
-          serviceId={selectedService.id}
-        />
-      )}
-    </div>
+    <PortalLayout>
+      <Routes>
+        <Route index element={<DashboardPage />} />
+        <Route path="my-services" element={<PlaceholderPage title="My Services" />} />
+        <Route path="active-tools" element={<PlaceholderPage title="Active Tools" />} />
+        <Route path="purchase-history" element={<PlaceholderPage title="Purchase History" />} />
+        <Route path="ai-tools" element={<AIToolsPage />} />
+        <Route path="automations" element={<PlaceholderPage title="Automations" />} />
+        <Route path="workflows" element={<PlaceholderPage title="Workflows" />} />
+        <Route path="crm/leads" element={<LeadsPage />} />
+        <Route path="crm/clients" element={<ClientsPage />} />
+        <Route path="crm/conversations" element={<PlaceholderPage title="Conversations" />} />
+        <Route path="orders" element={<OrdersPage />} />
+        <Route path="forms" element={<PlaceholderPage title="Forms" />} />
+        <Route path="subscriptions" element={<SubscriptionsPage />} />
+        <Route path="invoices" element={<PlaceholderPage title="Invoices" />} />
+        <Route path="proposals" element={<PlaceholderPage title="Proposals" />} />
+        <Route path="tickets" element={<TicketsPage />} />
+        <Route path="team" element={<TeamPage />} />
+        <Route path="integrations" element={<PlaceholderPage title="Integrations" />} />
+        <Route path="files" element={<PlaceholderPage title="Files" />} />
+        <Route path="workspace-config" element={<PlaceholderPage title="Workspace Config" />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="*" element={<Navigate to="/client" replace />} />
+      </Routes>
+    </PortalLayout>
   );
 };
 
