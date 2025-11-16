@@ -1,39 +1,50 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Calendar } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 
 const CTA = () => {
-  const { t } = useLanguage();
+  const { language } = useLanguage();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   return (
     <section className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10"></div>
+      <div className="absolute inset-0 bg-gradient-hero"></div>
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff1a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff1a_1px,transparent_1px)] bg-[size:4rem_4rem]"></div>
+      
+      {/* Animated orbs */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-white/10 rounded-full blur-[120px] animate-pulse"></div>
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+      
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="max-w-4xl mx-auto text-center space-y-8">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold">
-            Ready to Transform Your Business with <span className="bg-gradient-hero bg-clip-text text-transparent">AI?</span>
+        <div className="max-w-4xl mx-auto text-center text-white space-y-8">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold animate-fade-in">
+            {language === 'ar' 
+              ? 'هل أنت مستعد لتحويل أعمالك؟'
+              : 'Ready to Transform Your Business?'}
           </h2>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <p className="text-lg sm:text-xl opacity-90 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            {language === 'ar'
+              ? 'انضم إلى آلاف الشركات التي تستخدم Exavo لاتخاذ قرارات مدعومة بالبيانات'
+              : 'Join thousands of businesses using Exavo to make data-driven decisions'}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <Button 
-              variant="hero" 
-              size="lg" 
-              className="group shadow-glow"
-              onClick={() => navigate(user ? '/booking' : '/register')}
+              variant="secondary" 
+              size="lg"
+              className="shadow-glow hover:shadow-glow-lg hover:scale-105 transition-all text-lg px-8"
+              onClick={() => navigate('/contact')}
             >
-              {t('common.getStarted')}
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              {language === 'ar' ? 'ابدأ الآن' : 'Get Started Now'}
+              <ArrowRight className="w-5 h-5" />
             </Button>
             <Button 
               variant="outline" 
               size="lg"
-              onClick={() => navigate('/booking')}
+              className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:scale-105 transition-all text-lg px-8"
+              onClick={() => navigate('/services')}
             >
-              <Calendar className="w-4 h-4" />
-              {t('common.bookDemo')}
+              {language === 'ar' ? 'استكشف الخدمات' : 'Explore Services'}
             </Button>
           </div>
         </div>
