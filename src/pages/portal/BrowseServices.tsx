@@ -5,8 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import BookingDialog from "@/components/BookingDialog";
 import { PremiumServiceCard } from "@/components/PremiumServiceCard";
 import { PremiumServiceFilters } from "@/components/PremiumServiceFilters";
-import { Bot, Workflow, LineChart, Mail, FileText, BarChart3, Brain, Zap, Shield, Target } from "lucide-react";
+import { Bot, Workflow, LineChart, Mail, FileText, BarChart3, Brain, Zap, Shield, Target, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { SlidersHorizontal } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -163,6 +164,9 @@ const BrowseServices = () => {
 
   const maxPrice = useMemo(() => Math.max(...services.map(s => s.price), 50000), [services]);
 
+  const hasActiveFilters = searchQuery || selectedCategories.length > 0 || 
+    priceRange[0] !== 0 || priceRange[1] !== maxPrice;
+
   const FiltersComponent = (
     <PremiumServiceFilters
       searchQuery={searchQuery}
@@ -180,12 +184,18 @@ const BrowseServices = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-4">Browse Services</h1>
-          <p className="text-muted-foreground">
-            Discover and purchase AI-powered services for your business
+    <div className="min-h-screen bg-background pb-20 sm:pb-8">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+        {/* Header */}
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4">
+            {language === 'ar' ? 'تصفح الخدمات' : 'Browse Services'}
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            {language === 'ar' 
+              ? 'اكتشف واشتري خدمات مدعومة بالذكاء الاصطناعي لأعمالك'
+              : 'Discover and purchase AI-powered services for your business'
+            }
           </p>
         </div>
 
@@ -214,28 +224,70 @@ const BrowseServices = () => {
             </div>
           )}
 
-          {/* Mobile Filter Button */}
-          {isMobile && (
-            <div className="fixed bottom-6 right-6 z-40">
-              <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-                <SheetTrigger asChild>
-                  <Button size="lg" className="rounded-full shadow-lg">
-                    <SlidersHorizontal className="w-5 h-5 mr-2" />
-                    Filters
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-80 p-0">
-                  <div className="p-6">
-                    {FiltersComponent}
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
-          )}
-
           {/* Services Grid */}
-          <div className="flex-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="flex-1 w-full">
+            {/* Mobile Filter Button - Top of Services */}
+            {isMobile && (
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+                  <SheetTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="default"
+                      className="flex items-center gap-2 h-10 relative z-50"
+                    >
+                      <SlidersHorizontal className="w-4 h-4" />
+                      <span className="text-sm">{language === 'ar' ? 'فلاتر' : 'Filters'}</span>
+                      {hasActiveFilters && (
+                        <Badge variant="default" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                          {selectedCategories.length}
+                        </Badge>
+                      )}
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="h-[85vh] p-0 z-[100]">
+                    <div className="h-full overflow-y-auto p-6">
+                      <div className="mb-4 flex items-center justify-between">
+                        <h3 className="text-lg font-semibold">
+                          {language === 'ar' ? 'الفلاتر' : 'Filters'}
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setMobileFiltersOpen(false)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      {FiltersComponent}
+                      <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t mt-6">
+                        <Button 
+                          onClick={() => setMobileFiltersOpen(false)}
+                          className="w-full"
+                          size="lg"
+                        >
+                          {language === 'ar' ? 'عرض النتائج' : `View ${filteredServices.length} Results`}
+                        </Button>
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearFilters}
+                    className="text-xs"
+                  >
+                    {language === 'ar' ? 'مسح الكل' : 'Clear All'}
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Services Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
               {filteredServices.map((service) => {
                 const ServiceIcon = iconMap[service.name] || iconMap[getServiceCategory(service.name)] || Bot;
                 return (

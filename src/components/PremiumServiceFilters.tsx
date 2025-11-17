@@ -4,10 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Search, X, ChevronLeft, SlidersHorizontal } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Search, X, ChevronLeft } from "lucide-react";
 
 interface PremiumServiceFiltersProps {
   searchQuery: string;
@@ -45,7 +43,6 @@ export const PremiumServiceFilters = ({
   onToggle,
 }: PremiumServiceFiltersProps) => {
   const { language } = useLanguage();
-  const isMobile = useIsMobile();
   const [emailAlert, setEmailAlert] = useState('');
 
   const hasActiveFilters = searchQuery || selectedCategories.length > 0 || 
@@ -182,33 +179,8 @@ export const PremiumServiceFilters = ({
     </div>
   );
 
-  // Mobile: Show filters in a Sheet (drawer)
-  if (isMobile) {
-    return (
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="fixed bottom-4 right-4 z-40 rounded-full w-14 h-14 shadow-glow"
-          >
-            <SlidersHorizontal className="h-5 w-5" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="w-80 overflow-y-auto">
-          <div className="py-4">
-            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <span className="w-1 h-5 bg-primary rounded-full"></span>
-              {language === 'ar' ? 'فلاتر' : 'Filters'}
-            </h3>
-            {filterContent}
-          </div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
-  // Desktop: Show filters in a Card
+  // Just return the filter content wrapped in a Card for desktop
+  // Mobile will be handled by parent component
   return (
     <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
       {filterContent}
