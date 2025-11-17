@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,14 +40,35 @@ serve(async (req) => {
       });
     }
 
-    const { serviceId, updates } = await req.json();
+    // Validate input
+    const updateServiceSchema = z.object({
+      serviceId: z.string().uuid('Invalid service ID format'),
+      updates: z.object({
+        name: z.string().trim().min(2, 'Name must be at least 2 characters').max(200, 'Name must be less than 200 characters').optional(),
+        name_ar: z.string().trim().min(2, 'Arabic name must be at least 2 characters').max(200, 'Arabic name must be less than 200 characters').optional(),
+        description: z.string().trim().min(10, 'Description must be at least 10 characters').max(2000, 'Description must be less than 2000 characters').optional(),
+        description_ar: z.string().trim().min(10, 'Arabic description must be at least 10 characters').max(2000, 'Arabic description must be less than 2000 characters').optional(),
+        price: z.number().positive('Price must be positive').optional(),
+        currency: z.string().length(3, 'Currency must be 3 characters').optional(),
+        active: z.boolean().optional(),
+        image_url: z.string().url('Invalid image URL').max(500, 'Image URL must be less than 500 characters').nullable().optional()
+      }).refine(data => Object.keys(data).length > 0, {
+        message: 'At least one field must be provided for update'
+      })
+    });
 
-    if (!serviceId) {
-      return new Response(JSON.stringify({ error: 'Service ID is required' }), {
+    let validated;
+    try {
+      const input = await req.json();
+      validated = updateServiceSchema.parse(input);
+    } catch (error: any) {
+      return new Response(JSON.stringify({ error: error.errors?.[0]?.message || 'Invalid input data' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const { serviceId, updates } = validated;
 
     // Use service role for updates
     const supabaseAdmin = createClient(

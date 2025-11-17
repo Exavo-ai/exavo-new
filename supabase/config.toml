@@ -1,7 +1,7 @@
 project_id = "ihxrkmnieckgvscfqgwb"
 
 [functions.send-booking-notification]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-chat]
 verify_jwt = true
