@@ -72,7 +72,7 @@ serve(async (req) => {
       if (roleError) throw roleError;
     }
 
-    console.log(`Admin ${user.id} updated user ${userId}`);
+    console.log('Admin performed user update operation');
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
