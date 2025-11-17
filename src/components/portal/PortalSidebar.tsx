@@ -32,6 +32,7 @@ const navigation = [
     name: "Services",
     icon: Briefcase,
     children: [
+      { name: "Browse Services", href: "/client/services/browse", icon: Briefcase },
       { name: "My Services", href: "/client/my-services", icon: Zap },
       { name: "Active Tools", href: "/client/active-tools", icon: Clock },
       { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard },

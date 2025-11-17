@@ -21,12 +21,14 @@ import ProposalsPage from "./portal/Proposals";
 import IntegrationsPage from "./portal/Integrations";
 import FilesPage from "./portal/Files";
 import WorkspaceConfigPage from "./portal/WorkspaceConfig";
+import BrowseServicesPage from "./portal/BrowseServices";
 
 const ClientDashboard = () => {
   return (
     <PortalLayout>
       <Routes>
         <Route index element={<DashboardPage />} />
+        <Route path="services/browse" element={<BrowseServicesPage />} />
         <Route path="my-services" element={<MyServicesPage />} />
         <Route path="active-tools" element={<ActiveToolsPage />} />
         <Route path="purchase-history" element={<PurchaseHistoryPage />} />
