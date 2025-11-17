@@ -1,12 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Menu, X, Globe, Sun, Moon } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/hooks/useTheme";
 import exavoLogo from "@/assets/exavo-logo.png";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
   const { language, setLanguage, t } = useLanguage();
   const { theme, setTheme } = useTheme();
 
@@ -16,6 +18,11 @@ const Navigation = () => {
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+
+  const handleGetStarted = () => {
+    setIsOpen(false); // Close mobile menu
+    navigate('/login');
   };
 
   return (
@@ -58,12 +65,20 @@ const Navigation = () => {
               <Globe className="w-4 h-4" />
               <span className="text-sm">{language === 'en' ? 'AR' : 'EN'}</span>
             </Button>
-            <a href="/login">
-              <Button variant="ghost" className="hover:scale-105 transition-transform">Sign In</Button>
-            </a>
-            <a href="/booking">
-              <Button variant="hero" className="hover:scale-105 transition-transform">{t('hero.cta')}</Button>
-            </a>
+            <Button 
+              variant="ghost" 
+              className="hover:scale-105 transition-transform"
+              onClick={() => navigate('/login')}
+            >
+              Sign In
+            </Button>
+            <Button 
+              variant="hero" 
+              className="hover:scale-105 transition-transform"
+              onClick={handleGetStarted}
+            >
+              {t('hero.cta')}
+            </Button>
           </div>
           
           <button className="md:hidden hover:scale-110 transition-transform" onClick={() => setIsOpen(!isOpen)} aria-label="Toggle menu">
@@ -88,7 +103,13 @@ const Navigation = () => {
                 <Globe className="w-4 h-4" />
                 {language === 'en' ? 'العربية' : 'English'}
               </Button>
-              <Button variant="hero" className="w-full">{t('hero.cta')}</Button>
+              <Button 
+                variant="hero" 
+                className="w-full"
+                onClick={handleGetStarted}
+              >
+                {t('hero.cta')}
+              </Button>
             </div>
           </div>
         )}
