@@ -58,7 +58,7 @@ serve(async (req) => {
 
     if (error) throw error;
 
-    console.log(`Admin ${user.id} deleted user ${userId}`);
+    console.log('Admin performed user deletion operation');
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
