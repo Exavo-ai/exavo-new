@@ -47,7 +47,7 @@ export function PortalLayout({ children }: PortalLayoutProps) {
         <PortalHeader />
         
         <main className="flex-1 overflow-y-auto">
-          <div className="container mx-auto p-4 md:p-6">
+          <div className="w-full max-w-[1600px] mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
             {children}
           </div>
         </main>
