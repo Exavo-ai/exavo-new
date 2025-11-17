@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Mail, Lock, User, Globe } from 'lucide-react';
 import { registerSchema } from '@/lib/validation';
+import { PasswordStrengthMeter } from '@/components/PasswordStrengthMeter';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -137,10 +138,13 @@ const Register = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10"
-                    minLength={6}
                     required
                   />
                 </div>
+                <PasswordStrengthMeter 
+                  password={password} 
+                  userInputs={[email, fullName]}
+                />
                 <p className="text-xs text-muted-foreground mt-1">{t('auth.passwordHint')}</p>
               </div>
 
