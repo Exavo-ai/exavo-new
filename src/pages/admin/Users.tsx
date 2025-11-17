@@ -71,7 +71,6 @@ export default function Users() {
 
       setUsers(usersWithRoles);
     } catch (error) {
-      console.error("Error loading users:", error);
       toast({
         title: "Error",
         description: "Failed to load users",
@@ -105,7 +104,6 @@ export default function Users() {
 
       loadUsers();
     } catch (error: any) {
-      console.error("Error deleting user:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete user",

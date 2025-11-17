@@ -49,32 +49,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchUserRole = async (userId: string) => {
     try {
-      console.log('[AuthContext] Fetching role for user:', userId);
-      
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId);
 
       if (error) {
-        console.error('[AuthContext] Error fetching user role:', error);
         throw error;
       }
-
-      console.log('[AuthContext] Raw role data:', data);
 
       // Handle multiple roles - prioritize admin
       if (data && data.length > 0) {
         const hasAdminRole = data.some(row => row.role === 'admin');
         const role = hasAdminRole ? 'admin' : data[0].role;
-        console.log('[AuthContext] Setting user role to:', role);
         setUserRole(role);
       } else {
-        console.log('[AuthContext] No role found, defaulting to client');
         setUserRole('client');
       }
     } catch (error) {
-      console.error('[AuthContext] Error in fetchUserRole:', error);
       setUserRole('client');
     } finally {
       setLoading(false);

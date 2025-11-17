@@ -49,7 +49,6 @@ export default function Services() {
       if (error) throw error;
       setServices(data || []);
     } catch (error) {
-      console.error("Error loading services:", error);
       toast({
         title: "Error",
         description: "Failed to load services",

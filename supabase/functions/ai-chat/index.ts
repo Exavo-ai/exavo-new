@@ -19,35 +19,43 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Get user ID from auth header
+    // Get user ID from auth header (required)
     const authHeader = req.headers.get('Authorization');
-    let userId = null;
-    
-    if (authHeader) {
-      const supabaseClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-        { global: { headers: { Authorization: authHeader } } }
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-      
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      userId = user?.id;
     }
 
-    // Store user message
-    if (userId && sessionId) {
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-      
-      await supabase.from('chat_messages').insert({
-        user_id: userId,
-        session_id: sessionId,
-        role: 'user',
-        content: messages[messages.length - 1].content
-      });
     }
+
+    const userId = user.id;
+
+    // Store user message
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    await supabase.from('chat_messages').insert({
+      user_id: userId,
+      session_id: sessionId,
+      role: 'user',
+      content: messages[messages.length - 1].content
+    });
 
     // System prompt for the AI
     const systemPrompt = `You are a helpful AI assistant for ExavoAI, a professional AI consulting and services company.
@@ -106,19 +114,12 @@ Always respond in the same language the user is speaking (English or Arabic).`;
     const assistantMessage = data.choices[0].message.content;
 
     // Store assistant message
-    if (userId && sessionId) {
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      );
-      
-      await supabase.from('chat_messages').insert({
-        user_id: userId,
-        session_id: sessionId,
-        role: 'assistant',
-        content: assistantMessage
-      });
-    }
+    await supabase.from('chat_messages').insert({
+      user_id: userId,
+      session_id: sessionId,
+      role: 'assistant',
+      content: assistantMessage
+    });
 
     return new Response(
       JSON.stringify({ message: assistantMessage }),

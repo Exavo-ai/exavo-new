@@ -55,7 +55,6 @@ const ChatWidget = () => {
         setMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
       }
     } catch (error: any) {
-      console.error('Chat error:', error);
       toast({
         title: language === 'ar' ? 'خطأ' : 'Error',
         description: error.message || (language === 'ar' ? 'فشل إرسال الرسالة' : 'Failed to send message'),

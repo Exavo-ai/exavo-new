@@ -78,7 +78,6 @@ const BookingDialog = ({ open, onOpenChange, serviceName, serviceId }: BookingDi
           })
         });
       } catch (webhookError) {
-        console.error('Webhook error:', webhookError);
         // Don't fail the booking if webhook fails
       }
 
@@ -105,7 +104,6 @@ const BookingDialog = ({ open, onOpenChange, serviceName, serviceId }: BookingDi
       setDate(undefined);
       setTime('');
     } catch (error: any) {
-      console.error('Booking error:', error);
       toast.error(error.message || t('booking.error'));
     } finally {
       setLoading(false);
