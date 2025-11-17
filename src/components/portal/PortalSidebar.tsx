@@ -24,7 +24,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import exavoLogo from "@/assets/exavo-logo.png";
 
 const navigation = [
   { name: "Dashboard", href: "/client", icon: LayoutDashboard },
@@ -94,11 +93,6 @@ export function PortalSidebar({ collapsed, onToggle }: PortalSidebarProps) {
         collapsed ? "w-20" : "w-64"
       )}
     >
-      {/* Logo */}
-      <div className="h-16 flex items-center justify-center border-b border-border px-4">
-        <img src={exavoLogo} alt="Exavo" className={cn("h-8", collapsed && "h-6")} />
-      </div>
-
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2">
         {navigation.map((item) => (
