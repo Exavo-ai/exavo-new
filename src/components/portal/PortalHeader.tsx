@@ -1,6 +1,7 @@
-import { Globe, User, LogOut, Settings as SettingsIcon, CreditCard } from "lucide-react";
+import { Globe, User, LogOut, Settings as SettingsIcon, CreditCard, Sun, Moon, Menu } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,17 +15,34 @@ import { useNavigate } from "react-router-dom";
 import { NotificationsDropdown } from "./NotificationsDropdown";
 import exavoLogo from "@/assets/exavo-logo.png";
 
-export function PortalHeader() {
+interface PortalHeaderProps {
+  isMobile?: boolean;
+  onMenuToggle?: () => void;
+}
+
+export function PortalHeader({ isMobile, onMenuToggle }: PortalHeaderProps) {
   const { user, signOut } = useAuth();
   const { language, setLanguage } = useLanguage();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
 
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "User";
 
   return (
     <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 md:px-6">
-      {/* Left: Greeting with small logo */}
+      {/* Left: Mobile menu + Greeting with small logo */}
       <div className="flex items-center gap-3">
+        {/* Mobile hamburger menu */}
+        {isMobile && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onMenuToggle}
+            className="mr-2"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+        )}
         <img src={exavoLogo} alt="Exavo AI" className="h-6 hidden sm:block" />
         <div>
           <h2 className="text-base md:text-lg font-semibold">
@@ -37,9 +55,20 @@ export function PortalHeader() {
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         {/* Notifications */}
         <NotificationsDropdown />
+
+        {/* Theme Toggle */}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="hover:scale-105 transition-transform"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </Button>
 
         {/* Language Switcher */}
         <DropdownMenu>
