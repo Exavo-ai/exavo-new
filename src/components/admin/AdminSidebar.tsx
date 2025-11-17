@@ -48,13 +48,10 @@ export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
         collapsed ? "w-20" : "w-64"
       )}
     >
-      {/* Logo */}
+      {/* Logo - only show when not collapsed */}
       <div className="h-16 flex items-center justify-center border-b border-border px-4">
         {!collapsed && (
-          <img src={exavoLogo} alt="Exavo" className="h-8 w-auto" />
-        )}
-        {collapsed && (
-          <img src={exavoLogo} alt="Exavo" className="h-6 w-6" />
+          <span className="text-lg font-bold text-primary">Admin</span>
         )}
       </div>
 

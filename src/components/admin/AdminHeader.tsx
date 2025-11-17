@@ -12,6 +12,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
+import exavoLogo from "@/assets/exavo-logo.png";
 
 interface AdminHeaderProps {
   isMobile?: boolean;
@@ -73,6 +74,7 @@ export function AdminHeader({ isMobile, onMenuToggle }: AdminHeaderProps) {
             <Menu className="h-5 w-5" />
           </Button>
         )}
+        <img src={exavoLogo} alt="Exavo" className="h-8 w-auto" />
         <div>
           <h1 className="text-base sm:text-lg font-semibold">
             Hello, {userName}! 👋

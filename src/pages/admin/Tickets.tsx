@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, MessageSquare } from "lucide-react";
+import { TicketReplyDialog } from "@/components/admin/TicketReplyDialog";
 import {
   Table,
   TableBody,
@@ -27,6 +28,8 @@ interface Ticket {
 export default function Tickets() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [replyDialogOpen, setReplyDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -52,6 +55,11 @@ export default function Tickets() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleReplyToTicket = (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+    setReplyDialogOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -173,10 +181,11 @@ export default function Tickets() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button variant="ghost" size="icon">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleReplyToTicket(ticket)}
+                          >
                             <MessageSquare className="h-4 w-4" />
                           </Button>
                         </div>
@@ -189,6 +198,13 @@ export default function Tickets() {
           </div>
         </CardContent>
       </Card>
+
+      <TicketReplyDialog
+        ticket={selectedTicket}
+        open={replyDialogOpen}
+        onOpenChange={setReplyDialogOpen}
+        onSuccess={loadTickets}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, Power, PowerOff } from "lucide-react";
+import { EditServiceDialog } from "@/components/admin/EditServiceDialog";
 import {
   Table,
   TableBody,
@@ -17,16 +18,21 @@ import { useToast } from "@/hooks/use-toast";
 interface Service {
   id: string;
   name: string;
+  name_ar: string;
   description: string;
+  description_ar: string;
   price: number;
   currency: string;
   active: boolean;
+  image_url: string | null;
   created_at: string;
 }
 
 export default function Services() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -76,6 +82,11 @@ export default function Services() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleEditService = (service: Service) => {
+    setSelectedService(service);
+    setEditDialogOpen(true);
   };
 
   const handleDeleteService = async (serviceId: string) => {
@@ -199,6 +210,13 @@ export default function Services() {
           </div>
         </CardContent>
       </Card>
+
+      <EditServiceDialog
+        service={selectedService}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSuccess={loadServices}
+      />
     </div>
   );
 }

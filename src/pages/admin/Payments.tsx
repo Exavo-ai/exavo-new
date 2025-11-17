@@ -56,10 +56,41 @@ export default function Payments() {
   };
 
   const exportToCSV = () => {
-    toast({
-      title: "Export",
-      description: "CSV export feature coming soon",
-    });
+    try {
+      const csvContent = [
+        ["Date", "Amount", "Currency", "Status", "Transaction ID"],
+        ...payments.map((payment) => [
+          format(new Date(payment.created_at), "MMM d, yyyy"),
+          payment.amount.toString(),
+          payment.currency,
+          payment.status,
+          payment.id.substring(0, 8),
+        ]),
+      ]
+        .map((row) => row.join(","))
+        .join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `payments_${format(new Date(), "yyyy-MM-dd")}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "Payments exported to CSV successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export payments",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusColor = (status: string) => {

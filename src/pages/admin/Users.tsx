@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, MoreVertical, UserCheck, UserX, Trash2 } from "lucide-react";
+import { Search, MoreVertical, UserCheck, UserX, Trash2, Edit } from "lucide-react";
+import { UserEditDialog } from "@/components/admin/UserEditDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +36,8 @@ export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -79,22 +82,43 @@ export default function Users() {
     }
   };
 
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setEditDialogOpen(true);
+  };
+
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
+    if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) return;
 
     try {
-      // Note: In production, this should be done via an admin API endpoint
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", userId);
+
+      if (error) throw error;
+
       toast({
-        title: "Info",
-        description: "User deletion requires admin API. Feature coming soon.",
+        title: "Success",
+        description: "User deleted successfully",
       });
-    } catch (error) {
+
+      loadUsers();
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
       toast({
         title: "Error",
-        description: "Failed to delete user",
+        description: error.message || "Failed to delete user",
         variant: "destructive",
       });
     }
+  };
+
+  const handleSuspendUser = async (userId: string) => {
+    toast({
+      title: "Info",
+      description: "User suspension feature coming soon.",
+    });
   };
 
   const filteredUsers = users.filter(
@@ -182,11 +206,11 @@ export default function Users() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <UserCheck className="mr-2 h-4 w-4" />
-                              View Profile
+                            <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit User
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleSuspendUser(user.id)}>
                               <UserX className="mr-2 h-4 w-4" />
                               Suspend
                             </DropdownMenuItem>
@@ -208,6 +232,13 @@ export default function Users() {
           </div>
         </CardContent>
       </Card>
+
+      <UserEditDialog
+        user={selectedUser}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSuccess={loadUsers}
+      />
     </div>
   );
 }
