@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,14 +40,26 @@ serve(async (req) => {
       });
     }
 
-    const { userId, full_name, phone, role } = await req.json();
+    // Validate input
+    const updateUserSchema = z.object({
+      userId: z.string().uuid('Invalid user ID format'),
+      full_name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100, 'Name must be less than 100 characters').optional(),
+      phone: z.string().trim().regex(/^[+]?[0-9\s\-()]+$/, 'Invalid phone number format').max(20, 'Phone number must be less than 20 characters').optional(),
+      role: z.enum(['admin', 'client'], { errorMap: () => ({ message: 'Role must be admin or client' }) }).optional()
+    });
 
-    if (!userId) {
-      return new Response(JSON.stringify({ error: 'User ID is required' }), {
+    let validated;
+    try {
+      const input = await req.json();
+      validated = updateUserSchema.parse(input);
+    } catch (error: any) {
+      return new Response(JSON.stringify({ error: error.errors?.[0]?.message || 'Invalid input data' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const { userId, full_name, phone, role } = validated;
 
     // Use service role for updates
     const supabaseAdmin = createClient(

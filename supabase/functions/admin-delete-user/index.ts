@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,14 +40,23 @@ serve(async (req) => {
       });
     }
 
-    const { userId } = await req.json();
+    // Validate input
+    const deleteUserSchema = z.object({
+      userId: z.string().uuid('Invalid user ID format')
+    });
 
-    if (!userId) {
-      return new Response(JSON.stringify({ error: 'User ID is required' }), {
+    let validated;
+    try {
+      const input = await req.json();
+      validated = deleteUserSchema.parse(input);
+    } catch (error: any) {
+      return new Response(JSON.stringify({ error: error.errors?.[0]?.message || 'Invalid input data' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const { userId } = validated;
 
     // Use service role for deletion
     const supabaseAdmin = createClient(
