@@ -6,6 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Mail, Lock, User, Globe } from 'lucide-react';
+import { registerSchema } from '@/lib/validation';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -17,6 +18,14 @@ const Register = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate input
+    const result = registerSchema.safeParse({ fullName, email, password });
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
+      return;
+    }
+
     setLoading(true);
 
     try {

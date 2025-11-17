@@ -61,10 +61,13 @@ export default function Services() {
 
   const toggleServiceStatus = async (serviceId: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
-        .from("services")
-        .update({ active: !currentStatus })
-        .eq("id", serviceId);
+      // Call edge function for admin operation
+      const { error } = await supabase.functions.invoke('admin-update-service', {
+        body: {
+          serviceId,
+          updates: { active: !currentStatus },
+        },
+      });
 
       if (error) throw error;
 
@@ -92,10 +95,10 @@ export default function Services() {
     if (!confirm("Are you sure you want to delete this service?")) return;
 
     try {
-      const { error } = await supabase
-        .from("services")
-        .delete()
-        .eq("id", serviceId);
+      // Call edge function for admin operation
+      const { error } = await supabase.functions.invoke('admin-delete-service', {
+        body: { serviceId },
+      });
 
       if (error) throw error;
 

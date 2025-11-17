@@ -90,10 +90,10 @@ export default function Users() {
     if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) return;
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("id", userId);
+      // Call edge function for admin operation
+      const { error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { userId },
+      });
 
       if (error) throw error;
 

@@ -1,5 +1,23 @@
 import { z } from 'zod';
 
+// Registration validation
+export const registerSchema = z.object({
+  fullName: z.string()
+    .trim()
+    .min(2, { message: "Name must be at least 2 characters" })
+    .max(100, { message: "Name must be less than 100 characters" }),
+  email: z.string()
+    .trim()
+    .email({ message: "Invalid email address" })
+    .max(255, { message: "Email must be less than 255 characters" }),
+  password: z.string()
+    .min(8, { message: "Password must be at least 8 characters" })
+    .max(128, { message: "Password must be less than 128 characters" })
+    .regex(/[A-Z]/, { message: "Password must contain an uppercase letter" })
+    .regex(/[a-z]/, { message: "Password must contain a lowercase letter" })
+    .regex(/[0-9]/, { message: "Password must contain a number" }),
+});
+
 // Booking form validation
 export const bookingSchema = z.object({
   fullName: z.string()
@@ -75,6 +93,7 @@ export const serviceSchema = z.object({
     .length(3, { message: "Currency must be a 3-letter code (e.g., USD, EGP)" }),
 });
 
+export type RegisterFormData = z.infer<typeof registerSchema>;
 export type BookingFormData = z.infer<typeof bookingSchema>;
 export type ContactFormData = z.infer<typeof contactSchema>;
 export type ProfileFormData = z.infer<typeof profileSchema>;
