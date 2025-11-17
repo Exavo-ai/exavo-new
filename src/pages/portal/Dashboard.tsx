@@ -132,7 +132,7 @@ export default function DashboardPage() {
                   >
                     <div className="flex-1 min-w-0">
                       <p className="font-medium mb-1 text-sm sm:text-base truncate">{ticket.subject}</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">{ticket.date}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{ticket.created}</p>
                     </div>
                     <StatusBadge status={ticket.status} />
                   </div>
@@ -160,7 +160,7 @@ export default function DashboardPage() {
                 >
                   <div className="flex-1 min-w-0">
                     <p className="font-medium mb-1 text-sm sm:text-base truncate">{order.service}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">{order.date}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{order.startDate}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-sm sm:text-base">${order.amount}</p>
@@ -172,67 +172,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-              <thead>
-                <tr className="border-b border-border text-left text-sm text-muted-foreground">
-                  <th className="pb-3 font-medium">Subject</th>
-                  <th className="pb-3 font-medium">Priority</th>
-                  <th className="pb-3 font-medium">Service</th>
-                  <th className="pb-3 font-medium">Status</th>
-                  <th className="pb-3 font-medium">Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tickets.map((ticket) => (
-                  <tr key={ticket.id} className="border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => navigate('/client/tickets')}>
-                    <td className="py-4 font-medium">{ticket.subject}</td>
-                    <td className="py-4"><StatusBadge status={ticket.priority as any} /></td>
-                    <td className="py-4 text-muted-foreground">{ticket.service}</td>
-                    <td className="py-4"><StatusBadge status={ticket.status as any} /></td>
-                    <td className="py-4 text-muted-foreground">{ticket.created}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Recent Orders</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/client/orders')}>View All</Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border text-left text-sm text-muted-foreground">
-                  <th className="pb-3 font-medium">Order ID</th>
-                  <th className="pb-3 font-medium">Service</th>
-                  <th className="pb-3 font-medium">Type</th>
-                  <th className="pb-3 font-medium">Amount</th>
-                  <th className="pb-3 font-medium">Status</th>
-                  <th className="pb-3 font-medium">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id} className="border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => navigate('/client/orders')}>
-                    <td className="py-4 font-mono text-sm">{order.id}</td>
-                    <td className="py-4 font-medium">{order.service}</td>
-                    <td className="py-4"><StatusBadge status={order.type as any} /></td>
-                    <td className="py-4 font-semibold">{order.amount}</td>
-                    <td className="py-4"><StatusBadge status={order.status as any} /></td>
-                    <td className="py-4 text-muted-foreground">{order.startDate}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
