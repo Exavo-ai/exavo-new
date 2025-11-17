@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { serviceSchema } from "@/lib/validation";
 
 interface Service {
   id: string;
@@ -66,21 +67,41 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
     e.preventDefault();
     if (!service) return;
 
+    // Validate input
+    const result = serviceSchema.safeParse({
+      name: formData.name,
+      description: formData.description,
+      price: formData.price,
+      currency: formData.currency,
+    });
+    
+    if (!result.success) {
+      toast({
+        title: "Validation Error",
+        description: result.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from("services")
-        .update({
-          name: formData.name,
-          name_ar: formData.name_ar,
-          description: formData.description,
-          description_ar: formData.description_ar,
-          price: formData.price,
-          currency: formData.currency,
-          active: formData.active,
-          image_url: formData.image_url || null,
-        })
-        .eq("id", service.id);
+      // Call edge function for admin operation
+      const { error } = await supabase.functions.invoke('admin-update-service', {
+        body: {
+          serviceId: service.id,
+          updates: {
+            name: formData.name,
+            name_ar: formData.name_ar,
+            description: formData.description,
+            description_ar: formData.description_ar,
+            price: formData.price,
+            currency: formData.currency,
+            active: formData.active,
+            image_url: formData.image_url || null,
+          },
+        },
+      });
 
       if (error) throw error;
 

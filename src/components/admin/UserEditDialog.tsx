@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { profileSchema } from "@/lib/validation";
 
 interface User {
   id: string;
@@ -64,28 +65,34 @@ export function UserEditDialog({ user, open, onOpenChange, onSuccess }: UserEdit
     e.preventDefault();
     if (!user) return;
 
+    // Validate input
+    const result = profileSchema.safeParse({
+      fullName: formData.full_name,
+      phone: formData.phone,
+    });
+    
+    if (!result.success) {
+      toast({
+        title: "Validation Error",
+        description: result.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      // Update profile
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
+      // Call edge function for admin operation
+      const { error } = await supabase.functions.invoke('admin-update-user', {
+        body: {
+          userId: user.id,
           full_name: formData.full_name,
           phone: formData.phone,
-        })
-        .eq("id", user.id);
+          role: formData.role !== user.role ? formData.role : undefined,
+        },
+      });
 
-      if (profileError) throw profileError;
-
-      // Update role if changed
-      if (formData.role !== user.role) {
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .update({ role: formData.role })
-          .eq("user_id", user.id);
-
-        if (roleError) throw roleError;
-      }
+      if (error) throw error;
 
       toast({
         title: "Success",
