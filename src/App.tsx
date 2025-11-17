@@ -17,7 +17,15 @@ import Register from "./pages/Register";
 import PasswordReset from "./pages/PasswordReset";
 import UpdatePassword from "./pages/UpdatePassword";
 import Booking from "./pages/Booking";
-import AdminDashboard from "./pages/AdminDashboard";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import AdminDashboard from "@/pages/admin/Dashboard";
+import AdminUsers from "@/pages/admin/Users";
+import AdminServices from "@/pages/admin/Services";
+import AdminBookings from "@/pages/admin/Bookings";
+import AdminPayments from "@/pages/admin/Payments";
+import AdminTickets from "@/pages/admin/Tickets";
+import AdminActivityLogs from "@/pages/admin/ActivityLogs";
+import AdminSettings from "@/pages/admin/Settings";
 import ClientDashboard from "./pages/ClientDashboard";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import Analytics from "./pages/Analytics";
@@ -65,7 +73,79 @@ const App = () => (
                 path="/admin"
                 element={
                   <ProtectedRoute requireRole="admin">
-                    <AdminDashboard />
+                    <AdminLayout>
+                      <AdminDashboard />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminUsers />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/services"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminServices />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/bookings"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminBookings />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/payments"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminPayments />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/tickets"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminTickets />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/activity"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminActivityLogs />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/settings"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminSettings />
+                    </AdminLayout>
                   </ProtectedRoute>
                 }
               />
