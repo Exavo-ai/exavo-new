@@ -77,13 +77,13 @@ const Landing = () => {
       <Navigation />
       
       {/* Hero Section with Video Animation */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 py-16 sm:py-20">
         {/* Animated background */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-secondary/20 animate-pulse" style={{ animationDuration: '4s' }} />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_hsl(270_100%_50%_/_0.1)_0%,_transparent_50%)]" />
         
-        {/* Floating particles */}
-        <div className="absolute inset-0">
+        {/* Floating particles - hide on mobile */}
+        <div className="absolute inset-0 hidden sm:block">
           {[...Array(20)].map((_, i) => (
             <div
               key={i}
@@ -98,54 +98,54 @@ const Landing = () => {
           ))}
         </div>
 
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-4xl mx-auto text-center space-y-8 animate-fade-in">
-            <Badge className="px-6 py-2 text-sm bg-gradient-hero border-0 text-white hover:scale-105 transition-transform">
-              <Sparkles className="w-4 h-4 mr-2 inline" />
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="max-w-4xl mx-auto text-center space-y-6 sm:space-y-8 animate-fade-in">
+            <Badge className="px-4 sm:px-6 py-2 text-xs sm:text-sm bg-gradient-hero border-0 text-white hover:scale-105 transition-transform">
+              <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-2 inline" />
               Next-Generation AI Solutions
             </Badge>
             
-            <h1 className="text-5xl md:text-7xl font-bold leading-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold leading-tight">
               Transform Your Business with{' '}
               <span className="bg-gradient-hero bg-clip-text text-transparent animate-pulse">
                 Exavo AI
               </span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-2xl mx-auto px-2">
               Unlock the power of artificial intelligence to drive growth, automate processes, and make smarter decisions.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center pt-4 sm:pt-8 px-4">
               <Button 
                 size="lg" 
-                className="text-lg px-8 py-6 bg-gradient-hero hover:shadow-glow-lg transition-all group"
+                className="text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 w-full sm:w-auto bg-gradient-hero hover:shadow-glow-lg transition-all group"
                 onClick={() => navigate('/booking')}
               >
                 Book a Demo
-                <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="text-lg px-8 py-6 hover:bg-card transition-all"
+                className="text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 w-full sm:w-auto hover:bg-card transition-all"
                 onClick={() => navigate('/services')}
               >
                 Explore Solutions
               </Button>
             </div>
 
-            <div className="flex items-center justify-center gap-8 pt-8 text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 pt-6 sm:pt-8 text-xs sm:text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-primary" />
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                 <span>Free Consultation</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-primary" />
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                 <span>Custom Solutions</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-primary" />
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                 <span>Proven Results</span>
               </div>
             </div>
@@ -154,19 +154,19 @@ const Landing = () => {
       </section>
 
       {/* Features Grid */}
-      <section className="py-24 relative">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <Badge className="mb-4">Our Services</Badge>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+      <section className="py-16 sm:py-20 lg:py-24 relative">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12 sm:mb-16 animate-fade-in-up">
+            <Badge className="mb-3 sm:mb-4">Our Services</Badge>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4">
               Comprehensive AI Solutions
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
               Everything you need to harness the power of AI for your business
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {features.map((feature, index) => (
               <Card 
                 key={index}

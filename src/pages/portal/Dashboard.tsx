@@ -56,40 +56,40 @@ export default function DashboardPage() {
   }));
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome to your AI workspace overview</p>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="px-2 sm:px-0">
+        <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Welcome to your AI workspace overview</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <KPICard
           title="Total Spending"
           value={`$${kpiData.totalSpending.amount.toLocaleString()}`}
           trend={kpiData.totalSpending.trend}
           chartData={kpiData.totalSpending.chartData}
-          icon={<DollarSign className="w-6 h-6 text-white" />}
+          icon={<DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-white" />}
         />
         <KPICard
           title="Active AI Tools"
           value={kpiData.activeTools.count}
           trend={kpiData.activeTools.trend}
-          icon={<Bot className="w-6 h-6 text-white" />}
+          icon={<Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />}
         />
         <KPICard
           title="Running Automations"
           value={kpiData.runningAutomations.count}
           trend={kpiData.runningAutomations.trend}
-          icon={<Zap className="w-6 h-6 text-white" />}
+          icon={<Zap className="w-5 h-5 sm:w-6 sm:h-6 text-white" />}
         />
       </div>
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Usage Analytics</CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+            <CardTitle className="text-lg sm:text-xl">Usage Analytics</CardTitle>
             <Select value={usageType} onValueChange={(value: any) => setUsageType(value)}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -101,7 +101,7 @@ export default function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-80">
+          <div className="h-64 sm:h-80 -mx-2 sm:mx-0">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
@@ -116,14 +116,62 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Recent Support Tickets</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/client/tickets')}>View All</Button>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg sm:text-xl">Recent Support Tickets</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/client/tickets')} className="text-xs sm:text-sm h-8 sm:h-9">View All</Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+              <div className="space-y-3 sm:space-y-4">
+                {tickets.map((ticket) => (
+                  <div
+                    key={ticket.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors gap-2 sm:gap-0"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium mb-1 text-sm sm:text-base truncate">{ticket.subject}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{ticket.date}</p>
+                    </div>
+                    <StatusBadge status={ticket.status} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle className="text-lg sm:text-xl">Recent Orders</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/client/orders')} className="text-xs sm:text-sm h-8 sm:h-9">View All</Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 sm:space-y-4">
+              {orders.map((order) => (
+                <div
+                  key={order.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors gap-2 sm:gap-0"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium mb-1 text-sm sm:text-base truncate">{order.service}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{order.date}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm sm:text-base">${order.amount}</p>
+                    <StatusBadge status={order.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
               <thead>
                 <tr className="border-b border-border text-left text-sm text-muted-foreground">
                   <th className="pb-3 font-medium">Subject</th>

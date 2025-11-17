@@ -199,12 +199,12 @@ const Services = () => {
             </p>
           </div>
 
-          <div className="flex gap-6">
+          <div className="flex gap-6 lg:gap-8">
             {/* Desktop Sidebar */}
             {!isMobile && (
               <div 
                 className={`transition-all duration-300 flex-shrink-0 ${
-                  sidebarOpen ? 'w-80' : 'w-16'
+                  sidebarOpen ? 'w-72 lg:w-80' : 'w-16'
                 }`}
               >
                 <div className="sticky top-24">
@@ -229,13 +229,13 @@ const Services = () => {
               <div className="fixed bottom-6 right-6 z-40">
                 <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
                   <SheetTrigger asChild>
-                    <Button size="lg" className="rounded-full shadow-lg">
-                      <SlidersHorizontal className="w-5 h-5 mr-2" />
-                      Filters
+                    <Button size="lg" className="rounded-full shadow-xl h-14 w-14 sm:h-auto sm:w-auto sm:px-6">
+                      <SlidersHorizontal className="w-5 h-5 sm:mr-2" />
+                      <span className="hidden sm:inline">Filters</span>
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="left" className="w-80 p-0">
-                    <div className="p-6">
+                  <SheetContent side="left" className="w-[85vw] sm:w-80 p-0">
+                    <div className="p-4 sm:p-6">
                       {FiltersComponent}
                     </div>
                   </SheetContent>
@@ -246,7 +246,7 @@ const Services = () => {
             {/* Services Grid */}
             <div className="flex-1 min-w-0">
               {filteredServices.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                   {filteredServices.map((service) => {
                     const category = getServiceCategory(service.name);
                     const IconComponent = iconMap[service.name] || iconMap[category] || Brain;
