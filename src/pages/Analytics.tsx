@@ -143,7 +143,7 @@ const Analytics = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{t('dashboard.totalRevenue')}</p>
-                <p className="text-2xl font-bold">{stats.totalRevenue.toFixed(2)} EGP</p>
+                <p className="text-2xl font-bold">${stats.totalRevenue.toFixed(2)}</p>
               </div>
             </div>
           </Card>

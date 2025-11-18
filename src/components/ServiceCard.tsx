@@ -83,7 +83,7 @@ export const ServiceCard = ({
         {/* Price and Meta Info */}
         <div className="flex items-center gap-3 text-sm mb-4 text-muted-foreground">
           <span className="font-bold text-foreground">
-            {currency === 'EGP' ? '£' : '$'}{price.toLocaleString()}
+            ${price.toLocaleString()}
           </span>
           <span>|</span>
           <span>{new Date().toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { 
@@ -91,8 +91,6 @@ export const ServiceCard = ({
             day: 'numeric', 
             year: 'numeric' 
           })}</span>
-          <span>|</span>
-          <span>{language === 'ar' ? 'مصر' : 'Egypt'}</span>
         </div>
 
         {/* Action Buttons */}

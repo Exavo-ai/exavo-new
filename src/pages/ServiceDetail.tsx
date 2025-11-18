@@ -225,7 +225,7 @@ const ServiceDetail = () => {
               <p className="text-xl text-muted-foreground mb-6">{serviceDescription}</p>
               
               <div className="text-3xl font-bold text-primary mb-6">
-                {service.currency === 'EGP' ? '£' : '$'}{service.price.toLocaleString()}
+                ${service.price.toLocaleString()}
                 <span className="text-base text-muted-foreground font-normal">
                   {language === 'ar' ? ' / سنويًا' : ' / year'}
                 </span>
@@ -266,7 +266,7 @@ const ServiceDetail = () => {
                 <Card key={index} className={`p-6 ${index === 1 ? 'border-primary shadow-glow' : ''}`}>
                   <h3 className="text-xl font-bold mb-2">{tier.name}</h3>
                   <div className="text-3xl font-bold text-primary mb-4">
-                    {service.currency === 'EGP' ? '£' : '$'}{tier.price.toLocaleString()}
+                    ${tier.price.toLocaleString()}
                   </div>
                   <ul className="space-y-3 mb-6">
                     {tier.features.map((feature, idx) => (

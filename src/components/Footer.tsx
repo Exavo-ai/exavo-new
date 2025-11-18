@@ -43,7 +43,7 @@ const Footer = () => {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center gap-2"><Mail className="w-4 h-4" /><a href="mailto:info@exavo.ai">info@exavo.ai</a></li>
               <li className="flex items-center gap-2"><Mail className="w-4 h-4" /><a href="mailto:support@exavo.ai">support@exavo.ai</a></li>
-              <li className="flex items-start gap-2"><MapPin className="w-4 h-4 mt-0.5" />Cairo, Egypt</li>
+              <li className="flex items-start gap-2"><MapPin className="w-4 h-4 mt-0.5" />Sydney, Australia</li>
             </ul>
           </div>
         </div>

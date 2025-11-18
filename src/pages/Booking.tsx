@@ -230,7 +230,7 @@ const Booking = () => {
                         {/* Price & Meta Info */}
                         <div className="flex items-center justify-between text-sm mb-4 py-3 border-t border-border/50">
                           <span className="font-bold text-foreground text-base">
-                            {service.currency === 'EGP' ? '£' : '$'}{service.price.toLocaleString()}
+                            ${service.price.toLocaleString()}
                           </span>
                           <span className="text-muted-foreground text-xs">
                             {new Date().toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { 
@@ -238,9 +238,6 @@ const Booking = () => {
                               day: 'numeric', 
                               year: 'numeric' 
                             })}
-                          </span>
-                          <span className="text-muted-foreground text-xs">
-                            {language === 'ar' ? 'مصر' : 'Egypt'}
                           </span>
                         </div>
 

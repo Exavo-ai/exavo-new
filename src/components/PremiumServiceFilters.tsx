@@ -132,7 +132,7 @@ export const PremiumServiceFilters = ({
             {language === 'ar' ? 'نطاق السعر' : 'Price Range'}
           </h3>
           <div className="text-xs font-medium text-primary">
-            {priceRange[0].toLocaleString()} - {priceRange[1].toLocaleString()} EGP
+            ${priceRange[0].toLocaleString()} - ${priceRange[1].toLocaleString()}
           </div>
         </div>
         <Slider
@@ -143,8 +143,8 @@ export const PremiumServiceFilters = ({
           className="w-full"
         />
         <div className="flex justify-between text-[10px] text-muted-foreground">
-          <span>0 EGP</span>
-          <span>{maxPrice.toLocaleString()} EGP</span>
+          <span>$0</span>
+          <span>${maxPrice.toLocaleString()}</span>
         </div>
       </div>
 

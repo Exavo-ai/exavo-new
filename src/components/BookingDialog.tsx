@@ -153,7 +153,7 @@ const BookingDialog = ({ open, onOpenChange, serviceName, serviceId }: BookingDi
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+20 123 456 7890"
+              placeholder="+61 4XX XXX XXX"
               required
             />
           </div>

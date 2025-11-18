@@ -100,7 +100,7 @@ export const PremiumServiceCard = ({
         {/* Metadata Row */}
         <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground mb-3 sm:mb-4 pb-3 sm:pb-4 border-t border-border/50 pt-3 sm:pt-4">
           <span className="font-bold text-foreground text-lg">
-            {currency === 'EGP' ? '£' : '$'}{price.toLocaleString()}
+            ${price.toLocaleString()}
           </span>
           <span className="text-muted-foreground">/</span>
           <span className="flex items-center gap-1">

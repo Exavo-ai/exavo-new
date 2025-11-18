@@ -69,7 +69,7 @@ const Contact = () => {
                         <Input
                           id="phone"
                           type="tel"
-                          placeholder="+20 123 456 7890"
+                          placeholder="+61 4XX XXX XXX"
                           className="w-full"
                         />
                       </div>
@@ -110,17 +110,6 @@ const Contact = () => {
                         </div>
                       </div>
                       
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-lg bg-gradient-hero flex items-center justify-center shrink-0">
-                          <Phone className="w-6 h-6 text-primary-foreground" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold mb-1">Phone</h3>
-                          <a href="tel:+20123456789" className="text-muted-foreground hover:text-primary transition-colors">
-                            +20 123 456 789
-                          </a>
-                        </div>
-                      </div>
                       
                       <div className="flex items-start gap-4">
                         <div className="w-12 h-12 rounded-lg bg-gradient-hero flex items-center justify-center shrink-0">
@@ -129,7 +118,7 @@ const Contact = () => {
                         <div>
                           <h3 className="font-semibold mb-1">Location</h3>
                           <p className="text-muted-foreground">
-                            Cairo, Egypt
+                            Sydney, Australia
                           </p>
                         </div>
                       </div>

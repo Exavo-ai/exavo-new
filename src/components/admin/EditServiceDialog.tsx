@@ -43,7 +43,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
     description: "",
     description_ar: "",
     price: 0,
-    currency: "EGP",
+    currency: "USD",
     active: true,
     image_url: "",
   });
@@ -56,7 +56,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
         description: service.description || "",
         description_ar: service.description_ar || "",
         price: service.price || 0,
-        currency: service.currency || "EGP",
+        currency: service.currency || "USD",
         active: service.active ?? true,
         image_url: service.image_url || "",
       });
@@ -198,7 +198,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
                 id="currency"
                 value={formData.currency}
                 onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                placeholder="EGP"
+                placeholder="USD"
                 required
               />
             </div>
