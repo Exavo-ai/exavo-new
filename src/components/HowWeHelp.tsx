@@ -1,4 +1,4 @@
-import { CheckCircle2, Users, Target, Award } from "lucide-react";
+import { CheckCircle2, Users, Target, Award, TrendingUp } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const HowWeHelp = () => {
@@ -25,6 +25,13 @@ const HowWeHelp = () => {
       description: language === 'ar'
         ? 'فحص دقيق يضمن أعلى المعايير.'
         : 'Rigorous vetting ensures highest standards.'
+    },
+    {
+      icon: TrendingUp,
+      title: language === 'ar' ? 'تجنب الأخطاء المكلفة' : 'Avoid Costly Mistakes',
+      description: language === 'ar'
+        ? 'عظّم عائد الاستثمار في الذكاء الاصطناعي وحقق نتائج مضمونة.'
+        : 'Maximize AI ROI and achieve guaranteed results.'
     }
   ];
 
@@ -50,7 +57,7 @@ const HowWeHelp = () => {
         </div>
 
         {/* Solutions Grid */}
-        <div className="grid md:grid-cols-3 gap-6 lg:gap-8 mb-12">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
           {solutions.map((solution, index) => (
             <div 
               key={index}
@@ -68,18 +75,6 @@ const HowWeHelp = () => {
               </p>
             </div>
           ))}
-        </div>
-
-        {/* Bottom CTA */}
-        <div className="text-center animate-fade-in" style={{ animationDelay: '0.4s' }}>
-          <div className="inline-flex items-center gap-2 text-lg font-semibold text-foreground bg-primary/10 px-6 py-3 rounded-full border border-primary/20">
-            <CheckCircle2 className="w-5 h-5 text-primary" />
-            <span>
-              {language === 'ar'
-                ? 'تجنب الأخطاء المكلفة وعظّم عائد الاستثمار في الذكاء الاصطناعي'
-                : 'Avoid costly mistakes and maximize AI ROI'}
-            </span>
-          </div>
         </div>
       </div>
     </section>
