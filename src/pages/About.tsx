@@ -1,80 +1,156 @@
-import { useState } from "react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import VideoModal from "@/components/VideoModal";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Target, Eye, Users, Zap } from "lucide-react";
+import { 
+  Globe2, 
+  Users, 
+  Building2, 
+  Mail, 
+  Sparkles,
+  Shield,
+  Zap,
+  Target
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 const About = () => {
-  const { t } = useLanguage();
-  const [videoOpen, setVideoOpen] = useState(false);
+  const { t, language } = useLanguage();
+
+  const stats = [
+    { value: "500+", label: t('about.stats.clients'), icon: Users },
+    { value: "20+", label: t('about.stats.countries'), icon: Globe2 },
+    { value: "24/7", label: t('about.stats.team'), icon: Sparkles }
+  ];
+
+  const values = [
+    {
+      icon: Sparkles,
+      title: t('about.values.innovation.title'),
+      description: t('about.values.innovation.desc')
+    },
+    {
+      icon: Shield,
+      title: t('about.values.security.title'),
+      description: t('about.values.security.desc')
+    },
+    {
+      icon: Zap,
+      title: t('about.values.efficiency.title'),
+      description: t('about.values.efficiency.desc')
+    },
+    {
+      icon: Target,
+      title: t('about.values.precision.title'),
+      description: t('about.values.precision.desc')
+    }
+  ];
+
+  const contactCards = [
+    {
+      icon: Users,
+      title: t('about.contact.sales.title'),
+      email: "sales@exavo.ai",
+      description: t('about.contact.sales.desc')
+    },
+    {
+      icon: Shield,
+      title: t('about.contact.support.title'),
+      email: "support@exavo.ai",
+      description: t('about.contact.support.desc')
+    },
+    {
+      icon: Mail,
+      title: t('about.contact.general.title'),
+      email: "info@exavo.ai",
+      description: t('about.contact.general.desc')
+    }
+  ];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <Navigation />
       <main>
-        {/* Hero Section */}
+        {/* Vision Hero Section */}
         <section className="relative overflow-hidden pt-32 pb-20">
           <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5"></div>
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="max-w-4xl mx-auto text-center space-y-6 animate-fade-in">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-accent border border-primary/20 mb-4">
+                <Building2 className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">{t('about.hero.badge')}</span>
+              </div>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold">
-                {t('about.title')}
+                {t('about.hero.title')}
               </h1>
-              <p className="text-xl text-muted-foreground">
-                {t('about.description')}
+              <p className="text-xl text-muted-foreground leading-relaxed">
+                {t('about.hero.subtitle')}
               </p>
             </div>
           </div>
         </section>
 
-        {/* Mission Section */}
+        {/* Stats Section */}
+        <section className="py-16 bg-gradient-accent">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {stats.map((stat, index) => (
+                <Card 
+                  key={index}
+                  className="border-border bg-card hover:shadow-card transition-all hover:-translate-y-1 animate-fade-in-up"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <CardContent className="pt-6 text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-hero flex items-center justify-center shadow-glow">
+                      <stat.icon className="w-8 h-8 text-white" />
+                    </div>
+                    <div className="text-4xl font-bold text-foreground mb-2">{stat.value}</div>
+                    <div className="text-muted-foreground">{stat.label}</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Who We Are Section */}
         <section className="py-20">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
               <div className="grid md:grid-cols-2 gap-12 items-center">
                 <div className="space-y-6 animate-fade-in">
                   <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-accent border border-primary/20">
-                    <Target className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">Our Mission</span>
+                    <Building2 className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">{t('about.who.badge')}</span>
                   </div>
                   <h2 className="text-3xl sm:text-4xl font-bold">
-                    {t('about.mission')}
+                    {t('about.who.title')}
                   </h2>
-                  <p className="text-lg text-muted-foreground">
-                    At Exavo AI, we believe that artificial intelligence should empower every business, 
-                    regardless of size or industry. We're breaking down the barriers to AI adoption by 
-                    providing intuitive tools, expert guidance, and seamless integration solutions.
-                  </p>
-                </div>
-                <div 
-                  onClick={() => setVideoOpen(true)}
-                  className="relative h-96 rounded-2xl overflow-hidden shadow-card animate-fade-in-up group cursor-pointer"
-                >
-                  <div className="absolute inset-0 bg-gradient-card"></div>
-                  <img 
-                    src="https://img.youtube.com/vi/aircAruvnKk/maxresdefault.jpg" 
-                    alt="Demo video thumbnail"
-                    className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center space-y-4">
-                      <div className="w-20 h-20 mx-auto rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform shadow-glow">
-                        <svg className="w-10 h-10 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                        </svg>
-                      </div>
-                      <p className="text-lg font-medium">Watch Our Demo</p>
-                      <p className="text-sm text-muted-foreground">See Exavo AI in action</p>
+                  <div className="space-y-4 text-lg text-muted-foreground">
+                    <p>{t('about.who.para1')}</p>
+                    <p>{t('about.who.para2')}</p>
+                    <p>{t('about.who.para3')}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-3 pt-4">
+                    <div className="px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                      {t('about.who.tag1')}
+                    </div>
+                    <div className="px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                      {t('about.who.tag2')}
+                    </div>
+                    <div className="px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                      {t('about.who.tag3')}
                     </div>
                   </div>
                 </div>
-                <VideoModal 
-                  open={videoOpen}
-                  onOpenChange={setVideoOpen}
-                  videoUrl="https://www.youtube.com/embed/aircAruvnKk"
-                  title="Exavo AI Platform Demo"
-                />
+                <div className="relative h-96 rounded-2xl overflow-hidden shadow-card animate-fade-in-up">
+                  <div className="absolute inset-0 bg-gradient-card"></div>
+                  <img 
+                    src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&h=600&fit=crop" 
+                    alt={t('about.who.imageAlt')}
+                    className="absolute inset-0 w-full h-full object-cover opacity-80"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -85,74 +161,113 @@ const About = () => {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-16">
-                <h2 className="text-3xl sm:text-4xl font-bold mb-4">Our Core Values</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+                  {t('about.values.title')}
+                </h2>
                 <p className="text-lg text-muted-foreground">
-                  The principles that guide everything we do
+                  {t('about.values.subtitle')}
                 </p>
               </div>
               
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                {[
-                  {
-                    icon: Target,
-                    title: "Innovation",
-                    description: "Pushing the boundaries of what's possible with AI"
-                  },
-                  {
-                    icon: Eye,
-                    title: "Transparency",
-                    description: "Clear communication and honest partnerships"
-                  },
-                  {
-                    icon: Users,
-                    title: "Accessibility",
-                    description: "Making AI tools available to everyone"
-                  },
-                  {
-                    icon: Zap,
-                    title: "Excellence",
-                    description: "Delivering exceptional quality in every solution"
-                  }
-                ].map((value, index) => (
-                  <div
+                {values.map((value, index) => (
+                  <Card
                     key={index}
-                    className="bg-card rounded-xl p-6 border border-border hover:border-primary/50 transition-all hover:-translate-y-2 shadow-card animate-fade-in-up"
+                    className="border-border hover:border-primary/50 transition-all hover:-translate-y-2 shadow-card animate-fade-in-up"
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    <div className="w-12 h-12 rounded-lg bg-gradient-hero flex items-center justify-center mb-4">
-                      <value.icon className="w-6 h-6 text-primary-foreground" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2">{value.title}</h3>
-                    <p className="text-muted-foreground">{value.description}</p>
-                  </div>
+                    <CardContent className="pt-6">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-hero flex items-center justify-center mb-4">
+                        <value.icon className="w-6 h-6 text-white" />
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">{value.title}</h3>
+                      <p className="text-muted-foreground">{value.description}</p>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             </div>
           </div>
         </section>
 
-        {/* Team Section */}
+        {/* Global Network Section */}
         <section className="py-20">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-16">
-                <h2 className="text-3xl sm:text-4xl font-bold mb-4">Meet Our Founder</h2>
-                <p className="text-lg text-muted-foreground">
-                  Passionate about transforming businesses through AI
+              <div className="text-center mb-12">
+                <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+                  {t('about.global.title')}
+                </h2>
+                <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+                  {t('about.global.subtitle')}
                 </p>
               </div>
-              
-              <div className="max-w-2xl mx-auto">
-                <div className="bg-card rounded-2xl p-8 border border-border shadow-card text-center">
-                  <div className="w-32 h-32 rounded-full bg-gradient-hero mx-auto mb-6"></div>
-                  <h3 className="text-2xl font-bold mb-2">Ahmed</h3>
-                  <p className="text-primary mb-4">Founder & CEO</p>
-                  <p className="text-muted-foreground">
-                    "My vision is to democratize AI technology and make it accessible to businesses 
-                    of all sizes. At Exavo AI, we're not just building tools – we're building the 
-                    future of intelligent business operations."
-                  </p>
+
+              <div className="relative h-96 rounded-2xl overflow-hidden border border-border shadow-card">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-primary/10"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Globe2 className="w-64 h-64 text-primary/20" strokeWidth={0.5} />
                 </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center space-y-4 p-8">
+                    <h3 className="text-2xl font-bold">{t('about.global.presence')}</h3>
+                    <p className="text-muted-foreground max-w-md">
+                      {t('about.global.description')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Contact Section */}
+        <section className="py-20 bg-gradient-accent">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-6xl mx-auto">
+              <div className="text-center mb-16">
+                <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+                  {t('about.contact.title')}
+                </h2>
+                <p className="text-lg text-muted-foreground">
+                  {t('about.contact.subtitle')}
+                </p>
+              </div>
+
+              <div className="grid md:grid-cols-3 gap-8">
+                {contactCards.map((card, index) => (
+                  <Card
+                    key={index}
+                    className="border-border hover:border-primary/50 transition-all hover:-translate-y-2 shadow-card animate-fade-in-up"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <CardContent className="pt-6 text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-hero flex items-center justify-center shadow-glow">
+                        <card.icon className="w-8 h-8 text-white" />
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">{card.title}</h3>
+                      <p className="text-muted-foreground mb-4 text-sm">{card.description}</p>
+                      <a 
+                        href={`mailto:${card.email}`}
+                        className="inline-flex items-center gap-2 text-primary hover:underline font-medium"
+                      >
+                        <Mail className="w-4 h-4" />
+                        {card.email}
+                      </a>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="text-center mt-12">
+                <Button 
+                  variant="hero" 
+                  size="lg"
+                  onClick={() => window.location.href = '/contact'}
+                  className="shadow-glow"
+                >
+                  {t('about.contact.cta')}
+                </Button>
               </div>
             </div>
           </div>

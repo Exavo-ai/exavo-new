@@ -18,7 +18,7 @@ const Footer = () => {
             <div className="flex gap-4">
               <a href="#" className="text-muted-foreground hover:text-primary transition-colors"><Twitter className="w-5 h-5" /></a>
               <a href="#" className="text-muted-foreground hover:text-primary transition-colors"><Linkedin className="w-5 h-5" /></a>
-              <a href="mailto:ahmed@exavoai.io" className="text-muted-foreground hover:text-primary transition-colors"><Mail className="w-5 h-5" /></a>
+              <a href="mailto:info@exavo.ai" className="text-muted-foreground hover:text-primary transition-colors"><Mail className="w-5 h-5" /></a>
             </div>
           </div>
           <div>
@@ -41,8 +41,8 @@ const Footer = () => {
           <div>
             <h4 className="font-semibold mb-4">Contact</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2"><Mail className="w-4 h-4" /><a href="mailto:ahmed@exavoai.io">ahmed@exavoai.io</a></li>
-              <li className="flex items-center gap-2"><Phone className="w-4 h-4" />+20 123 456 789</li>
+              <li className="flex items-center gap-2"><Mail className="w-4 h-4" /><a href="mailto:info@exavo.ai">info@exavo.ai</a></li>
+              <li className="flex items-center gap-2"><Mail className="w-4 h-4" /><a href="mailto:support@exavo.ai">support@exavo.ai</a></li>
               <li className="flex items-start gap-2"><MapPin className="w-4 h-4 mt-0.5" />Cairo, Egypt</li>
             </ul>
           </div>
