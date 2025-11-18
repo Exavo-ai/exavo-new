@@ -88,7 +88,7 @@ serve(async (req) => {
 
     // Send email to admin
     await sendEmail(
-      ["ahmed@exavoai.io"],
+      ["info@exavo.ai"],
       "New Payment Received - ExavoAI",
       `
         <h1>New Payment Received</h1>

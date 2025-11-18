@@ -65,7 +65,7 @@ serve(async (req) => {
 
     // Email to admin with CSV attachment
     const adminEmail = await sendEmail(
-      ["ahmed@exavoai.io"],
+      ["info@exavo.ai"],
       `New Booking: ${booking.service}`,
       `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
