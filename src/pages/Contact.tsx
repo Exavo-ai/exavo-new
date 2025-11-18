@@ -47,7 +47,7 @@ const Contact = () => {
 
     try {
       // Send to Make.com webhook in the background
-      const webhookUrl = "https://hook.eu1.make.com/rxc7offsjoqb34nmeh5ner16re2f1l6s";
+      const webhookUrl = "https://hook.eu1.make.com/oisi57ya8s8nzmddbvjxqi7zd3qk92v3";
       const payload = {
         name: formData.name,
         email: formData.email,
