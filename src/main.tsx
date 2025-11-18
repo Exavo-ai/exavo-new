@@ -4,7 +4,7 @@ import "./index.css";
 
 // Initialize theme on load
 const initTheme = () => {
-  const savedTheme = localStorage.getItem('theme') || 'system';
+  const savedTheme = localStorage.getItem('theme') || 'dark';
   const root = document.documentElement;
   
   if (savedTheme === 'system') {
