@@ -1,0 +1,388 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "services": "Services",
+    "pricing": "Pricing",
+    "blog": "Blog",
+    "contact": "Contact",
+    "signIn": "Sign In",
+    "getStarted": "Get Started"
+  },
+  "hero": {
+    "title": "Transform Your Business with AI Solutions",
+    "subtitle": "Unlock the power of artificial intelligence with our cutting-edge consulting and implementation services. From strategy to deployment, we guide you every step of the way.",
+    "cta": "Get Started Now",
+    "learnMore": "Learn More",
+    "watchDemo": "Watch Demo"
+  },
+  "features": {
+    "title": "Our Core Services",
+    "subtitle": "Comprehensive AI solutions tailored to your business needs",
+    "aiConsulting": {
+      "title": "AI Consulting",
+      "description": "Strategic guidance to integrate AI into your business operations effectively and efficiently."
+    },
+    "customDevelopment": {
+      "title": "Custom AI Development",
+      "description": "Tailored AI solutions built specifically for your unique business requirements and challenges."
+    },
+    "dataAnalytics": {
+      "title": "Data Analytics",
+      "description": "Transform your data into actionable insights with advanced analytics and visualization."
+    },
+    "automation": {
+      "title": "Process Automation",
+      "description": "Streamline operations and reduce costs through intelligent automation solutions."
+    },
+    "integration": {
+      "title": "System Integration",
+      "description": "Seamlessly integrate AI capabilities into your existing technology infrastructure."
+    },
+    "support": {
+      "title": "24/7 Support",
+      "description": "Round-the-clock expert assistance to ensure your AI systems run smoothly."
+    }
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "subtitle": "Our streamlined process to deliver AI excellence",
+    "step1": {
+      "title": "Consultation",
+      "description": "We analyze your business needs and identify AI opportunities"
+    },
+    "step2": {
+      "title": "Strategy",
+      "description": "Develop a customized AI implementation roadmap"
+    },
+    "step3": {
+      "title": "Implementation",
+      "description": "Deploy cutting-edge AI solutions with minimal disruption"
+    },
+    "step4": {
+      "title": "Optimization",
+      "description": "Continuously improve and scale your AI capabilities"
+    }
+  },
+  "stats": {
+    "clients": "Happy Clients",
+    "projects": "Projects Completed",
+    "satisfaction": "Client Satisfaction",
+    "experts": "AI Experts"
+  },
+  "testimonials": {
+    "title": "What Our Clients Say",
+    "subtitle": "Real results from businesses that transformed with AI",
+    "client1": {
+      "name": "Sarah Johnson",
+      "role": "CEO, TechCorp",
+      "text": "Exavo AI transformed our business operations. Their expertise and dedication are unmatched."
+    },
+    "client2": {
+      "name": "Ahmed Hassan",
+      "role": "Director, Innovation Labs",
+      "text": "The AI solutions provided exceeded our expectations. Highly recommended!"
+    },
+    "client3": {
+      "name": "Maria Garcia",
+      "role": "CTO, Digital Solutions",
+      "text": "Professional, innovative, and results-driven. Exavo AI is our trusted partner."
+    }
+  },
+  "cta": {
+    "title": "Ready to Transform Your Business?",
+    "subtitle": "Join hundreds of companies already leveraging AI to drive growth and innovation.",
+    "button": "Get Started Now",
+    "exploreServices": "Explore Services"
+  },
+  "footer": {
+    "tagline": "Transforming businesses through intelligent AI solutions",
+    "solutions": "Solutions",
+    "aiConsulting": "AI Consulting",
+    "customDev": "Custom Development",
+    "dataAnalytics": "Data Analytics",
+    "automation": "Automation",
+    "company": "Company",
+    "about": "About Us",
+    "careers": "Careers",
+    "blog": "Blog",
+    "contact": "Contact",
+    "contactUs": "Contact Us",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "copyright": "© 2024 Exavo AI. All rights reserved."
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "fullName": "Full Name",
+    "forgotPassword": "Forgot password?",
+    "dontHaveAccount": "Don't have an account?",
+    "alreadyHaveAccount": "Already have an account?",
+    "signInToContinue": "Sign in to continue",
+    "createAccount": "Create your account",
+    "resetPassword": "Reset Password",
+    "backToLogin": "Back to Login",
+    "sendResetLink": "Send Reset Link",
+    "updatePassword": "Update Password",
+    "newPassword": "New Password"
+  },
+  "portal": {
+    "dashboard": "Dashboard",
+    "welcome": "Welcome to your AI workspace overview",
+    "totalSpending": "Total Spending",
+    "activeTools": "Active AI Tools",
+    "runningAutomations": "Running Automations",
+    "usageAnalytics": "Usage Analytics",
+    "apiCalls": "API Calls",
+    "automations": "Automations",
+    "aiAssistants": "AI Assistants",
+    "recentTickets": "Recent Tickets",
+    "recentOrders": "Recent Orders",
+    "viewAll": "View All",
+    "noTickets": "No support tickets yet",
+    "noOrders": "No orders yet",
+    "loading": "Loading dashboard...",
+    "myServices": "My Services",
+    "browseServices": "Browse Services",
+    "subscriptions": "Subscriptions",
+    "orders": "Orders",
+    "tickets": "Tickets",
+    "files": "Files",
+    "team": "Team",
+    "settings": "Settings",
+    "aiTools": "AI Tools",
+    "activeServices": "Active Services",
+    "workflows": "Workflows",
+    "integrations": "Integrations",
+    "forms": "Forms",
+    "proposals": "Proposals",
+    "invoices": "Invoices",
+    "purchaseHistory": "Purchase History",
+    "workspaceConfig": "Workspace Config",
+    "conversations": "Conversations",
+    "clients": "Clients",
+    "leads": "Leads"
+  },
+  "admin": {
+    "dashboard": "Dashboard",
+    "overview": "Overview of your platform analytics",
+    "totalUsers": "Total Users",
+    "totalServices": "Total Services",
+    "totalBookings": "Total Bookings",
+    "totalRevenue": "Total Revenue",
+    "monthlyGrowth": "Monthly Growth",
+    "activeUsers": "Active Users",
+    "revenueChart": "Revenue Over Time",
+    "popularServices": "Popular Services",
+    "users": "Users",
+    "services": "Services",
+    "bookings": "Bookings",
+    "payments": "Payments",
+    "settings": "Settings",
+    "activityLogs": "Activity Logs",
+    "tickets": "Tickets",
+    "manageUsers": "Manage Users",
+    "manageServices": "Manage Services",
+    "manageBookings": "Manage Bookings",
+    "viewPayments": "View Payments"
+  },
+  "services": {
+    "title": "Our AI Services",
+    "subtitle": "Comprehensive AI solutions for modern businesses",
+    "viewDetails": "View Details",
+    "bookNow": "Book Now",
+    "premium": "Premium",
+    "popular": "Popular",
+    "new": "New"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "export": "Export",
+    "import": "Import",
+    "download": "Download",
+    "upload": "Upload",
+    "submit": "Submit",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info",
+    "noData": "No data available",
+    "actions": "Actions",
+    "status": "Status",
+    "date": "Date",
+    "time": "Time",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "description": "Description",
+    "price": "Price",
+    "total": "Total",
+    "amount": "Amount",
+    "quantity": "Quantity",
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "completed": "Completed",
+    "failed": "Failed",
+    "cancelled": "Cancelled",
+    "manage": "Manage",
+    "configure": "Configure",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "enable": "Enable",
+    "disable": "Disable",
+    "create": "Create",
+    "update": "Update",
+    "remove": "Remove"
+  },
+  "table": {
+    "id": "ID",
+    "orderId": "Order ID",
+    "service": "Service",
+    "type": "Type",
+    "plan": "Plan",
+    "dates": "Dates",
+    "orderDate": "Order Date",
+    "deliveryDate": "Delivery Date",
+    "nextBilling": "Next Billing",
+    "subject": "Subject",
+    "priority": "Priority",
+    "ticketId": "Ticket ID",
+    "createdAt": "Created At",
+    "client": "Client",
+    "value": "Value",
+    "location": "Location",
+    "tools": "Tools",
+    "company": "Company",
+    "source": "Source",
+    "score": "Score",
+    "currency": "Currency",
+    "transactionId": "Transaction ID",
+    "paymentMethod": "Payment Method"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "completed": "Completed",
+    "processing": "Processing",
+    "delivered": "Delivered",
+    "cancelled": "Cancelled",
+    "failed": "Failed",
+    "inProgress": "In Progress",
+    "open": "Open",
+    "closed": "Closed",
+    "hot": "Hot",
+    "warm": "Warm",
+    "cold": "Cold",
+    "expiringSoon": "Expiring Soon",
+    "draft": "Draft",
+    "sent": "Sent"
+  },
+  "priority": {
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "urgent": "Urgent"
+  },
+  "subscription": {
+    "manageBilling": "Manage Billing",
+    "changePlan": "Change Plan",
+    "cancelSubscription": "Cancel Subscription",
+    "billingHistory": "Billing History",
+    "invoiceId": "Invoice ID",
+    "downloadInvoice": "Download Invoice"
+  },
+  "ticket": {
+    "createTicket": "Create Ticket",
+    "ticketDetails": "Ticket Details",
+    "assignTo": "Assign To",
+    "updateStatus": "Update Status",
+    "addReply": "Add Reply"
+  },
+  "team": {
+    "inviteMember": "Invite Member",
+    "memberName": "Member Name",
+    "role": "Role",
+    "joined": "Joined",
+    "searchMembers": "Search team members..."
+  },
+  "files": {
+    "uploadFiles": "Upload Files",
+    "folder": "Folder",
+    "file": "File",
+    "size": "Size",
+    "modified": "Modified",
+    "searchFiles": "Search files..."
+  },
+  "workflows": {
+    "newWorkflow": "New Workflow",
+    "steps": "Steps",
+    "completions": "Completions",
+    "copyWorkflow": "Copy Workflow"
+  },
+  "integrations": {
+    "connected": "Connected",
+    "notConnected": "Not Connected",
+    "category": "Category"
+  },
+  "forms": {
+    "createForm": "Create Form",
+    "submissions": "Submissions",
+    "lastUpdated": "Last Updated",
+    "preview": "Preview",
+    "copy": "Copy"
+  },
+  "proposals": {
+    "newProposal": "New Proposal",
+    "validUntil": "Valid Until",
+    "send": "Send"
+  },
+  "settings": {
+    "profile": "Profile",
+    "security": "Security",
+    "notifications": "Notifications",
+    "billing": "Billing",
+    "profileSettings": "Profile Settings",
+    "securitySettings": "Security Settings",
+    "notificationSettings": "Notification Settings",
+    "billingSettings": "Billing Settings",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "twoFactor": "Two-Factor Authentication",
+    "enable2FA": "Enable 2FA",
+    "disable2FA": "Disable 2FA",
+    "saveChanges": "Save Changes",
+    "manageBilling": "Manage Billing"
+  },
+  "workspace": {
+    "branding": "Branding",
+    "apiKeys": "API Keys",
+    "paymentMethods": "Payment Methods",
+    "logo": "Logo",
+    "primaryColor": "Primary Color",
+    "generateKey": "Generate New Key",
+    "addPayment": "Add Payment Method"
+  }
+}

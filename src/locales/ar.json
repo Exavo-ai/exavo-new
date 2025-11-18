@@ -1,0 +1,388 @@
+{
+  "nav": {
+    "home": "الرئيسية",
+    "about": "من نحن",
+    "services": "الخدمات",
+    "pricing": "الأسعار",
+    "blog": "المدونة",
+    "contact": "اتصل بنا",
+    "signIn": "تسجيل الدخول",
+    "getStarted": "ابدأ الآن"
+  },
+  "hero": {
+    "title": "حوّل عملك بحلول الذكاء الاصطناعي",
+    "subtitle": "اطلق العنان لقوة الذكاء الاصطناعي مع خدماتنا المتقدمة للاستشارات والتنفيذ. من الاستراتيجية إلى النشر، نرشدك في كل خطوة.",
+    "cta": "ابدأ الآن",
+    "learnMore": "اعرف المزيد",
+    "watchDemo": "شاهد العرض التوضيحي"
+  },
+  "features": {
+    "title": "خدماتنا الأساسية",
+    "subtitle": "حلول ذكاء اصطناعي شاملة مصممة خصيصاً لاحتياجات عملك",
+    "aiConsulting": {
+      "title": "استشارات الذكاء الاصطناعي",
+      "description": "إرشادات استراتيجية لدمج الذكاء الاصطناعي في عمليات عملك بفعالية وكفاءة."
+    },
+    "customDevelopment": {
+      "title": "التطوير المخصص للذكاء الاصطناعي",
+      "description": "حلول ذكاء اصطناعي مصممة خصيصاً لمتطلبات وتحديات عملك الفريدة."
+    },
+    "dataAnalytics": {
+      "title": "تحليل البيانات",
+      "description": "حوّل بياناتك إلى رؤى قابلة للتنفيذ باستخدام التحليلات المتقدمة والتصور."
+    },
+    "automation": {
+      "title": "أتمتة العمليات",
+      "description": "بسّط العمليات وقلل التكاليف من خلال حلول الأتمتة الذكية."
+    },
+    "integration": {
+      "title": "تكامل الأنظمة",
+      "description": "دمج قدرات الذكاء الاصطناعي بسلاسة في البنية التحتية التقنية الحالية."
+    },
+    "support": {
+      "title": "دعم على مدار الساعة",
+      "description": "مساعدة خبراء على مدار الساعة لضمان سلاسة تشغيل أنظمة الذكاء الاصطناعي."
+    }
+  },
+  "howItWorks": {
+    "title": "كيف نعمل",
+    "subtitle": "عمليتنا المبسطة لتقديم التميز في الذكاء الاصطناعي",
+    "step1": {
+      "title": "الاستشارة",
+      "description": "نحلل احتياجات عملك ونحدد فرص الذكاء الاصطناعي"
+    },
+    "step2": {
+      "title": "الاستراتيجية",
+      "description": "تطوير خارطة طريق مخصصة لتنفيذ الذكاء الاصطناعي"
+    },
+    "step3": {
+      "title": "التنفيذ",
+      "description": "نشر حلول الذكاء الاصطناعي المتطورة بأقل قدر من الاضطراب"
+    },
+    "step4": {
+      "title": "التحسين",
+      "description": "تحسين وتوسيع قدرات الذكاء الاصطناعي بشكل مستمر"
+    }
+  },
+  "stats": {
+    "clients": "عميل راضٍ",
+    "projects": "مشروع مكتمل",
+    "satisfaction": "رضا العملاء",
+    "experts": "خبير ذكاء اصطناعي"
+  },
+  "testimonials": {
+    "title": "ماذا يقول عملاؤنا",
+    "subtitle": "نتائج حقيقية من شركات تحولت باستخدام الذكاء الاصطناعي",
+    "client1": {
+      "name": "سارة جونسون",
+      "role": "الرئيس التنفيذي، تيك كورب",
+      "text": "غيّر Exavo AI عمليات أعمالنا. خبرتهم وتفانيهم لا مثيل لهما."
+    },
+    "client2": {
+      "name": "أحمد حسن",
+      "role": "مدير، مختبرات الابتكار",
+      "text": "حلول الذكاء الاصطناعي المقدمة تجاوزت توقعاتنا. موصى به بشدة!"
+    },
+    "client3": {
+      "name": "ماريا غارسيا",
+      "role": "مدير التكنولوجيا، الحلول الرقمية",
+      "text": "محترف ومبتكر وموجه نحو النتائج. Exavo AI هو شريكنا الموثوق."
+    }
+  },
+  "cta": {
+    "title": "هل أنت مستعد لتحويل عملك؟",
+    "subtitle": "انضم إلى مئات الشركات التي تستفيد بالفعل من الذكاء الاصطناعي لدفع النمو والابتكار.",
+    "button": "ابدأ الآن",
+    "exploreServices": "استكشف الخدمات"
+  },
+  "footer": {
+    "tagline": "تحويل الشركات من خلال حلول الذكاء الاصطناعي الذكية",
+    "solutions": "الحلول",
+    "aiConsulting": "استشارات الذكاء الاصطناعي",
+    "customDev": "التطوير المخصص",
+    "dataAnalytics": "تحليل البيانات",
+    "automation": "الأتمتة",
+    "company": "الشركة",
+    "about": "من نحن",
+    "careers": "الوظائف",
+    "blog": "المدونة",
+    "contact": "اتصل بنا",
+    "contactUs": "اتصل بنا",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "address": "العنوان",
+    "copyright": "© 2024 Exavo AI. جميع الحقوق محفوظة."
+  },
+  "auth": {
+    "signIn": "تسجيل الدخول",
+    "signUp": "إنشاء حساب",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "fullName": "الاسم الكامل",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "dontHaveAccount": "ليس لديك حساب؟",
+    "alreadyHaveAccount": "لديك حساب بالفعل؟",
+    "signInToContinue": "تسجيل الدخول للمتابعة",
+    "createAccount": "إنشاء حسابك",
+    "resetPassword": "إعادة تعيين كلمة المرور",
+    "backToLogin": "العودة إلى تسجيل الدخول",
+    "sendResetLink": "إرسال رابط إعادة التعيين",
+    "updatePassword": "تحديث كلمة المرور",
+    "newPassword": "كلمة المرور الجديدة"
+  },
+  "portal": {
+    "dashboard": "لوحة التحكم",
+    "welcome": "مرحباً بك في نظرة عامة على مساحة العمل الذكية",
+    "totalSpending": "إجمالي الإنفاق",
+    "activeTools": "أدوات الذكاء الاصطناعي النشطة",
+    "runningAutomations": "الأتمتة قيد التشغيل",
+    "usageAnalytics": "تحليلات الاستخدام",
+    "apiCalls": "استدعاءات API",
+    "automations": "الأتمتة",
+    "aiAssistants": "مساعدو الذكاء الاصطناعي",
+    "recentTickets": "التذاكر الأخيرة",
+    "recentOrders": "الطلبات الأخيرة",
+    "viewAll": "عرض الكل",
+    "noTickets": "لا توجد تذاكر دعم بعد",
+    "noOrders": "لا توجد طلبات بعد",
+    "loading": "جاري تحميل لوحة التحكم...",
+    "myServices": "خدماتي",
+    "browseServices": "تصفح الخدمات",
+    "subscriptions": "الاشتراكات",
+    "orders": "الطلبات",
+    "tickets": "التذاكر",
+    "files": "الملفات",
+    "team": "الفريق",
+    "settings": "الإعدادات",
+    "aiTools": "أدوات الذكاء الاصطناعي",
+    "activeServices": "الخدمات النشطة",
+    "workflows": "سير العمل",
+    "integrations": "التكاملات",
+    "forms": "النماذج",
+    "proposals": "العروض",
+    "invoices": "الفواتير",
+    "purchaseHistory": "سجل المشتريات",
+    "workspaceConfig": "إعدادات مساحة العمل",
+    "conversations": "المحادثات",
+    "clients": "العملاء",
+    "leads": "العملاء المحتملون"
+  },
+  "admin": {
+    "dashboard": "لوحة التحكم",
+    "overview": "نظرة عامة على تحليلات منصتك",
+    "totalUsers": "إجمالي المستخدمين",
+    "totalServices": "إجمالي الخدمات",
+    "totalBookings": "إجمالي الحجوزات",
+    "totalRevenue": "إجمالي الإيرادات",
+    "monthlyGrowth": "النمو الشهري",
+    "activeUsers": "المستخدمون النشطون",
+    "revenueChart": "الإيرادات مع مرور الوقت",
+    "popularServices": "الخدمات الشائعة",
+    "users": "المستخدمون",
+    "services": "الخدمات",
+    "bookings": "الحجوزات",
+    "payments": "المدفوعات",
+    "settings": "الإعدادات",
+    "activityLogs": "سجلات النشاط",
+    "tickets": "التذاكر",
+    "manageUsers": "إدارة المستخدمين",
+    "manageServices": "إدارة الخدمات",
+    "manageBookings": "إدارة الحجوزات",
+    "viewPayments": "عرض المدفوعات"
+  },
+  "services": {
+    "title": "خدمات الذكاء الاصطناعي",
+    "subtitle": "حلول ذكاء اصطناعي شاملة للشركات الحديثة",
+    "viewDetails": "عرض التفاصيل",
+    "bookNow": "احجز الآن",
+    "premium": "مميز",
+    "popular": "شائع",
+    "new": "جديد"
+  },
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "view": "عرض",
+    "search": "بحث",
+    "filter": "تصفية",
+    "sort": "ترتيب",
+    "export": "تصدير",
+    "import": "استيراد",
+    "download": "تنزيل",
+    "upload": "رفع",
+    "submit": "إرسال",
+    "close": "إغلاق",
+    "yes": "نعم",
+    "no": "لا",
+    "ok": "موافق",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "loading": "جاري التحميل...",
+    "error": "خطأ",
+    "success": "نجح",
+    "warning": "تحذير",
+    "info": "معلومات",
+    "noData": "لا توجد بيانات متاحة",
+    "actions": "الإجراءات",
+    "status": "الحالة",
+    "date": "التاريخ",
+    "time": "الوقت",
+    "name": "الاسم",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "address": "العنوان",
+    "description": "الوصف",
+    "price": "السعر",
+    "total": "الإجمالي",
+    "amount": "المبلغ",
+    "quantity": "الكمية",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "pending": "قيد الانتظار",
+    "completed": "مكتمل",
+    "failed": "فشل",
+    "cancelled": "ملغى",
+    "manage": "إدارة",
+    "configure": "تكوين",
+    "connect": "اتصال",
+    "disconnect": "قطع الاتصال",
+    "enable": "تفعيل",
+    "disable": "تعطيل",
+    "create": "إنشاء",
+    "update": "تحديث",
+    "remove": "إزالة"
+  },
+  "table": {
+    "id": "الرقم",
+    "orderId": "رقم الطلب",
+    "service": "الخدمة",
+    "type": "النوع",
+    "plan": "الخطة",
+    "dates": "التواريخ",
+    "orderDate": "تاريخ الطلب",
+    "deliveryDate": "تاريخ التسليم",
+    "nextBilling": "الفاتورة التالية",
+    "subject": "الموضوع",
+    "priority": "الأولوية",
+    "ticketId": "رقم التذكرة",
+    "createdAt": "تاريخ الإنشاء",
+    "client": "العميل",
+    "value": "القيمة",
+    "location": "الموقع",
+    "tools": "الأدوات",
+    "company": "الشركة",
+    "source": "المصدر",
+    "score": "النقاط",
+    "currency": "العملة",
+    "transactionId": "رقم المعاملة",
+    "paymentMethod": "طريقة الدفع"
+  },
+  "status": {
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "pending": "قيد الانتظار",
+    "completed": "مكتمل",
+    "processing": "قيد المعالجة",
+    "delivered": "تم التسليم",
+    "cancelled": "ملغى",
+    "failed": "فشل",
+    "inProgress": "قيد التنفيذ",
+    "open": "مفتوح",
+    "closed": "مغلق",
+    "hot": "ساخن",
+    "warm": "دافئ",
+    "cold": "بارد",
+    "expiringSoon": "تنتهي قريباً",
+    "draft": "مسودة",
+    "sent": "مرسل"
+  },
+  "priority": {
+    "high": "عالية",
+    "medium": "متوسطة",
+    "low": "منخفضة",
+    "urgent": "عاجل"
+  },
+  "subscription": {
+    "manageBilling": "إدارة الفواتير",
+    "changePlan": "تغيير الخطة",
+    "cancelSubscription": "إلغاء الاشتراك",
+    "billingHistory": "سجل الفواتير",
+    "invoiceId": "رقم الفاتورة",
+    "downloadInvoice": "تنزيل الفاتورة"
+  },
+  "ticket": {
+    "createTicket": "إنشاء تذكرة",
+    "ticketDetails": "تفاصيل التذكرة",
+    "assignTo": "تعيين إلى",
+    "updateStatus": "تحديث الحالة",
+    "addReply": "إضافة رد"
+  },
+  "team": {
+    "inviteMember": "دعوة عضو",
+    "memberName": "اسم العضو",
+    "role": "الدور",
+    "joined": "انضم في",
+    "searchMembers": "البحث عن أعضاء الفريق..."
+  },
+  "files": {
+    "uploadFiles": "رفع الملفات",
+    "folder": "مجلد",
+    "file": "ملف",
+    "size": "الحجم",
+    "modified": "تم التعديل",
+    "searchFiles": "البحث عن الملفات..."
+  },
+  "workflows": {
+    "newWorkflow": "سير عمل جديد",
+    "steps": "الخطوات",
+    "completions": "الإنجازات",
+    "copyWorkflow": "نسخ سير العمل"
+  },
+  "integrations": {
+    "connected": "متصل",
+    "notConnected": "غير متصل",
+    "category": "الفئة"
+  },
+  "forms": {
+    "createForm": "إنشاء نموذج",
+    "submissions": "التقديمات",
+    "lastUpdated": "آخر تحديث",
+    "preview": "معاينة",
+    "copy": "نسخ"
+  },
+  "proposals": {
+    "newProposal": "عرض جديد",
+    "validUntil": "صالح حتى",
+    "send": "إرسال"
+  },
+  "settings": {
+    "profile": "الملف الشخصي",
+    "security": "الأمان",
+    "notifications": "الإشعارات",
+    "billing": "الفواتير",
+    "profileSettings": "إعدادات الملف الشخصي",
+    "securitySettings": "إعدادات الأمان",
+    "notificationSettings": "إعدادات الإشعارات",
+    "billingSettings": "إعدادات الفواتير",
+    "changePassword": "تغيير كلمة المرور",
+    "currentPassword": "كلمة المرور الحالية",
+    "twoFactor": "المصادقة الثنائية",
+    "enable2FA": "تفعيل المصادقة الثنائية",
+    "disable2FA": "تعطيل المصادقة الثنائية",
+    "saveChanges": "حفظ التغييرات",
+    "manageBilling": "إدارة الفواتير"
+  },
+  "workspace": {
+    "branding": "العلامة التجارية",
+    "apiKeys": "مفاتيح API",
+    "paymentMethods": "طرق الدفع",
+    "logo": "الشعار",
+    "primaryColor": "اللون الأساسي",
+    "generateKey": "توليد مفتاح جديد",
+    "addPayment": "إضافة طريقة دفع"
+  }
+}
