@@ -5,9 +5,93 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Mail, Phone, MapPin, Clock } from "lucide-react";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 const Contact = () => {
   const { t } = useLanguage();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Send to Make.com webhook in the background
+      const webhookUrl = "https://hook.eu1.make.com/rxc7offsjoqb34nmeh5ner16re2f1l6s";
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || "",
+        service: "",
+        message: formData.message,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Non-blocking webhook call
+      fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }).catch((error) => {
+        console.error("Webhook error (non-blocking):", error);
+      });
+
+      // Show success message immediately
+      toast({
+        title: "Success!",
+        description: "Your message has been sent successfully. We'll get back to you soon.",
+      });
+
+      // Reset form
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        message: "",
+      });
+    } catch (error) {
+      console.error("Form submission error:", error);
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -37,28 +121,36 @@ const Contact = () => {
                 <div className="animate-fade-in">
                   <div className="bg-card rounded-2xl p-8 border border-border shadow-card">
                     <h2 className="text-2xl font-bold mb-6">Send us a message</h2>
-                    <form className="space-y-6">
+                    <form className="space-y-6" onSubmit={handleSubmit}>
                       <div>
                         <label htmlFor="name" className="block text-sm font-medium mb-2">
-                          {t('contact.name')}
+                          {t('contact.name')} *
                         </label>
                         <Input
                           id="name"
                           type="text"
                           placeholder="John Doe"
                           className="w-full"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          disabled={isLoading}
+                          required
                         />
                       </div>
                       
                       <div>
                         <label htmlFor="email" className="block text-sm font-medium mb-2">
-                          {t('contact.email')}
+                          {t('contact.email')} *
                         </label>
                         <Input
                           id="email"
                           type="email"
                           placeholder="john@example.com"
                           className="w-full"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          disabled={isLoading}
+                          required
                         />
                       </div>
                       
@@ -71,22 +163,34 @@ const Contact = () => {
                           type="tel"
                           placeholder="+61 4XX XXX XXX"
                           className="w-full"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          disabled={isLoading}
                         />
                       </div>
                       
                       <div>
                         <label htmlFor="message" className="block text-sm font-medium mb-2">
-                          {t('contact.message')}
+                          {t('contact.message')} *
                         </label>
                         <Textarea
                           id="message"
                           placeholder="Tell us about your project..."
                           className="w-full min-h-[150px]"
+                          value={formData.message}
+                          onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                          disabled={isLoading}
+                          required
                         />
                       </div>
                       
-                      <Button variant="hero" className="w-full shadow-glow">
-                        {t('contact.send')}
+                      <Button 
+                        type="submit" 
+                        variant="hero" 
+                        className="w-full shadow-glow"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? "Sending..." : t('contact.send')}
                       </Button>
                     </form>
                   </div>
