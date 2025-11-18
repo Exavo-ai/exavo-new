@@ -8,7 +8,7 @@ const CTA = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="py-20 lg:py-24 relative overflow-hidden bg-muted/30">
+    <section className="py-16 lg:py-20 relative overflow-hidden bg-muted/30">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-background via-muted/50 to-primary/5"></div>
       

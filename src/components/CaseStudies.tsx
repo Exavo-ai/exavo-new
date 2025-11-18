@@ -39,7 +39,7 @@ const CaseStudies = () => {
   ];
 
   return (
-    <section className="py-20 lg:py-24 bg-gradient-accent/20 relative overflow-hidden">
+    <section className="py-16 lg:py-20 bg-gradient-accent/20 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-[120px]"></div>
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-secondary/10 rounded-full blur-[120px]"></div>

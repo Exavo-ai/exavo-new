@@ -36,7 +36,7 @@ const HowWeHelp = () => {
   ];
 
   return (
-    <section className="py-16 lg:py-24 relative overflow-hidden">
+    <section className="py-16 lg:py-20 relative overflow-hidden">
       {/* Background elements */}
       <div className="absolute inset-0 bg-gradient-to-b from-background via-muted/30 to-background"></div>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,hsl(var(--primary)/0.1),transparent_50%)]"></div>

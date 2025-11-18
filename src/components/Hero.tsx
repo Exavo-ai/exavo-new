@@ -18,7 +18,7 @@ const Hero = () => {
   ];
 
   return (
-    <section className="relative overflow-hidden pt-20 sm:pt-32 pb-16 sm:pb-24 lg:pt-40 lg:pb-32">
+    <section className="relative overflow-hidden pt-20 sm:pt-32 pb-12 lg:pt-40 lg:pb-16">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5"></div>
       

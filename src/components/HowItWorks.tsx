@@ -40,7 +40,7 @@ const HowItWorks = () => {
   ];
 
   return (
-    <section className="py-20 lg:py-24 bg-background relative overflow-hidden">
+    <section className="py-16 lg:py-20 bg-background relative overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border))_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-10"></div>
       
