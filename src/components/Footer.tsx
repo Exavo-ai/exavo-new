@@ -16,9 +16,9 @@ const Footer = () => {
             </div>
             <p className="text-sm text-muted-foreground">Making AI accessible for every business.</p>
             <div className="flex gap-4">
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors"><Twitter className="w-5 h-5" /></a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors"><Linkedin className="w-5 h-5" /></a>
-              <a href="mailto:info@exavo.ai" className="text-muted-foreground hover:text-primary transition-colors"><Mail className="w-5 h-5" /></a>
+              <a href="#" className="text-muted-foreground hover:text-primary transition-colors" aria-label="Twitter"><Twitter className="w-5 h-5" /></a>
+              <a href="https://www.linkedin.com/company/exavo/posts/?feedView=all" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors" aria-label="LinkedIn"><Linkedin className="w-5 h-5" /></a>
+              <a href="mailto:info@exavo.ai" className="text-muted-foreground hover:text-primary transition-colors" aria-label="Email"><Mail className="w-5 h-5" /></a>
             </div>
           </div>
           <div>
