@@ -31,8 +31,8 @@ const Hero = () => {
       
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Centered Content */}
-        <div className="max-w-5xl mx-auto text-center space-y-8 animate-fade-in">
-          <div className="space-y-4 sm:space-y-6">
+        <div className="max-w-5xl mx-auto text-center animate-fade-in">
+          <div className="space-y-4 sm:space-y-6 mb-10">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight">
               {language === 'ar' 
                 ? 'تحليلات مدعومة بالذكاء الاصطناعي لأعمالك'
@@ -46,8 +46,34 @@ const Hero = () => {
             </p>
           </div>
 
+          {/* Dashboard Preview */}
+          <div className="relative animate-fade-in-up mb-10 max-w-4xl mx-auto" style={{ animationDelay: '0.1s' }}>
+            <div className="relative rounded-2xl overflow-hidden shadow-card border border-border/50 bg-card">
+              <img 
+                src={dashboardHero} 
+                alt="Dashboard preview showing AI-powered analytics interface"
+                className="w-full h-auto"
+              />
+              
+              {/* Floating stat badges */}
+              <div className="absolute top-4 sm:top-6 right-4 sm:right-6 backdrop-blur-md bg-card/80 rounded-xl p-3 sm:p-4 shadow-glow border border-border/50 animate-float">
+                <div className="text-xl sm:text-2xl font-bold text-primary">+43%</div>
+                <div className="text-xs text-muted-foreground">
+                  {language === 'ar' ? 'نمو الإيرادات' : 'Revenue Growth'}
+                </div>
+              </div>
+              
+              <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 backdrop-blur-md bg-card/80 rounded-xl p-3 sm:p-4 shadow-glow border border-border/50 animate-float" style={{ animationDelay: '1s' }}>
+                <div className="text-xl sm:text-2xl font-bold text-secondary">99.9%</div>
+                <div className="text-xs text-muted-foreground">
+                  {language === 'ar' ? 'دقة البيانات' : 'Data Accuracy'}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <Button 
               size="lg"
               variant="hero"
@@ -75,43 +101,16 @@ const Hero = () => {
           </div>
 
           {/* Benefits List - Horizontal */}
-          <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 pt-4">
+          <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
             {benefits.map((benefit, index) => (
               <div 
                 key={index}
-                className="flex items-center gap-2 animate-fade-in-up"
-                style={{ animationDelay: `${0.1 * index}s` }}
+                className="flex items-center gap-2"
               >
                 <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
                 <span className="text-sm text-muted-foreground">{benefit}</span>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Dashboard Preview - Hidden on mobile, centered below on desktop */}
-        <div className="relative animate-fade-in-up hidden lg:block mt-16 max-w-4xl mx-auto" style={{ animationDelay: '0.2s' }}>
-          <div className="relative rounded-2xl overflow-hidden shadow-card border border-border/50 bg-card">
-            <img 
-              src={dashboardHero} 
-              alt="Dashboard preview"
-              className="w-full h-auto"
-            />
-            
-            {/* Floating stat badges */}
-            <div className="absolute top-6 right-6 backdrop-blur-md bg-card/80 rounded-xl p-4 shadow-glow border border-border/50 animate-float">
-              <div className="text-2xl font-bold text-primary">+43%</div>
-              <div className="text-xs text-muted-foreground">
-                {language === 'ar' ? 'نمو الإيرادات' : 'Revenue Growth'}
-              </div>
-            </div>
-            
-            <div className="absolute bottom-6 left-6 backdrop-blur-md bg-card/80 rounded-xl p-4 shadow-glow border border-border/50 animate-float" style={{ animationDelay: '1s' }}>
-              <div className="text-2xl font-bold text-secondary">99.9%</div>
-              <div className="text-xs text-muted-foreground">
-                {language === 'ar' ? 'دقة البيانات' : 'Data Accuracy'}
-              </div>
-            </div>
           </div>
         </div>
       </div>
