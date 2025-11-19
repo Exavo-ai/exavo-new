@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Menu, Sun, Moon, LogOut, User } from "lucide-react";
+import { Menu, Sun, Moon, LogOut, User, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -85,26 +85,37 @@ export function AdminHeader({ isMobile, onMenuToggle }: AdminHeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
+        {/* Notifications Bell */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 relative"
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-destructive rounded-full"></span>
+        </Button>
+
         {/* Theme Toggle */}
         <Button
           variant="ghost"
           size="icon"
+          className="h-9 w-9"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         >
           {theme === "dark" ? (
-            <Sun className="h-5 w-5" />
+            <Sun className="h-4 w-4" />
           ) : (
-            <Moon className="h-5 w-5" />
+            <Moon className="h-4 w-4" />
           )}
         </Button>
 
         {/* Profile Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback>A</AvatarFallback>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="text-xs">A</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
