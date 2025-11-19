@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Menu, Sun, Moon, LogOut, User, Bell } from "lucide-react";
+import { Menu, Sun, Moon, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import exavoLogo from "@/assets/exavo-logo.png";
+import { AdminNotificationsDropdown } from "./AdminNotificationsDropdown";
 
 interface AdminHeaderProps {
   isMobile?: boolean;
@@ -86,14 +87,8 @@ export function AdminHeader({ isMobile, onMenuToggle }: AdminHeaderProps) {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-        {/* Notifications Bell */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 shrink-0"
-        >
-          <Bell className="h-4 w-4" />
-        </Button>
+        {/* Notifications */}
+        <AdminNotificationsDropdown />
 
         {/* Theme Toggle */}
         <Button
