@@ -54,7 +54,7 @@ export function InviteClientDialog() {
       const { error } = await supabase.functions.invoke('send-welcome-email', {
         body: {
           email: formData.email,
-          name: formData.full_name,
+          full_name: formData.full_name,
         },
       });
 
