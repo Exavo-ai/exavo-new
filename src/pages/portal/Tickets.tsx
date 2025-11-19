@@ -118,7 +118,7 @@ export default function TicketsPage() {
           <h1 className="text-3xl font-bold">Support Tickets</h1>
           <p className="text-muted-foreground">Track and manage your support requests</p>
         </div>
-        <CreateTicketDialog />
+        <CreateTicketDialog onTicketCreated={fetchTickets} />
       </div>
 
       <Card>
@@ -126,7 +126,12 @@ export default function TicketsPage() {
           <div className="flex items-center gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search tickets..." className="pl-10" />
+              <Input 
+                placeholder="Search tickets..." 
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
             <Button variant="outline">Filters</Button>
           </div>
@@ -146,7 +151,20 @@ export default function TicketsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredTickets.map((ticket) => (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
+                    </td>
+                  </tr>
+                ) : filteredTickets.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
+                      No tickets found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTickets.map((ticket) => (
                   <tr key={ticket.ticketId} className="border-b border-border last:border-0 hover:bg-muted/50">
                     <td className="py-4">
                       <div className="flex items-center gap-2">
@@ -175,7 +193,8 @@ export default function TicketsPage() {
                       </Button>
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
