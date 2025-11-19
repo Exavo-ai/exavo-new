@@ -95,7 +95,69 @@ export default function TicketsPage() {
 
   useEffect(() => {
     fetchTickets();
-  }, []);
+
+    // Set up real-time subscription for new tickets
+    const channel = supabase
+      .channel('tickets-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'tickets'
+        },
+        (payload) => {
+          console.log('New ticket inserted:', payload);
+          // Map the new ticket to the expected format and add to state
+          const newTicket: Ticket = {
+            ticketId: payload.new.id,
+            subject: payload.new.subject,
+            priority: payload.new.priority,
+            service: payload.new.service || "General",
+            status: payload.new.status,
+            createdAt: payload.new.created_at,
+          };
+          
+          // Add the new ticket to the beginning of the list
+          setTickets(prev => [newTicket, ...prev]);
+          
+          toast({
+            title: "New Ticket",
+            description: "A new ticket has been created",
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'tickets'
+        },
+        (payload) => {
+          console.log('Ticket updated:', payload);
+          // Update the ticket in the list
+          setTickets(prev => prev.map(ticket => 
+            ticket.ticketId === payload.new.id
+              ? {
+                  ticketId: payload.new.id,
+                  subject: payload.new.subject,
+                  priority: payload.new.priority,
+                  service: payload.new.service || "General",
+                  status: payload.new.status,
+                  createdAt: payload.new.created_at,
+                }
+              : ticket
+          ));
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [toast]);
 
   const filteredTickets = tickets.filter((ticket) =>
     ticket.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
