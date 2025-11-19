@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CreateTicketDialogProps {
   onTicketCreated?: () => void;
@@ -65,14 +66,57 @@ export function CreateTicketDialog({ onTicketCreated }: CreateTicketDialogProps)
     setIsLoading(true);
 
     try {
-      // Send to Make.com webhook
-      await fetch("https://hook.eu1.make.com/pgshwlswnwuctpmb2r4p3e4qm6j2i46e", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+      // Get logged-in user
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to create a ticket",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Insert ticket into Supabase first
+      const { data: ticketData, error: insertError } = await supabase
+        .from("tickets")
+        .insert({
+          subject: formData.issue_type,
+          description: formData.description,
+          priority: formData.priority.toLowerCase(),
+          service: formData.company || null,
+          status: "open",
+          user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error("Supabase insert error:", insertError);
+        toast({
+          title: "Error",
+          description: "Failed to create ticket. Please try again.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // After successful Supabase insert, send to Make.com webhook
+      try {
+        await fetch("https://hook.eu1.make.com/pgshwlswnwuctpmb2r4p3e4qm6j2i46e", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        });
+      } catch (webhookError) {
+        console.error("Make.com webhook error:", webhookError);
+        // Don't fail the entire operation if webhook fails
+      }
 
       // Show success message
       toast({
