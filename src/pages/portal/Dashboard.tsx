@@ -1,22 +1,37 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { KPICard } from "@/components/portal/KPICard";
 import { StatusBadge } from "@/components/portal/StatusBadge";
-import { DollarSign, Bot, Zap } from "lucide-react";
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { mockApi, KPIData, UsageData, Ticket, Order } from "@/lib/mockApi";
+import { DollarSign, Bot, Zap, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface Ticket {
+  id: string;
+  subject: string;
+  status: string;
+  priority: string;
+  service: string | null;
+  created_at: string;
+}
+
+interface Appointment {
+  id: string;
+  full_name: string;
+  service_id: string | null;
+  status: string;
+  appointment_date: string;
+  created_at: string;
+}
 
 export default function DashboardPage() {
-  const [kpiData, setKpiData] = useState<KPIData | null>(null);
-  const [usageData, setUsageData] = useState<UsageData | null>(null);
-  const [usageType, setUsageType] = useState<'apiCalls' | 'automations' | 'assistants'>('apiCalls');
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     loadDashboardData();
@@ -24,22 +39,49 @@ export default function DashboardPage() {
 
   const loadDashboardData = async () => {
     try {
-      const [kpi, usage, ticketData, orderData] = await Promise.all([
-        mockApi.getKPIData(),
-        mockApi.getUsageData(),
-        mockApi.getTickets(5),
-        mockApi.getOrders(5),
-      ]);
-      setKpiData(kpi);
-      setUsageData(usage);
-      setTickets(ticketData);
-      setOrders(orderData);
+      setError(null);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error("Not authenticated");
+      }
+
+      // Fetch tickets
+      const { data: ticketsData, error: ticketsError } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (ticketsError) throw ticketsError;
+
+      // Fetch appointments (service requests)
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (appointmentsError) throw appointmentsError;
+
+      setTickets(ticketsData || []);
+      setAppointments(appointmentsData || []);
+    } catch (err: any) {
+      console.error("Error loading dashboard:", err);
+      setError(err.message || "Failed to load dashboard data");
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading || !kpiData || !usageData) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -50,10 +92,29 @@ export default function DashboardPage() {
     );
   }
 
-  const chartData = usageData.labels.map((label, index) => ({
-    name: label,
-    value: usageData[usageType][index],
-  }));
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center space-y-4">
+          <AlertCircle className="w-16 h-16 text-destructive mx-auto" />
+          <div>
+            <p className="text-lg font-semibold">Error Loading Dashboard</p>
+            <p className="text-muted-foreground">{error}</p>
+          </div>
+          <Button onClick={loadDashboardData}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate stats from real data
+  const totalTickets = tickets.length;
+  const openTickets = tickets.filter(t => t.status === 'open').length;
+  const resolvedTickets = tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length;
+  
+  const totalAppointments = appointments.length;
+  const activeAppointments = appointments.filter(a => a.status === 'confirmed' || a.status === 'pending').length;
+  const completedAppointments = appointments.filter(a => a.status === 'completed').length;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -63,112 +124,136 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        <KPICard
-          title="Total Spending"
-          value={`$${kpiData.totalSpending.amount.toLocaleString()}`}
-          trend={kpiData.totalSpending.trend}
-          chartData={kpiData.totalSpending.chartData}
-          icon={<DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-white" />}
-        />
-        <KPICard
-          title="Active AI Tools"
-          value={kpiData.activeTools.count}
-          trend={kpiData.activeTools.trend}
-          icon={<Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />}
-        />
-        <KPICard
-          title="Running Automations"
-          value={kpiData.runningAutomations.count}
-          trend={kpiData.runningAutomations.trend}
-          icon={<Zap className="w-5 h-5 sm:w-6 sm:h-6 text-white" />}
-        />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-            <CardTitle className="text-lg sm:text-xl">Usage Analytics</CardTitle>
-            <Select value={usageType} onValueChange={(value: any) => setUsageType(value)}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="apiCalls">API Calls</SelectItem>
-                <SelectItem value="automations">Automations</SelectItem>
-                <SelectItem value="assistants">AI Assistants</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64 sm:h-80 -mx-2 sm:mx-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
-                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ fill: 'hsl(var(--primary))', r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-lg sm:text-xl">Recent Support Tickets</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/client/tickets')} className="text-xs sm:text-sm h-8 sm:h-9">View All</Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <div className="inline-block min-w-full align-middle px-4 sm:px-0">
-              <div className="space-y-3 sm:space-y-4">
-                {tickets.map((ticket) => (
-                  <div
-                    key={ticket.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors gap-2 sm:gap-0"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium mb-1 text-sm sm:text-base truncate">{ticket.subject}</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">{ticket.created}</p>
-                    </div>
-                    <StatusBadge status={ticket.status} />
-                  </div>
-                ))}
-              </div>
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
+              <Bot className="w-5 h-5 text-primary" />
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalTickets}</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {openTickets} open • {resolvedTickets} resolved
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">Service Requests</CardTitle>
+              <Zap className="w-5 h-5 text-primary" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalAppointments}</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {activeAppointments} active • {completedAppointments} completed
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
+              <DollarSign className="w-5 h-5 text-primary" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={() => navigate("/client/browse-services")}
+              >
+                Browse Services
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <CardTitle className="text-lg sm:text-xl">Recent Orders</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/client/orders')} className="text-xs sm:text-sm h-8 sm:h-9">View All</Button>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg sm:text-xl">Recent Tickets</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/client/tickets")}>
+                View All
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3 sm:space-y-4">
-              {orders.map((order) => (
-                <div
-                  key={order.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors gap-2 sm:gap-0"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium mb-1 text-sm sm:text-base truncate">{order.service}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">{order.startDate}</p>
+            {tickets.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No tickets yet</p>
+                <p className="text-sm mt-1">Create your first support ticket</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {tickets.map((ticket) => (
+                  <div 
+                    key={ticket.id} 
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors gap-2"
+                    onClick={() => navigate(`/client/tickets/${ticket.id}`)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{ticket.subject}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                        {ticket.service || "General"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <StatusBadge status={ticket.status as any} />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(ticket.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-sm sm:text-base">${order.amount}</p>
-                    <StatusBadge status={order.status} />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg sm:text-xl">Service Requests</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/client/my-services")}>
+                View All
+              </Button>
             </div>
+          </CardHeader>
+          <CardContent>
+            {appointments.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No service requests yet</p>
+                <p className="text-sm mt-1">Browse and request services</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {appointments.map((appointment) => (
+                  <div 
+                    key={appointment.id} 
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg border hover:bg-muted/50 transition-colors gap-2"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{appointment.full_name}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                        {new Date(appointment.appointment_date).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <StatusBadge status={appointment.status as any} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

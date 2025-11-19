@@ -5,17 +5,92 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
+interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string;
+  phone: string | null;
+  avatar_url: string | null;
+}
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "");
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email] = useState(user?.email || "");
   const [isResending, setIsResending] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadProfile();
+  }, [user]);
+
+  const loadProfile = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setProfile(data);
+        setFullName(data.full_name || "");
+        setPhone(data.phone || "");
+      }
+    } catch (error: any) {
+      console.error("Error loading profile:", error);
+      // Initialize with user metadata if profile doesn't exist
+      setFullName(user?.user_metadata?.full_name || "");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: fullName,
+          phone: phone,
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+      });
+
+      // Reload profile
+      await loadProfile();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleResendVerification = async () => {
     if (!user?.email) return;
@@ -68,43 +143,70 @@ export default function SettingsPage() {
               <CardTitle>Profile Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="flex gap-2">
-                  <Input id="email" value={email} disabled className="flex-1" />
-                  {user?.email_confirmed_at ? (
-                    <Badge variant="default" className="flex items-center gap-1 self-center">
-                      <CheckCircle2 className="w-3 h-3" />
-                      Verified
-                    </Badge>
-                  ) : (
-                    <Badge variant="destructive" className="flex items-center gap-1 self-center">
-                      <XCircle className="w-3 h-3" />
-                      Unverified
-                    </Badge>
-                  )}
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
-                {!user?.email_confirmed_at && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleResendVerification}
-                    disabled={isResending}
-                    className="mt-2"
-                  >
-                    {isResending ? "Sending..." : "Resend verification email"}
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Enter your full name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="Enter your phone number"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="flex gap-2">
+                      <Input id="email" value={email} disabled className="flex-1" />
+                      {user?.email_confirmed_at ? (
+                        <Badge variant="default" className="flex items-center gap-1 self-center">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Verified
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive" className="flex items-center gap-1 self-center">
+                          <XCircle className="w-3 h-3" />
+                          Unverified
+                        </Badge>
+                      )}
+                    </div>
+                    {!user?.email_confirmed_at && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleResendVerification}
+                        disabled={isResending}
+                        className="mt-2"
+                      >
+                        {isResending ? "Sending..." : "Resend verification email"}
+                      </Button>
+                    )}
+                  </div>
+                  <Button onClick={handleSaveProfile} disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
                   </Button>
-                )}
-              </div>
-              <Button>Save Changes</Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
