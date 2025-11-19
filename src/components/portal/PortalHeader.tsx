@@ -28,55 +28,52 @@ export function PortalHeader({ isMobile, onMenuToggle }: PortalHeaderProps) {
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "User";
 
   return (
-    <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 md:px-6">
-      {/* Left: Mobile menu + Greeting with small logo */}
-      <div className="flex items-center gap-3">
-        {/* Mobile hamburger menu */}
-        {isMobile && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
+    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 sm:px-6 w-full">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+        {isMobile && onMenuToggle && (
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onMenuToggle}
-            className="mr-2"
+            className="md:hidden shrink-0"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="h-5 w-5" />
           </Button>
         )}
-        <img src={exavoLogo} alt="Exavo AI" className="h-6 hidden sm:block" />
-        <div>
-          <h2 className="text-base md:text-lg font-semibold">
+        <img src={exavoLogo} alt="Exavo AI" className="h-7 sm:h-8 w-auto shrink-0" />
+        <div className="min-w-0">
+          <h1 className="text-sm sm:text-base font-semibold truncate">
             Hello, {firstName}! 👋
-          </h2>
-          <p className="text-xs text-muted-foreground hidden sm:block">
+          </h1>
+          <p className="text-xs text-muted-foreground hidden sm:block truncate">
             Welcome to your AI workspace
           </p>
         </div>
       </div>
 
-      {/* Right: Actions */}
-      <div className="flex items-center gap-2 md:gap-4">
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         {/* Notifications */}
         <NotificationsDropdown />
 
         {/* Theme Toggle */}
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="hover:scale-105 transition-transform"
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 shrink-0"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           aria-label="Toggle theme"
         >
-          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
 
         {/* Profile Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <User className="w-5 h-5" />
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full shrink-0">
+              <User className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium">{firstName}</p>
@@ -86,14 +83,14 @@ export function PortalHeader({ isMobile, onMenuToggle }: PortalHeaderProps) {
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate("/client/settings")}>
               <SettingsIcon className="mr-2 h-4 w-4" />
-              Account Settings
+              Settings
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/client/subscriptions")}>
               <CreditCard className="mr-2 h-4 w-4" />
-              Billing & Subscription
+              Billing
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={signOut} className="text-destructive">
+            <DropdownMenuItem onClick={signOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Logout
             </DropdownMenuItem>
