@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Brain, Sparkles, Target, TrendingUp, Users, Zap, ArrowRight, CheckCircle2, MessageSquare, Star } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import Newsletter from '@/components/Newsletter';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -284,6 +285,7 @@ const Landing = () => {
         </div>
       </section>
 
+      <Newsletter />
       <Footer />
     </div>
   );

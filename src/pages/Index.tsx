@@ -9,6 +9,7 @@ import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
 import ChatWidget from "@/components/ChatWidget";
 import SEO from "@/components/SEO";
+import Newsletter from "@/components/Newsletter";
 
 const Index = () => {
   return (
@@ -27,6 +28,7 @@ const Index = () => {
         <FAQ />
         <CTA />
       </main>
+      <Newsletter />
       <Footer />
       <ChatWidget />
     </div>
