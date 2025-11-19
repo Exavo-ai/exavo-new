@@ -52,22 +52,31 @@ export default function TicketsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
+        console.log("No user found - not authenticated");
         toast({
           title: "Error",
           description: "You must be logged in to view tickets",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
-      // Load tickets from Supabase
+      console.log("Fetching tickets for user:", user.id);
+
+      // Load tickets from Supabase (NOT from external API)
       const { data, error } = await supabase
         .from("tickets")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase query error:", error);
+        throw error;
+      }
+
+      console.log("Tickets loaded from Supabase:", data);
 
       // Map Supabase data to the expected format
       const mappedTickets: Ticket[] = (data || []).map((ticket) => ({
@@ -79,7 +88,12 @@ export default function TicketsPage() {
         createdAt: ticket.created_at,
       }));
 
+      console.log("Mapped tickets:", mappedTickets);
       setTickets(mappedTickets);
+
+      if (mappedTickets.length === 0) {
+        console.log("No tickets found for this user");
+      }
     } catch (error) {
       console.error("Error fetching tickets:", error);
       toast({
@@ -94,69 +108,84 @@ export default function TicketsPage() {
   };
 
   useEffect(() => {
-    fetchTickets();
+    const initTickets = async () => {
+      await fetchTickets();
 
-    // Set up real-time subscription for new tickets
-    const channel = supabase
-      .channel('tickets-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'tickets'
-        },
-        (payload) => {
-          console.log('New ticket inserted:', payload);
-          // Map the new ticket to the expected format and add to state
-          const newTicket: Ticket = {
-            ticketId: payload.new.id,
-            subject: payload.new.subject,
-            priority: payload.new.priority,
-            service: payload.new.service || "General",
-            status: payload.new.status,
-            createdAt: payload.new.created_at,
-          };
-          
-          // Add the new ticket to the beginning of the list
-          setTickets(prev => [newTicket, ...prev]);
-          
-          toast({
-            title: "New Ticket",
-            description: "A new ticket has been created",
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'tickets'
-        },
-        (payload) => {
-          console.log('Ticket updated:', payload);
-          // Update the ticket in the list
-          setTickets(prev => prev.map(ticket => 
-            ticket.ticketId === payload.new.id
-              ? {
-                  ticketId: payload.new.id,
-                  subject: payload.new.subject,
-                  priority: payload.new.priority,
-                  service: payload.new.service || "General",
-                  status: payload.new.status,
-                  createdAt: payload.new.created_at,
-                }
-              : ticket
-          ));
-        }
-      )
-      .subscribe();
+      // Get current user for real-time filtering
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    // Cleanup subscription on unmount
-    return () => {
-      supabase.removeChannel(channel);
+      console.log("Setting up real-time subscription for user:", user.id);
+
+      // Set up real-time subscription for new tickets (filtered by user)
+      const channel = supabase
+        .channel('tickets-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'tickets',
+            filter: `user_id=eq.${user.id}` // Only listen to this user's tickets
+          },
+          (payload) => {
+            console.log('New ticket inserted for current user:', payload);
+            // Map the new ticket to the expected format and add to state
+            const newTicket: Ticket = {
+              ticketId: payload.new.id,
+              subject: payload.new.subject,
+              priority: payload.new.priority,
+              service: payload.new.service || "General",
+              status: payload.new.status,
+              createdAt: payload.new.created_at,
+            };
+            
+            // Add the new ticket to the beginning of the list
+            setTickets(prev => [newTicket, ...prev]);
+            
+            toast({
+              title: "New Ticket",
+              description: `Ticket "${newTicket.subject}" has been created`,
+            });
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'tickets',
+            filter: `user_id=eq.${user.id}` // Only listen to this user's tickets
+          },
+          (payload) => {
+            console.log('Ticket updated for current user:', payload);
+            // Update the ticket in the list
+            setTickets(prev => prev.map(ticket => 
+              ticket.ticketId === payload.new.id
+                ? {
+                    ticketId: payload.new.id,
+                    subject: payload.new.subject,
+                    priority: payload.new.priority,
+                    service: payload.new.service || "General",
+                    status: payload.new.status,
+                    createdAt: payload.new.created_at,
+                  }
+                : ticket
+            ));
+          }
+        )
+        .subscribe((status) => {
+          console.log('Real-time subscription status:', status);
+        });
+
+      // Cleanup subscription on unmount
+      return () => {
+        console.log('Cleaning up real-time subscription');
+        supabase.removeChannel(channel);
+      };
     };
+
+    initTickets();
   }, [toast]);
 
   const filteredTickets = tickets.filter((ticket) =>
