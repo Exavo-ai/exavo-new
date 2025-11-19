@@ -34,15 +34,13 @@ const Newsletter = () => {
 
     try {
       // Send to Make.com webhook
-      await fetch('https://hook.eu1.make.com/oisi57ya8s8nzmddbvjxqi7zd3qk92v3', {
+      await fetch('https://hook.eu1.make.com/yyuv8e5e2tjnaaah69ek9pii0ctk026h', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           email,
-          type: 'newsletter',
-          timestamp: new Date().toISOString(),
         }),
       });
 
