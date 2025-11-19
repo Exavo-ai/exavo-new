@@ -2,7 +2,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, AlertCircle } from "lucide-react";
+import { Search, AlertCircle } from "lucide-react";
+import { CreateTicketDialog } from "@/components/portal/CreateTicketDialog";
 
 const tickets = [
   {
@@ -70,10 +71,7 @@ export default function TicketsPage() {
           <h1 className="text-3xl font-bold">Support Tickets</h1>
           <p className="text-muted-foreground">Track and manage your support requests</p>
         </div>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Ticket
-        </Button>
+        <CreateTicketDialog />
       </div>
 
       <Card>
