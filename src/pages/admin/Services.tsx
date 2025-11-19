@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, Power, PowerOff } from "lucide-react";
 import { EditServiceDialog } from "@/components/admin/EditServiceDialog";
+import { CreateServiceDialog } from "@/components/admin/CreateServiceDialog";
 import {
   Table,
   TableBody,
@@ -33,6 +34,7 @@ export default function Services() {
   const [loading, setLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -135,7 +137,7 @@ export default function Services() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Services Management</h2>
           <p className="text-muted-foreground">Manage your service offerings</p>
         </div>
-        <Button>
+        <Button onClick={() => setCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Service
         </Button>
@@ -192,7 +194,11 @@ export default function Services() {
                               <Power className="h-4 w-4" />
                             )}
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleEditService(service)}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
@@ -217,6 +223,12 @@ export default function Services() {
         service={selectedService}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
+        onSuccess={loadServices}
+      />
+
+      <CreateServiceDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
         onSuccess={loadServices}
       />
     </div>
