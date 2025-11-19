@@ -62,31 +62,36 @@ export default function TicketDetailPage() {
 
       setIsLoading(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const authToken = session?.access_token;
+        // Load ticket from Supabase
+        const { data, error } = await supabase
+          .from("tickets")
+          .select("*")
+          .eq("id", ticketId)
+          .single();
 
-        if (!authToken) {
+        if (error) throw error;
+
+        if (!data) {
           toast({
             title: "Error",
-            description: "Authentication token not found",
+            description: "Ticket not found",
             variant: "destructive",
           });
+          navigate("/client/tickets");
           return;
         }
 
-        const response = await fetch(`https://exavo.ai/api/tickets/${ticketId}`, {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-          },
+        // Map Supabase data to the expected format
+        setTicket({
+          ticketId: data.id,
+          subject: data.subject,
+          priority: data.priority,
+          service: data.service || "General",
+          status: data.status,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+          description: data.description,
         });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setTicket(data);
       } catch (error) {
         console.error("Error fetching ticket details:", error);
         toast({
