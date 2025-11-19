@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, MoreVertical, UserCheck, UserX, Trash2, Edit } from "lucide-react";
 import { UserEditDialog } from "@/components/admin/UserEditDialog";
+import { InviteClientDialog } from "@/components/admin/InviteClientDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -138,9 +139,12 @@ export default function Users() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Users Management</h2>
-        <p className="text-muted-foreground">Manage and monitor all users</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Users Management</h2>
+          <p className="text-muted-foreground">Manage and monitor all users</p>
+        </div>
+        <InviteClientDialog />
       </div>
 
       <Card>
