@@ -1,69 +1,116 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, AlertCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, AlertCircle, Loader2 } from "lucide-react";
 import { CreateTicketDialog } from "@/components/portal/CreateTicketDialog";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
-const tickets = [
-  {
-    id: "TKT-001",
-    subject: "API Integration Issue with Chatbot",
-    priority: "High",
-    service: "AI Chatbot Pro",
-    status: "In Progress",
-    created: "2025-11-14",
-    updated: "2025-11-15",
-  },
-  {
-    id: "TKT-002",
-    subject: "Billing Question - Subscription Renewal",
-    priority: "Medium",
-    service: "Subscription Management",
-    status: "Open",
-    created: "2025-11-13",
-    updated: "2025-11-13",
-  },
-  {
-    id: "TKT-003",
-    subject: "Feature Request - Export Data",
-    priority: "Low",
-    service: "Analytics Dashboard",
-    status: "Pending",
-    created: "2025-11-12",
-    updated: "2025-11-14",
-  },
-  {
-    id: "TKT-004",
-    subject: "Login Issue - Can't Access Dashboard",
-    priority: "High",
-    service: "Portal Access",
-    status: "Resolved",
-    created: "2025-11-10",
-    updated: "2025-11-11",
-  },
-];
+interface Ticket {
+  ticketId: string;
+  subject: string;
+  priority: string;
+  service: string;
+  status: string;
+  createdAt: string;
+}
 
 const getPriorityColor = (priority: string) => {
-  switch (priority) {
-    case "High": return "destructive";
-    case "Medium": return "default";
-    case "Low": return "secondary";
+  switch (priority?.toLowerCase()) {
+    case "high": return "destructive";
+    case "medium": return "default";
+    case "low": return "secondary";
     default: return "outline";
   }
 };
 
 const getStatusColor = (status: string) => {
-  switch (status) {
-    case "In Progress": return "default";
-    case "Open": return "destructive";
-    case "Pending": return "secondary";
-    case "Resolved": return "outline";
+  switch (status?.toLowerCase()) {
+    case "in progress": return "default";
+    case "open": return "destructive";
+    case "pending": return "secondary";
+    case "resolved": 
+    case "closed": return "outline";
     default: return "outline";
   }
 };
 
 export default function TicketsPage() {
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const fetchTickets = async () => {
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to view tickets",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token;
+
+      if (!authToken) {
+        toast({
+          title: "Error",
+          description: "Authentication token not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await fetch(`https://exavo.ai/api/tickets/client/${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setTickets(data || []);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load tickets. Please try again later.",
+        variant: "destructive",
+      });
+      setTickets([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  const filteredTickets = tickets.filter((ticket) =>
+    ticket.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    ticket.ticketId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    ticket.service?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleViewTicket = (ticketId: string) => {
+    navigate(`/client/tickets/${ticketId}`);
+  };
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -99,8 +146,8 @@ export default function TicketsPage() {
                 </tr>
               </thead>
               <tbody>
-                {tickets.map((ticket) => (
-                  <tr key={ticket.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                {filteredTickets.map((ticket) => (
+                  <tr key={ticket.ticketId} className="border-b border-border last:border-0 hover:bg-muted/50">
                     <td className="py-4">
                       <div className="flex items-center gap-2">
                         <AlertCircle className="w-4 h-4 text-muted-foreground" />
@@ -110,14 +157,22 @@ export default function TicketsPage() {
                     <td className="py-4">
                       <Badge variant={getPriorityColor(ticket.priority)}>{ticket.priority}</Badge>
                     </td>
-                    <td className="py-4 text-muted-foreground">{ticket.service}</td>
-                    <td className="py-4 font-mono text-sm">{ticket.id}</td>
+                    <td className="py-4 text-sm text-muted-foreground">{ticket.service}</td>
+                    <td className="py-4 text-sm font-mono">{ticket.ticketId}</td>
                     <td className="py-4">
                       <Badge variant={getStatusColor(ticket.status)}>{ticket.status}</Badge>
                     </td>
-                    <td className="py-4 text-muted-foreground">{ticket.created}</td>
+                    <td className="py-4 text-sm text-muted-foreground">
+                      {new Date(ticket.createdAt).toISOString().split('T')[0]}
+                    </td>
                     <td className="py-4">
-                      <Button variant="ghost" size="sm">View</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewTicket(ticket.ticketId)}
+                      >
+                        View
+                      </Button>
                     </td>
                   </tr>
                 ))}

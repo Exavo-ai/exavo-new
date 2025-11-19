@@ -6,6 +6,7 @@ import LeadsPage from "./portal/crm/Leads";
 import ConversationsPage from "./portal/Conversations";
 import SubscriptionsPage from "./portal/Subscriptions";
 import TicketsPage from "./portal/Tickets";
+import TicketDetailPage from "./portal/TicketDetail";
 import OrdersPage from "./portal/Orders";
 import AIToolsPage from "./portal/AITools";
 import TeamPage from "./portal/Team";
@@ -44,6 +45,7 @@ const ClientDashboard = () => {
         <Route path="invoices" element={<InvoicesPage />} />
         <Route path="proposals" element={<ProposalsPage />} />
         <Route path="tickets" element={<TicketsPage />} />
+        <Route path="tickets/:ticketId" element={<TicketDetailPage />} />
         <Route path="team" element={<TeamPage />} />
         <Route path="integrations" element={<IntegrationsPage />} />
         <Route path="files" element={<FilesPage />} />

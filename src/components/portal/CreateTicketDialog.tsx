@@ -21,7 +21,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
 
-export function CreateTicketDialog() {
+interface CreateTicketDialogProps {
+  onTicketCreated?: () => void;
+}
+
+export function CreateTicketDialog({ onTicketCreated }: CreateTicketDialogProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -86,6 +90,11 @@ export function CreateTicketDialog() {
         description: "",
       });
       setOpen(false);
+
+      // Refresh the ticket list
+      if (onTicketCreated) {
+        onTicketCreated();
+      }
     } catch (error) {
       console.error("Form submission error:", error);
       toast({
