@@ -40,43 +40,70 @@ serve(async (req) => {
 
     await sendEmail(
       [email],
-      "Welcome to Exavo AI! 🎉",
+      "🎉 You're Invited! Join Exavo AI Today",
       `
         <!DOCTYPE html>
         <html>
           <head>
             <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .button { display: inline-block; padding: 12px 30px; background: #8B5CF6; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-              .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+              .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+              .header { background: linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%); color: white; padding: 40px 30px; text-align: center; }
+              .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+              .content { padding: 40px 30px; background: white; }
+              .greeting { font-size: 18px; color: #1a1a1a; margin-bottom: 20px; font-weight: 500; }
+              .message { font-size: 16px; color: #4a4a4a; margin-bottom: 15px; line-height: 1.8; }
+              .highlight { color: #8B5CF6; font-weight: 600; }
+              .cta-container { text-align: center; margin: 35px 0; }
+              .button { display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; transition: transform 0.2s; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+              .button:hover { transform: translateY(-2px); }
+              .benefits { background: #f8f9fa; padding: 25px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #8B5CF6; }
+              .benefits ul { margin: 10px 0; padding-left: 20px; }
+              .benefits li { margin: 10px 0; color: #4a4a4a; }
+              .footer { text-align: center; padding: 25px; background: #f8f9fa; color: #666; font-size: 13px; border-top: 1px solid #e0e0e0; }
+              .footer p { margin: 5px 0; }
             </style>
           </head>
           <body>
             <div class="container">
               <div class="header">
-                <h1>Welcome to Exavo AI!</h1>
+                <h1>✨ Welcome to Exavo AI</h1>
               </div>
               <div class="content">
-                <p>Hello ${full_name},</p>
-                <p>Thank you for joining Exavo AI! We're excited to help you transform your business with cutting-edge AI solutions.</p>
-                <p>Here's what you can do next:</p>
-                <ul>
-                  <li>📅 Book a consultation with our AI experts</li>
-                  <li>🔍 Explore our AI services and solutions</li>
-                  <li>💬 Chat with our AI assistant for instant support</li>
-                  <li>📊 Access your personalized dashboard</li>
-                </ul>
-                <center>
-                  <a href="${Deno.env.get("VITE_SUPABASE_URL") || "http://localhost:5173"}/client" class="button">Get Started</a>
-                </center>
-                <p>If you have any questions, our team is here to help!</p>
-                <p>Best regards,<br>The Exavo AI Team</p>
+                <p class="greeting">Hello ${full_name},</p>
+                <p class="message">
+                  Thank you for your interest in <span class="highlight">Exavo AI</span>! We're thrilled to invite you to join our platform and discover how our cutting-edge AI solutions can transform your business.
+                </p>
+                <p class="message">
+                  Your journey to smarter automation and enhanced productivity starts here.
+                </p>
+                
+                <div class="benefits">
+                  <strong style="color: #1a1a1a; font-size: 16px;">🚀 What you'll get access to:</strong>
+                  <ul>
+                    <li>Advanced AI-powered tools and automation</li>
+                    <li>Personalized consultation with our experts</li>
+                    <li>24/7 AI assistant support</li>
+                    <li>Exclusive services tailored to your needs</li>
+                  </ul>
+                </div>
+
+                <div class="cta-container">
+                  <a href="${Deno.env.get("VITE_SUPABASE_URL") || "http://localhost:5173"}/register" class="button">Create Your Account Now →</a>
+                </div>
+
+                <p class="message">
+                  Have questions? Our team is ready to help you get started. Simply reply to this email or reach out through our platform.
+                </p>
+                
+                <p class="message" style="margin-top: 30px;">
+                  Best regards,<br>
+                  <strong>The Exavo AI Team</strong>
+                </p>
               </div>
               <div class="footer">
-                <p>© 2024 Exavo AI. All rights reserved.</p>
+                <p><strong>Exavo AI</strong> - Empowering Business with Intelligence</p>
+                <p>© ${new Date().getFullYear()} Exavo AI. All rights reserved.</p>
               </div>
             </div>
           </body>
