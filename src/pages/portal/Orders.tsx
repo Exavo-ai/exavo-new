@@ -11,6 +11,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -18,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, AlertCircle, MessageSquare, Filter } from "lucide-react";
+import { Search, AlertCircle, MessageSquare, Filter, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,6 +68,10 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; appointment: Appointment | null }>({
+    open: false,
+    appointment: null,
+  });
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -112,6 +126,34 @@ export default function OrdersPage() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteAppointment = async () => {
+    if (!deleteDialog.appointment) return;
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', deleteDialog.appointment.id);
+
+      if (deleteError) throw deleteError;
+
+      toast({
+        title: "Success",
+        description: "Order removed successfully",
+      });
+
+      setDeleteDialog({ open: false, appointment: null });
+      loadAppointments();
+    } catch (error: any) {
+      console.error("Error deleting appointment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove order",
+        variant: "destructive",
+      });
     }
   };
 
@@ -239,14 +281,25 @@ export default function OrdersPage() {
                           {new Date(appointment.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => navigate("/client/tickets")}
-                          >
-                            <MessageSquare className="w-4 h-4 mr-2" />
-                            Contact Support
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => navigate("/client/tickets")}
+                            >
+                              <MessageSquare className="w-4 h-4 mr-2" />
+                              Contact Support
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setDeleteDialog({ open: true, appointment })}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Remove
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -257,6 +310,35 @@ export default function OrdersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, appointment: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Order</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this order? This action cannot be undone.
+              {deleteDialog.appointment && (
+                <div className="mt-4 p-3 bg-muted rounded-md">
+                  <p className="font-medium">{deleteDialog.appointment.full_name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(deleteDialog.appointment.appointment_date).toLocaleDateString()} at {deleteDialog.appointment.appointment_time}
+                  </p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteAppointment}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Remove Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
