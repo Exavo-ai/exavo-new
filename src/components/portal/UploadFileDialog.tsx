@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +46,10 @@ export default function UploadFileDialog({
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectDescription, setNewProjectDescription] = useState("");
+  const [creatingProject, setCreatingProject] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -73,6 +77,53 @@ export default function UploadFileDialog({
         description: "Failed to load projects",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleCreateProject = async () => {
+    if (!user || !newProjectName.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a project name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreatingProject(true);
+    try {
+      const { data, error } = await supabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          name: newProjectName.trim(),
+          description: newProjectDescription.trim() || null,
+          status: "active",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Project created successfully",
+      });
+
+      setNewProjectName("");
+      setNewProjectDescription("");
+      setShowCreateProject(false);
+      setSelectedProject(data.id);
+      await loadProjects();
+    } catch (error) {
+      console.error("Create project error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create project",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingProject(false);
     }
   };
 
@@ -181,25 +232,90 @@ export default function UploadFileDialog({
         <div className="space-y-4 py-4">
           {/* Project Selection */}
           <div className="space-y-2">
-            <Label htmlFor="project">
-              Project Name <span className="text-destructive">*</span>
-            </Label>
-            <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger id="project">
-                <SelectValue placeholder="Select a project" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {projects.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                No active projects found. Please create a project first.
-              </p>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="project">
+                Project Name <span className="text-destructive">*</span>
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCreateProject(!showCreateProject)}
+                className="h-auto py-1 px-2 text-xs"
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                New Project
+              </Button>
+            </div>
+
+            {showCreateProject ? (
+              <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
+                <div className="space-y-2">
+                  <Label htmlFor="new-project-name" className="text-sm">
+                    Project Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="new-project-name"
+                    placeholder="Enter project name"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-project-desc" className="text-sm">
+                    Description (Optional)
+                  </Label>
+                  <Textarea
+                    id="new-project-desc"
+                    placeholder="Enter project description"
+                    value={newProjectDescription}
+                    onChange={(e) => setNewProjectDescription(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateProject}
+                    disabled={creatingProject || !newProjectName.trim()}
+                  >
+                    {creatingProject ? "Creating..." : "Create"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowCreateProject(false);
+                      setNewProjectName("");
+                      setNewProjectDescription("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <Select value={selectedProject} onValueChange={setSelectedProject}>
+                  <SelectTrigger id="project">
+                    <SelectValue placeholder="Select a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {projects.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No active projects found. Click "New Project" to create one.
+                  </p>
+                )}
+              </>
             )}
           </div>
 
