@@ -28,9 +28,12 @@ export default function SettingsPage() {
   const [email] = useState(user?.email || "");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [currentPasswordForEmail, setCurrentPasswordForEmail] = useState("");
   const [isResending, setIsResending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -127,6 +130,64 @@ export default function SettingsPage() {
     }
   };
 
+  const handleChangeEmail = async () => {
+    if (!user || !newEmail || !currentPasswordForEmail) {
+      toast({
+        title: "Error",
+        description: "Please provide both your current password and new email",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUpdatingEmail(true);
+    try {
+      // First verify current password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: currentPasswordForEmail,
+      });
+
+      if (signInError) {
+        throw new Error("Current password is incorrect");
+      }
+
+      // Update email
+      const { error } = await supabase.auth.updateUser({
+        email: newEmail,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Verification email sent",
+        description: `Please check ${newEmail} and click the confirmation link to complete the email change.`,
+      });
+
+      setNewEmail("");
+      setCurrentPasswordForEmail("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update email",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingEmail(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -217,56 +278,113 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="security">
-          <Card>
-            <CardHeader>
-              <CardTitle>Security Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="new-password">New Password</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirm Password</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password"
-                />
-              </div>
-              <Button 
-                onClick={async () => {
-                  if (newPassword !== confirmPassword) {
-                    toast({ title: "Error", description: "Passwords don't match", variant: "destructive" });
-                    return;
-                  }
-                  setIsUpdatingPassword(true);
-                  try {
-                    const { error } = await supabase.auth.updateUser({ password: newPassword });
-                    if (error) throw error;
-                    toast({ title: "Success", description: "Password updated successfully" });
-                    setNewPassword("");
-                    setConfirmPassword("");
-                  } catch (error: any) {
-                    toast({ title: "Error", description: error.message, variant: "destructive" });
-                  } finally {
-                    setIsUpdatingPassword(false);
-                  }
-                }}
-                disabled={isUpdatingPassword || !newPassword || !confirmPassword}
-              >
-                {isUpdatingPassword ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Updating...</> : "Update Password"}
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Change Email</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="current-password-email">Current Password</Label>
+                  <Input
+                    id="current-password-email"
+                    type="password"
+                    value={currentPasswordForEmail}
+                    onChange={(e) => setCurrentPasswordForEmail(e.target.value)}
+                    placeholder="Enter your current password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-email">New Email Address</Label>
+                  <Input
+                    id="new-email"
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="Enter new email address"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    You'll receive a confirmation link at the new email address
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleChangeEmail}
+                  disabled={isUpdatingEmail || !newEmail || !currentPasswordForEmail}
+                >
+                  {isUpdatingEmail ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Change Email"
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Change Password</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                  />
+                </div>
+                <Button 
+                  onClick={async () => {
+                    if (newPassword !== confirmPassword) {
+                      toast({ title: "Error", description: "Passwords don't match", variant: "destructive" });
+                      return;
+                    }
+                    if (newPassword.length < 6) {
+                      toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
+                      return;
+                    }
+                    setIsUpdatingPassword(true);
+                    try {
+                      const { error } = await supabase.auth.updateUser({ password: newPassword });
+                      if (error) throw error;
+                      toast({ title: "Success", description: "Password updated successfully" });
+                      setNewPassword("");
+                      setConfirmPassword("");
+                    } catch (error: any) {
+                      toast({ title: "Error", description: error.message, variant: "destructive" });
+                    } finally {
+                      setIsUpdatingPassword(false);
+                    }
+                  }}
+                  disabled={isUpdatingPassword || !newPassword || !confirmPassword}
+                >
+                  {isUpdatingPassword ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Password"
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="notifications">
