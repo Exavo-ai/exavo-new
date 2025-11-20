@@ -1,23 +1,12 @@
-import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Briefcase,
-  Zap,
-  Clock,
   CreditCard,
-  Workflow,
-  Bot,
-  Users,
-  UserPlus,
-  MessageSquare,
   ShoppingBag,
-  FileText,
   Receipt,
-  FileSignature,
   LifeBuoy,
   UsersRound,
-  Plug,
   FolderOpen,
   Settings,
   ChevronLeft,
@@ -27,14 +16,8 @@ import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/client", icon: LayoutDashboard },
-  {
-    name: "Services",
-    icon: Briefcase,
-    children: [
-      { name: "Browse Services", href: "/client/services/browse", icon: Briefcase },
-      { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard },
-    ],
-  },
+  { name: "Services", href: "/client/services/browse", icon: Briefcase },
+  { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard },
   { name: "My Orders", href: "/client/orders", icon: ShoppingBag },
   { name: "Subscriptions", href: "/client/subscriptions", icon: Receipt },
   { name: "Invoices", href: "/client/invoices", icon: Receipt },
@@ -52,13 +35,6 @@ interface PortalSidebarProps {
 export function PortalSidebar({ collapsed, onToggle }: PortalSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(["Services", "AI Workspace", "CRM"]);
-
-  const toggleGroup = (name: string) => {
-    setExpandedGroups((prev) =>
-      prev.includes(name) ? prev.filter((g) => g !== name) : [...prev, name]
-    );
-  };
 
   const isActive = (href: string) => location.pathname === href;
 
@@ -72,61 +48,19 @@ export function PortalSidebar({ collapsed, onToggle }: PortalSidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2">
         {navigation.map((item) => (
-          <div key={item.name}>
-            {item.children ? (
-              <div>
-                <button
-                  onClick={() => toggleGroup(item.name)}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-                >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && (
-                    <>
-                      <span className="flex-1 text-left">{item.name}</span>
-                      <ChevronRight
-                        className={cn(
-                          "w-4 h-4 transition-transform",
-                          expandedGroups.includes(item.name) && "rotate-90"
-                        )}
-                      />
-                    </>
-                  )}
-                </button>
-                {!collapsed && expandedGroups.includes(item.name) && (
-                  <div className="ml-4 mt-1 space-y-1">
-                    {item.children.map((child) => (
-                      <button
-                        key={child.name}
-                        onClick={() => navigate(child.href)}
-                        className={cn(
-                          "w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors",
-                          isActive(child.href)
-                            ? "bg-primary/10 text-primary font-medium"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                        )}
-                      >
-                        <child.icon className="w-4 h-4 flex-shrink-0" />
-                        <span>{child.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => navigate(item.href)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                  isActive(item.href)
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                )}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>{item.name}</span>}
-              </button>
+          <button
+            key={item.name}
+            onClick={() => navigate(item.href)}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2 mb-1 text-sm font-medium rounded-lg transition-colors",
+              isActive(item.href)
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
             )}
-          </div>
+          >
+            <item.icon className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span>{item.name}</span>}
+          </button>
         ))}
       </nav>
 
