@@ -29,18 +29,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import UploadFileDialog from "@/components/portal/UploadFileDialog";
 
 interface FileItem {
   id: string;
@@ -58,7 +53,7 @@ export default function FilesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [projectFilter, setProjectFilter] = useState<string>("all");
-  const [uploading, setUploading] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [renameDialog, setRenameDialog] = useState<{ open: boolean; file: FileItem | null }>({
     open: false,
     file: null,
@@ -74,8 +69,6 @@ export default function FilesPage() {
     
     try {
       setLoading(true);
-      // Note: This would need a proper storage bucket and table setup
-      // For now, we'll use a simple files metadata approach
       const { data, error } = await supabase
         .from("user_files")
         .select("*")
@@ -96,61 +89,6 @@ export default function FilesPage() {
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const fileList = event.target.files;
-    if (!fileList || !user) return;
-
-    setUploading(true);
-    try {
-      for (const file of Array.from(fileList)) {
-        // Upload to Supabase Storage (bucket needs to be created)
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-        
-        // This assumes a 'user-files' bucket exists
-        const { error: uploadError } = await supabase.storage
-          .from("user-files")
-          .upload(fileName, file);
-
-        if (uploadError) throw uploadError;
-
-        // Store metadata
-        const { error: insertError } = await supabase
-          .from("user_files")
-          .insert({
-            user_id: user.id,
-            name: file.name,
-            file_path: fileName,
-            size: file.size,
-          });
-
-        if (insertError) throw insertError;
-      }
-
-      toast({
-        title: "Success",
-        description: "Files uploaded successfully",
-      });
-
-      // Create notification
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        title: "Files Uploaded",
-        message: `${fileList.length} file(s) uploaded successfully`,
-      });
-
-      loadFiles();
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to upload files",
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleDownload = async (file: FileItem) => {
     try {
@@ -285,22 +223,10 @@ export default function FilesPage() {
           <h1 className="text-3xl font-bold">Files</h1>
           <p className="text-muted-foreground">Manage your documents and media</p>
         </div>
-        <div>
-          <Input
-            type="file"
-            multiple
-            onChange={handleFileUpload}
-            disabled={uploading}
-            className="hidden"
-            id="file-upload"
-          />
-          <Button asChild disabled={uploading}>
-            <label htmlFor="file-upload" className="cursor-pointer">
-              <Upload className="w-4 h-4 mr-2" />
-              {uploading ? "Uploading..." : "Upload Files"}
-            </label>
-          </Button>
-        </div>
+        <Button onClick={() => setUploadDialogOpen(true)}>
+          <Upload className="w-4 h-4 mr-2" />
+          Upload Files
+        </Button>
       </div>
 
       {/* Filter Section */}
@@ -410,6 +336,13 @@ export default function FilesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Upload Dialog */}
+      <UploadFileDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        onUploadSuccess={loadFiles}
+      />
 
       {/* Rename Dialog */}
       <Dialog open={renameDialog.open} onOpenChange={(open) => setRenameDialog({ open, file: null })}>
