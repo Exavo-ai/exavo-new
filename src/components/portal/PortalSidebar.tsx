@@ -32,39 +32,15 @@ const navigation = [
     icon: Briefcase,
     children: [
       { name: "Browse Services", href: "/client/services/browse", icon: Briefcase },
-      { name: "My Services", href: "/client/my-services", icon: Zap },
-      { name: "Active Tools", href: "/client/active-tools", icon: Clock },
       { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard },
     ],
   },
-  {
-    name: "AI Workspace",
-    icon: Bot,
-    children: [
-      { name: "My AI Tools", href: "/client/ai-tools", icon: Bot },
-      { name: "Automations", href: "/client/automations", icon: Workflow },
-      { name: "Workflows", href: "/client/workflows", icon: Workflow },
-    ],
-  },
-  {
-    name: "CRM",
-    icon: Users,
-    children: [
-      { name: "Leads", href: "/client/crm/leads", icon: UserPlus },
-      { name: "Clients", href: "/client/crm/clients", icon: Users },
-      { name: "Conversations", href: "/client/crm/conversations", icon: MessageSquare },
-    ],
-  },
   { name: "Orders", href: "/client/orders", icon: ShoppingBag },
-  { name: "Forms", href: "/client/forms", icon: FileText },
   { name: "Subscriptions", href: "/client/subscriptions", icon: Receipt },
   { name: "Invoices", href: "/client/invoices", icon: Receipt },
-  { name: "Proposals", href: "/client/proposals", icon: FileSignature },
   { name: "Tickets", href: "/client/tickets", icon: LifeBuoy },
   { name: "Team", href: "/client/team", icon: UsersRound },
-  { name: "Integrations", href: "/client/integrations", icon: Plug },
   { name: "Files", href: "/client/files", icon: FolderOpen },
-  { name: "Workspace Config", href: "/client/workspace-config", icon: Settings },
   { name: "Settings", href: "/client/settings", icon: Settings },
 ];
 

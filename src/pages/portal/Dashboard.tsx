@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/portal/StatusBadge";
-import { DollarSign, Bot, Zap, AlertCircle } from "lucide-react";
+import { DollarSign, Bot, Zap, AlertCircle, LifeBuoy, FileText, MessageSquare, Briefcase } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { KPICard } from "@/components/portal/KPICard";
 
 interface Ticket {
   id: string;
@@ -156,22 +157,27 @@ export default function DashboardPage() {
         
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-              <DollarSign className="w-5 h-5 text-primary" />
-            </div>
+            <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full"
-                onClick={() => navigate("/client/browse-services")}
-              >
-                Browse Services
-              </Button>
-            </div>
+          <CardContent className="space-y-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full justify-start"
+              onClick={() => navigate("/client/tickets")}
+            >
+              <LifeBuoy className="w-4 h-4 mr-2" />
+              Create Ticket
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full justify-start"
+              onClick={() => navigate("/client/services/browse")}
+            >
+              <Briefcase className="w-4 h-4 mr-2" />
+              Service Request
+            </Button>
           </CardContent>
         </Card>
       </div>

@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { PaymentMethodsDialog } from "@/components/portal/PaymentMethodsDialog";
 
 interface Profile {
   id: string;
@@ -25,8 +26,11 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email] = useState(user?.email || "");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isResending, setIsResending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -218,13 +222,48 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Change Password</Label>
-                <Button variant="outline">Update Password</Button>
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                />
               </div>
               <div className="space-y-2">
-                <Label>Two-Factor Authentication</Label>
-                <Button variant="outline">Enable 2FA</Button>
+                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                />
               </div>
+              <Button 
+                onClick={async () => {
+                  if (newPassword !== confirmPassword) {
+                    toast({ title: "Error", description: "Passwords don't match", variant: "destructive" });
+                    return;
+                  }
+                  setIsUpdatingPassword(true);
+                  try {
+                    const { error } = await supabase.auth.updateUser({ password: newPassword });
+                    if (error) throw error;
+                    toast({ title: "Success", description: "Password updated successfully" });
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  } catch (error: any) {
+                    toast({ title: "Error", description: error.message, variant: "destructive" });
+                  } finally {
+                    setIsUpdatingPassword(false);
+                  }
+                }}
+                disabled={isUpdatingPassword || !newPassword || !confirmPassword}
+              >
+                {isUpdatingPassword ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Updating...</> : "Update Password"}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -243,11 +282,11 @@ export default function SettingsPage() {
         <TabsContent value="billing">
           <Card>
             <CardHeader>
-              <CardTitle>Billing Information</CardTitle>
+              <CardTitle>Payment Methods</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-muted-foreground">Manage your payment methods and billing details.</p>
-              <Button variant="outline">Manage Billing</Button>
+              <p className="text-muted-foreground">Manage your payment methods for subscriptions and orders</p>
+              <PaymentMethodsDialog />
             </CardContent>
           </Card>
         </TabsContent>
