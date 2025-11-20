@@ -35,7 +35,7 @@ const navigation = [
       { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard },
     ],
   },
-  { name: "Orders", href: "/client/orders", icon: ShoppingBag },
+  { name: "My Orders", href: "/client/orders", icon: ShoppingBag },
   { name: "Subscriptions", href: "/client/subscriptions", icon: Receipt },
   { name: "Invoices", href: "/client/invoices", icon: Receipt },
   { name: "Tickets", href: "/client/tickets", icon: LifeBuoy },

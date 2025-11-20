@@ -229,7 +229,7 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg sm:text-xl">Service Requests</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/client/my-services")}>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/client/orders")}>
                 View All
               </Button>
             </div>
