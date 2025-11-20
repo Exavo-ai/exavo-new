@@ -20,7 +20,7 @@ interface Profile {
 }
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [fullName, setFullName] = useState("");
@@ -83,8 +83,9 @@ export default function SettingsPage() {
         description: "Profile updated successfully",
       });
 
-      // Reload profile
+      // Reload profile and refresh global state
       await loadProfile();
+      await refreshProfile();
     } catch (error: any) {
       toast({
         title: "Error",

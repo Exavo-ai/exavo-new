@@ -7,8 +7,10 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   userRole: 'admin' | 'client' | null;
+  userProfile: { full_name: string | null } | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,6 +19,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'client' | null>(null);
+  const [userProfile, setUserProfile] = useState<{ full_name: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -66,10 +69,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setUserRole('client');
       }
+      
+      // Fetch profile data
+      await fetchUserProfile(userId);
     } catch (error) {
       setUserRole('client');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+
+      if (!error && data) {
+        setUserProfile({ full_name: data.full_name });
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await fetchUserProfile(user.id);
     }
   };
 
@@ -78,11 +106,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setSession(null);
     setUserRole(null);
+    setUserProfile(null);
     navigate('/');
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, userRole, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, userRole, userProfile, loading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

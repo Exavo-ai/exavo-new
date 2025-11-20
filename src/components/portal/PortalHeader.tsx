@@ -21,11 +21,11 @@ interface PortalHeaderProps {
 }
 
 export function PortalHeader({ isMobile, onMenuToggle }: PortalHeaderProps) {
-  const { user, signOut } = useAuth();
+  const { user, userProfile, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
 
-  const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "User";
+  const firstName = userProfile?.full_name?.split(" ")[0] || user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "User";
 
   return (
     <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 sm:px-6 w-full">
