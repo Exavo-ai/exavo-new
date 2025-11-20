@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 interface Project {
   id: string;
   name: string;
+  service_id?: string;
 }
 
 interface UploadFileDialogProps {
@@ -46,10 +47,6 @@ export default function UploadFileDialog({
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [showCreateProject, setShowCreateProject] = useState(false);
-  const [newProjectName, setNewProjectName] = useState("");
-  const [newProjectDescription, setNewProjectDescription] = useState("");
-  const [creatingProject, setCreatingProject] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -61,69 +58,64 @@ export default function UploadFileDialog({
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from("projects")
-        .select("id, name")
+      // Fetch user's orders/service requests to use as projects
+      const { data: ordersData, error: ordersError } = await supabase
+        .from("orders")
+        .select("id, service_id, services(name)")
         .eq("user_id", user.id)
-        .eq("status", "active")
-        .order("name");
+        .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setProjects(data || []);
+      if (ordersError) throw ordersError;
+
+      // Also fetch appointments as they represent service requests
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from("appointments")
+        .select("id, service_id, services(name)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (appointmentsError) throw appointmentsError;
+
+      // Combine and deduplicate projects by service name
+      const allServices: Project[] = [];
+      const serviceNames = new Set<string>();
+
+      // Process orders
+      if (ordersData) {
+        ordersData.forEach((order: any) => {
+          if (order.services?.name && !serviceNames.has(order.services.name)) {
+            serviceNames.add(order.services.name);
+            allServices.push({
+              id: order.service_id || order.id,
+              name: order.services.name,
+              service_id: order.service_id,
+            });
+          }
+        });
+      }
+
+      // Process appointments
+      if (appointmentsData) {
+        appointmentsData.forEach((appointment: any) => {
+          if (appointment.services?.name && !serviceNames.has(appointment.services.name)) {
+            serviceNames.add(appointment.services.name);
+            allServices.push({
+              id: appointment.service_id || appointment.id,
+              name: appointment.services.name,
+              service_id: appointment.service_id,
+            });
+          }
+        });
+      }
+
+      setProjects(allServices);
     } catch (error) {
       console.error("Error loading projects:", error);
       toast({
         title: "Error",
-        description: "Failed to load projects",
+        description: "Failed to load your services",
         variant: "destructive",
       });
-    }
-  };
-
-  const handleCreateProject = async () => {
-    if (!user || !newProjectName.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a project name",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setCreatingProject(true);
-    try {
-      const { data, error } = await supabase
-        .from("projects")
-        .insert({
-          user_id: user.id,
-          name: newProjectName.trim(),
-          description: newProjectDescription.trim() || null,
-          status: "active",
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Project created successfully",
-      });
-
-      setNewProjectName("");
-      setNewProjectDescription("");
-      setShowCreateProject(false);
-      setSelectedProject(data.id);
-      await loadProjects();
-    } catch (error) {
-      console.error("Create project error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create project",
-        variant: "destructive",
-      });
-    } finally {
-      setCreatingProject(false);
     }
   };
 
@@ -160,7 +152,7 @@ export default function UploadFileDialog({
     if (!user || files.length === 0 || !selectedProject) {
       toast({
         title: "Validation Error",
-        description: "Please select a project and at least one file",
+        description: "Please select a service and at least one file",
         variant: "destructive",
       });
       return;
@@ -230,92 +222,27 @@ export default function UploadFileDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Project Selection */}
+          {/* Service/Project Selection */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="project">
-                Project Name <span className="text-destructive">*</span>
-              </Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCreateProject(!showCreateProject)}
-                className="h-auto py-1 px-2 text-xs"
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                New Project
-              </Button>
-            </div>
-
-            {showCreateProject ? (
-              <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
-                <div className="space-y-2">
-                  <Label htmlFor="new-project-name" className="text-sm">
-                    Project Name <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="new-project-name"
-                    placeholder="Enter project name"
-                    value={newProjectName}
-                    onChange={(e) => setNewProjectName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="new-project-desc" className="text-sm">
-                    Description (Optional)
-                  </Label>
-                  <Textarea
-                    id="new-project-desc"
-                    placeholder="Enter project description"
-                    value={newProjectDescription}
-                    onChange={(e) => setNewProjectDescription(e.target.value)}
-                    rows={2}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCreateProject}
-                    disabled={creatingProject || !newProjectName.trim()}
-                  >
-                    {creatingProject ? "Creating..." : "Create"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowCreateProject(false);
-                      setNewProjectName("");
-                      setNewProjectDescription("");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
-                  <SelectTrigger id="project">
-                    <SelectValue placeholder="Select a project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {projects.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    No active projects found. Click "New Project" to create one.
-                  </p>
-                )}
-              </>
+            <Label htmlFor="project">
+              Service/Project <span className="text-destructive">*</span>
+            </Label>
+            <Select value={selectedProject} onValueChange={setSelectedProject}>
+              <SelectTrigger id="project">
+                <SelectValue placeholder="Select a service" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {projects.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No services found. Please request a service or place an order first.
+              </p>
             )}
           </div>
 

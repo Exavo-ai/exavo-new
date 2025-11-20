@@ -244,10 +244,10 @@ export default function FilesPage() {
             </div>
             <Select value={projectFilter} onValueChange={setProjectFilter}>
               <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filter by project" />
+                <SelectValue placeholder="Filter by service" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Projects</SelectItem>
+                <SelectItem value="all">All Services</SelectItem>
                 {uniqueProjects.map((project) => (
                   <SelectItem key={project} value={project!}>
                     {project}
@@ -273,7 +273,7 @@ export default function FilesPage() {
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="font-bold">File Name</TableHead>
-                  <TableHead className="font-bold">Project Name</TableHead>
+                  <TableHead className="font-bold">Service/Project</TableHead>
                   <TableHead className="font-bold">Upload Date</TableHead>
                   <TableHead className="font-bold">File Type</TableHead>
                   <TableHead className="font-bold text-right">Actions</TableHead>
