@@ -106,14 +106,9 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Subscriptions</h1>
-          <p className="text-muted-foreground">Manage your active subscriptions</p>
-        </div>
-        <Button onClick={() => navigate("/client/services")}>
-          Browse Services
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold">Subscriptions</h1>
+        <p className="text-muted-foreground">Manage your active subscriptions</p>
       </div>
 
       {loading ? (
@@ -125,7 +120,7 @@ export default function SubscriptionsPage() {
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
               <p>No active subscriptions</p>
-              <Button className="mt-4" onClick={() => navigate("/client/services")}>
+              <Button className="mt-4" onClick={() => navigate("/client/services/browse")}>
                 Browse Services
               </Button>
             </div>
