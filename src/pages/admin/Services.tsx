@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Power, PowerOff, FolderPlus } from "lucide-react";
+import { Plus, Edit, Trash2, Power, PowerOff, FolderPlus, X } from "lucide-react";
 import { EditServiceDialog } from "@/components/admin/EditServiceDialog";
 import { CreateServiceDialog } from "@/components/admin/CreateServiceDialog";
 import { CreateCategoryDialog } from "@/components/admin/CreateCategoryDialog";
@@ -143,6 +143,45 @@ export default function Services() {
     }
   };
 
+  const handleDeleteCategory = async (categoryId: string) => {
+    // Check if category has services
+    const categoryServices = getServicesByCategory(categoryId);
+    
+    if (categoryServices.length > 0) {
+      toast({
+        title: "Cannot delete category",
+        description: `This category has ${categoryServices.length} service${categoryServices.length !== 1 ? 's' : ''} assigned. Please remove or reassign all services before deleting.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!confirm("Are you sure you want to delete this category?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', categoryId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Category deleted successfully",
+      });
+
+      loadData();
+    } catch (error: any) {
+      console.error("Error deleting category:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete category",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getServicesByCategory = (categoryId: string) => {
     return services.filter(service => service.category === categoryId);
   };
@@ -195,17 +234,30 @@ export default function Services() {
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedCategory(category);
-                      setEditCategoryDialogOpen(true);
-                    }}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCategory(category);
+                        setEditCategoryDialogOpen(true);
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCategory(category.id);
+                      }}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
