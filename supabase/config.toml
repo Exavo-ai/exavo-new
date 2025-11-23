@@ -14,3 +14,18 @@ verify_jwt = false
 
 [functions.send-payment-confirmation]
 verify_jwt = false
+
+[functions.admin-create-service]
+verify_jwt = true
+
+[functions.admin-update-service]
+verify_jwt = true
+
+[functions.admin-delete-service]
+verify_jwt = true
+
+[functions.admin-update-user]
+verify_jwt = true
+
+[functions.admin-delete-user]
+verify_jwt = true
