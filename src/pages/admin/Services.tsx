@@ -273,7 +273,7 @@ export default function Services() {
                         <div className="text-left">
                           <p className="text-xs text-muted-foreground">Total Revenue</p>
                           <p className="font-semibold">
-                            EGP {categoryAnalytics.totalRevenue.toLocaleString()}
+                            USD {categoryAnalytics.totalRevenue.toLocaleString()}
                           </p>
                         </div>
                         <div className="text-left">
