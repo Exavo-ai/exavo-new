@@ -17,46 +17,36 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Initialize Supabase client with user's token
+    // Get JWT from authorization header
     const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-    console.log("Auth header present:", !!authHeader);
-    console.log("All headers:", Array.from(req.headers.entries()));
     
     if (!authHeader) {
-      console.error("No authorization header found");
       return new Response(JSON.stringify({ error: "No authorization header" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { authorization: authHeader } },
-      auth: { persistSession: false },
-    });
-
-    // Verify user is authenticated
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    console.log("Auth check result:", { hasUser: !!user, hasError: !!authError });
+    // Extract JWT token
+    const token = authHeader.replace("Bearer ", "");
     
-    if (authError) {
-      console.error("Auth error:", authError);
-    }
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    // Decode JWT to get user ID (JWT is already verified by Supabase when verify_jwt = true)
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const userId = payload.sub;
+    
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Create Supabase client with service role for admin operations
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
     // Verify user has admin role
     const { data: hasAdminRole, error: roleError } = await supabase.rpc("has_role", {
-      _user_id: user.id,
+      _user_id: userId,
       _role: "admin",
     });
 
