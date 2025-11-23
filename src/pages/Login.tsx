@@ -30,36 +30,40 @@ const Login = () => {
     if (!inviteToken) return;
 
     try {
-      console.log("[LOGIN] Activating invite with token:", inviteToken);
+      console.log("[LOGIN] Processing invitation token:", inviteToken);
       
-      // Validate and activate the invitation
+      // Validate the token and get invite data
       const { data: member, error: fetchError } = await supabase
         .from("team_members")
         .select("id, email, status, token_expires_at")
         .eq("invite_token", inviteToken)
+        .eq("status", "pending")
         .maybeSingle();
 
       if (fetchError || !member) {
         console.error("[LOGIN] Invalid invite token:", fetchError);
-        toast.error("Invalid invitation link");
+        toast.error("Invalid or expired invitation");
         return;
       }
 
       // Check if token is expired
       if (member.token_expires_at && new Date(member.token_expires_at) < new Date()) {
-        toast.error("This invitation link has expired");
+        console.log("[LOGIN] Invitation expired");
+        toast.error("This invitation has expired");
         return;
       }
 
-      // Check if already activated
-      if (member.status === "active") {
-        console.log("[LOGIN] Invitation already activated");
-        toast.info("You're already part of the team!");
-        navigate("/client/dashboard");
+      // Check if logged-in user matches invite email
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email !== member.email) {
+        console.log("[LOGIN] Email mismatch. Expected:", member.email, "Got:", user?.email);
+        toast.error(`This invitation is for ${member.email}. Please log in with that email.`);
         return;
       }
 
-      // Activate the team member
+      console.log("[LOGIN] Activating invitation for:", member.email);
+
+      // Activate the invitation
       const { error: updateError } = await supabase
         .from("team_members")
         .update({
@@ -71,15 +75,18 @@ const Login = () => {
 
       if (updateError) {
         console.error("[LOGIN] Failed to activate invitation:", updateError);
-        throw updateError;
+        toast.error("Failed to activate invitation");
+        return;
       }
 
       console.log("[LOGIN] ✓ Invitation activated successfully");
-      toast.success("Welcome to the team!");
-      
+      toast.success("Welcome to the team!", {
+        description: "Your invitation has been accepted.",
+        duration: 3000,
+      });
     } catch (err: any) {
       console.error("[LOGIN] Invite activation error:", err);
-      toast.error("Failed to accept invitation. Please contact support.");
+      toast.error("Failed to process invitation");
     }
   };
 
@@ -88,22 +95,31 @@ const Login = () => {
     setLoading(true);
 
     try {
+      console.log("[LOGIN] Attempting login for:", email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
-      
+      if (error) {
+        console.error("[LOGIN] Login failed:", error);
+        throw error;
+      }
+
+      console.log("[LOGIN] ✓ Login successful");
       toast.success(t('auth.loginSuccess'));
       
       // If there's an invite token, activate it first
       if (inviteToken) {
+        console.log("[LOGIN] Processing invitation after login");
         await handleInviteActivation();
       }
       
       // Fetch user role immediately
       if (data.user) {
+        console.log("[LOGIN] Fetching user role for:", data.user.email);
+        
         const { data: roleData } = await supabase
           .from('user_roles')
           .select('role')
@@ -111,12 +127,16 @@ const Login = () => {
           .single();
         
         const role = roleData?.role || 'client';
+        console.log("[LOGIN] User role:", role);
+        
         const targetPath = role === 'admin' ? '/admin' : '/client/dashboard';
+        console.log("[LOGIN] Redirecting to:", targetPath);
         
         // Force immediate navigation
         navigate(targetPath, { replace: true });
       }
     } catch (error: any) {
+      console.error("[LOGIN] Login error:", error);
       toast.error(error.message || t('auth.loginError'));
       setLoading(false);
     }

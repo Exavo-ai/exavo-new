@@ -6,12 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export default function AcceptInvitation() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const token = searchParams.get("token");
 
   const [loading, setLoading] = useState(true);
@@ -28,6 +27,7 @@ export default function AcceptInvitation() {
 
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export default function AcceptInvitation() {
 
   const validateToken = async () => {
     if (!token) {
-      setError("Invalid invitation link. No token provided.");
+      setError("Invalid invitation link - no token provided");
       setValidating(false);
       setLoading(false);
       return;
@@ -103,9 +103,23 @@ export default function AcceptInvitation() {
           setLoading(false);
         }
       } else {
-        // Not logged in - show signup form (user can click login link if they have an account)
-        setUserExists(false);
-        setLoading(false);
+        // Not logged in - check if user exists
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', member.email)
+          .maybeSingle();
+        
+        if (profile) {
+          // User exists, redirect to login
+          console.log("[ACCEPT-INVITE] User exists, redirecting to login");
+          navigate(`/login?inviteToken=${token}`);
+        } else {
+          // New user - show signup form
+          console.log("[ACCEPT-INVITE] New user, showing signup form");
+          setUserExists(false);
+          setLoading(false);
+        }
       }
     } catch (err: any) {
       console.error("[ACCEPT-INVITE] Validation error:", err);
@@ -128,6 +142,7 @@ export default function AcceptInvitation() {
           status: "active",
           activated_at: new Date().toISOString(),
           invite_token: null,
+          full_name: fullName || undefined,
         })
         .eq("id", inviteData.id);
 
@@ -138,26 +153,37 @@ export default function AcceptInvitation() {
 
       console.log("[ACCEPT-INVITE] ✓ Invitation activated successfully");
       
-      toast({
-        title: "Success",
-        description: "Welcome to the team!",
+      toast.success("Welcome to the team!", {
+        description: "Your invitation has been accepted.",
+        duration: 3000,
       });
 
       // Redirect after short delay
       setTimeout(() => navigate("/client/dashboard"), 1500);
     } catch (err: any) {
       console.error("[ACCEPT-INVITE] Activation failed:", err);
-      toast({
-        title: "Error",
-        description: "Failed to activate your account. Please contact support.",
-        variant: "destructive",
-      });
+      toast.error("Failed to activate your account. Please contact support.");
     }
   };
 
   const handleNewUserSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteData) return;
+
+    if (!fullName.trim()) {
+      toast.error("Please enter your full name");
+      return;
+    }
+
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
 
     setSubmitting(true);
 
@@ -178,13 +204,9 @@ export default function AcceptInvitation() {
 
       if (signUpError) {
         // If user already exists, show them the login link
-        if (signUpError.message.includes("already registered")) {
+        if (signUpError.message.includes("already registered") || signUpError.message.includes("User already registered")) {
           console.log("[ACCEPT-INVITE] User already exists, redirecting to login");
-          toast({
-            title: "Account Exists",
-            description: "An account with this email already exists. Please log in instead.",
-            variant: "destructive",
-          });
+          toast.error("An account with this email already exists. Redirecting to login...");
           setSubmitting(false);
           setTimeout(() => handleExistingUserLogin(), 2000);
           return;
@@ -211,28 +233,27 @@ export default function AcceptInvitation() {
       }
     } catch (err: any) {
       console.error("[ACCEPT-INVITE] Signup failed:", err);
-      toast({
-        title: "Error",
-        description: err.message || "Failed to create account",
-        variant: "destructive",
-      });
+      toast.error(err.message || "Failed to create account");
       setSubmitting(false);
     }
   };
 
   const handleExistingUserLogin = () => {
-    // Redirect to login page with token preserved
+    console.log("[ACCEPT-INVITE] Redirecting to login with token");
     navigate(`/login?inviteToken=${token}`);
   };
 
   if (validating) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:4rem_4rem]"></div>
+        
+        <Card className="w-full max-w-md mx-4 relative z-10 border-border shadow-glow">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center gap-4">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p className="text-muted-foreground">Validating invitation...</p>
+              <p className="text-muted-foreground">Validating your invitation...</p>
             </div>
           </CardContent>
         </Card>
@@ -242,18 +263,21 @@ export default function AcceptInvitation() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:4rem_4rem]"></div>
+        
+        <Card className="w-full max-w-md mx-4 relative z-10 border-border shadow-glow">
           <CardHeader>
             <div className="flex items-center gap-2 text-destructive">
               <XCircle className="w-6 h-6" />
-              <CardTitle>Invalid Invitation</CardTitle>
+              <CardTitle>Invitation Invalid</CardTitle>
             </div>
-            <CardDescription>{error}</CardDescription>
+            <CardDescription className="text-base">{error}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => navigate("/")} className="w-full">
-              Go to Home
+            <Button onClick={() => navigate("/")} className="w-full" variant="hero">
+              Return to Home
             </Button>
           </CardContent>
         </Card>
@@ -263,8 +287,11 @@ export default function AcceptInvitation() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:4rem_4rem]"></div>
+        
+        <Card className="w-full max-w-md mx-4 relative z-10 border-border shadow-glow">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center gap-4">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -278,84 +305,120 @@ export default function AcceptInvitation() {
 
   // Show signup form
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <div className="flex items-center gap-2 text-primary">
-            <CheckCircle2 className="w-6 h-6" />
-            <CardTitle>Accept Invitation</CardTitle>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5"></div>
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:4rem_4rem]"></div>
+
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="max-w-md mx-auto">
+          <Card className="bg-card rounded-2xl border border-border shadow-glow">
+            <CardHeader className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <CheckCircle2 className="w-6 h-6 text-primary" />
+                <CardTitle className="text-2xl font-bold bg-gradient-hero bg-clip-text text-transparent">
+                  Accept Team Invitation
+                </CardTitle>
+              </div>
+              <CardDescription className="text-base">
+                You've been invited to join as a <strong className="text-primary">{inviteData?.role}</strong>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleNewUserSignup} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={inviteData?.email}
+                    disabled
+                    className="bg-muted/50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This email is locked to the invitation
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                    disabled={submitting}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Create a strong password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    disabled={submitting}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Must be at least 8 characters
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    disabled={submitting}
+                  />
+                </div>
+
+                <Button type="submit" variant="hero" className="w-full shadow-glow" disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating Account...
+                    </>
+                  ) : (
+                    "Accept Invitation & Create Account"
+                  )}
+                </Button>
+
+                <div className="text-center pt-4 border-t border-border">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Already have an account?
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleExistingUserLogin}
+                    className="w-full"
+                    disabled={submitting}
+                  >
+                    Log In Instead
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          <div className="mt-6 text-center">
+            <a href="/" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+              ← Return to Home
+            </a>
           </div>
-          <CardDescription>
-            You've been invited to join as a <strong>{inviteData?.role}</strong>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleNewUserSignup} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={inviteData?.email}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input
-                id="fullName"
-                type="text"
-                placeholder="Enter your full name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                disabled={submitting}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Create a password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                disabled={submitting}
-              />
-              <p className="text-xs text-muted-foreground">
-                Must be at least 6 characters long
-              </p>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating Account...
-                </>
-              ) : (
-                "Accept Invitation & Create Account"
-              )}
-            </Button>
-
-            <p className="text-xs text-center text-muted-foreground">
-              Already have an account?{" "}
-              <button
-                type="button"
-                onClick={handleExistingUserLogin}
-                className="text-primary hover:underline"
-              >
-                Log in here
-              </button>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

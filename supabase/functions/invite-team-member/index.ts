@@ -37,63 +37,64 @@ const sendInvitationEmail = async (to: string, role: string, inviterEmail: strin
               <meta http-equiv="X-UA-Compatible" content="IE=edge">
               <title>Team Invitation - Exavo AI</title>
             </head>
-            <body style="margin: 0; padding: 0; background-color: #0f0f23; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0f0f23;">
+            <body style="margin: 0; padding: 0; background-color: #0a0a1b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a1b;">
                 <tr>
                   <td style="padding: 40px 20px;">
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #1a1a2e; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #1a1a2e; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);">
                       
                       <!-- Header with Logo -->
                       <tr>
-                        <td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                          <img src="https://exavo.ai/assets/exavo-logo.png" alt="Exavo AI" style="height: 40px; width: auto; display: inline-block; margin-bottom: 16px;" />
-                          <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; line-height: 1.3;">Team Invitation</h1>
+                        <td style="padding: 40px 32px 32px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                          <img src="https://exavo.ai/assets/exavo-logo.png" alt="Exavo AI" style="height: 48px; width: auto; display: inline-block; margin-bottom: 16px;" />
+                          <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; line-height: 1.3; letter-spacing: -0.5px;">Team Invitation</h1>
                         </td>
                       </tr>
                       
                       <!-- Content -->
                       <tr>
-                        <td style="padding: 40px 32px; color: #e5e7eb;">
-                          <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6;">Hello <strong>${to}</strong>,</p>
+                        <td style="padding: 48px 40px; color: #e5e7eb;">
+                          <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #f3f4f6;">Hello <strong>${to}</strong>,</p>
                           
-                          <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6;">
-                            <strong>${inviterEmail}</strong> has invited you to join their workspace on Exavo AI as a <strong style="color: #667eea;">${role}</strong>.
+                          <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6;">
+                            <strong style="color: #667eea;">${inviterEmail}</strong> has invited you to join their workspace on Exavo AI as a <strong style="color: #a78bfa;">${role}</strong>.
                           </p>
                           
-                          <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #9ca3af;">
-                            Exavo AI provides powerful AI-driven solutions to streamline your business operations and boost productivity.
+                          <p style="margin: 0 0 32px; font-size: 15px; line-height: 1.6; color: #9ca3af;">
+                            Exavo AI provides powerful AI-driven solutions to streamline your business operations, boost productivity, and transform how your team works together.
                           </p>
                           
                           <!-- CTA Button -->
                           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                             <tr>
-                              <td style="text-align: center; padding: 8px 0 24px;">
-                                 <a href="https://exavo.ai/accept-invitation?token=${inviteToken}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 8px; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);">Accept Invitation</a>
+                              <td style="text-align: center; padding: 0 0 32px;">
+                                <a href="https://exavo.ai/accept-invitation?token=${inviteToken}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 16px 48px; border-radius: 10px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">Accept Invitation</a>
                               </td>
                             </tr>
                           </table>
                           
                           <!-- Fallback URL -->
-                          <p style="margin: 0 0 24px; font-size: 14px; line-height: 1.6; color: #9ca3af; text-align: center;">
+                          <p style="margin: 0 0 32px; font-size: 14px; line-height: 1.6; color: #9ca3af; text-align: center; padding-top: 16px; border-top: 1px solid #374151;">
                             Or copy and paste this URL into your browser:<br/>
                             <a href="https://exavo.ai/accept-invitation?token=${inviteToken}" style="color: #667eea; text-decoration: underline; word-break: break-all;">https://exavo.ai/accept-invitation?token=${inviteToken}</a>
                           </p>
                           
-                          <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #6b7280; padding-top: 16px; border-top: 1px solid #374151;">
-                            If you didn't expect this invitation, you can safely ignore this email.
+                          <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #6b7280;">
+                            If you didn't expect this invitation, you can safely ignore this email. The invitation will expire in 7 days.
                           </p>
                         </td>
                       </tr>
                       
                       <!-- Footer -->
                       <tr>
-                        <td style="padding: 24px 32px; background-color: #0f0f23; text-align: center;">
-                          <p style="margin: 0 0 8px; font-size: 14px; color: #6b7280; line-height: 1.5;">
+                        <td style="padding: 32px 40px; background-color: #0f0f23; text-align: center; border-top: 1px solid #374151;">
+                          <p style="margin: 0 0 12px; font-size: 14px; color: #9ca3af; line-height: 1.5;">
                             <strong style="color: #e5e7eb;">Exavo AI</strong><br/>
                             AI-Powered Business Solutions
                           </p>
-                          <p style="margin: 0; font-size: 12px; color: #6b7280;">
-                            <a href="https://exavo.ai" style="color: #667eea; text-decoration: none;">exavo.ai</a>
+                          <p style="margin: 0; font-size: 13px; color: #6b7280;">
+                            <a href="https://exavo.ai" style="color: #667eea; text-decoration: none; margin-right: 16px;">Website</a>
+                            <a href="mailto:info@exavoai.io" style="color: #667eea; text-decoration: none;">Contact Support</a>
                           </p>
                         </td>
                       </tr>
