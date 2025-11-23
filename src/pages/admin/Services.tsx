@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, Power, PowerOff, FolderPlus } from "lucide-react";
 import { EditServiceDialog } from "@/components/admin/EditServiceDialog";
 import { CreateServiceDialog } from "@/components/admin/CreateServiceDialog";
 import { CreateCategoryDialog } from "@/components/admin/CreateCategoryDialog";
+import { EditCategoryDialog } from "@/components/admin/EditCategoryDialog";
 import {
   Table,
   TableBody,
@@ -49,9 +50,11 @@ export default function Services() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createCategoryDialogOpen, setCreateCategoryDialogOpen] = useState(false);
+  const [editCategoryDialogOpen, setEditCategoryDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -180,16 +183,29 @@ export default function Services() {
           return (
             <AccordionItem key={category.id} value={category.id} className="border rounded-lg">
               <AccordionTrigger className="px-6 hover:no-underline">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <span className="text-lg">{category.icon || "📁"}</span>
+                <div className="flex items-center justify-between w-full pr-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <span className="text-lg">{category.icon || "📁"}</span>
+                    </div>
+                    <div className="text-left">
+                      <h3 className="font-semibold text-lg">{category.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {categoryServices.length} service{categoryServices.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <h3 className="font-semibold text-lg">{category.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {categoryServices.length} service{categoryServices.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedCategory(category);
+                      setEditCategoryDialogOpen(true);
+                    }}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
@@ -287,6 +303,13 @@ export default function Services() {
         open={createCategoryDialogOpen}
         onOpenChange={setCreateCategoryDialogOpen}
         onSuccess={loadData}
+      />
+
+      <EditCategoryDialog
+        open={editCategoryDialogOpen}
+        onOpenChange={setEditCategoryDialogOpen}
+        onSuccess={loadData}
+        category={selectedCategory}
       />
     </div>
   );
