@@ -23,6 +23,8 @@ export default function AcceptInvitation() {
     id: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [userExists, setUserExists] = useState<boolean | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
@@ -41,6 +43,8 @@ export default function AcceptInvitation() {
     }
 
     try {
+      console.log("[ACCEPT-INVITE] Validating token:", token);
+      
       const { data: member, error: fetchError } = await supabase
         .from("team_members")
         .select("id, email, role, organization_id, status, token_expires_at")
@@ -48,6 +52,7 @@ export default function AcceptInvitation() {
         .maybeSingle();
 
       if (fetchError || !member) {
+        console.error("[ACCEPT-INVITE] Invalid token:", fetchError);
         setError("Invalid or expired invitation link.");
         setValidating(false);
         setLoading(false);
@@ -56,6 +61,7 @@ export default function AcceptInvitation() {
 
       // Check if token is expired
       if (member.token_expires_at && new Date(member.token_expires_at) < new Date()) {
+        console.log("[ACCEPT-INVITE] Token expired:", member.token_expires_at);
         setError("This invitation link has expired. Please request a new invitation.");
         setValidating(false);
         setLoading(false);
@@ -64,12 +70,14 @@ export default function AcceptInvitation() {
 
       // Check if already activated
       if (member.status === "active") {
+        console.log("[ACCEPT-INVITE] Already activated");
         setError("This invitation has already been accepted.");
         setValidating(false);
         setLoading(false);
         return;
       }
 
+      console.log("[ACCEPT-INVITE] Valid invitation for:", member.email);
       setInviteData({
         email: member.email,
         role: member.role,
@@ -80,42 +88,65 @@ export default function AcceptInvitation() {
 
       // Check if user is already logged in
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (session?.user) {
-        // User is already logged in - activate and redirect
-        await activateAndRedirect(session.user.id);
+        console.log("[ACCEPT-INVITE] User already logged in:", session.user.email);
+        setIsLoggedIn(true);
+        
+        // Check if logged-in email matches invite email
+        if (session.user.email === member.email) {
+          // Same user - activate and redirect
+          await activateAndRedirect();
+        } else {
+          // Different user - show error
+          setError(`You are logged in as ${session.user.email}, but this invitation is for ${member.email}. Please log out and try again.`);
+          setLoading(false);
+        }
       } else {
+        // Not logged in - show signup form (user can click login link if they have an account)
+        setUserExists(false);
         setLoading(false);
       }
     } catch (err: any) {
+      console.error("[ACCEPT-INVITE] Validation error:", err);
       setError("Failed to validate invitation. Please try again.");
       setValidating(false);
       setLoading(false);
     }
   };
 
-  const activateAndRedirect = async (userId: string) => {
+  const activateAndRedirect = async () => {
+    if (!inviteData) return;
+    
     try {
-      // Update team member status to active and set full_name
+      console.log("[ACCEPT-INVITE] Activating invitation:", inviteData.id);
+      
+      // Update team member status to active
       const { error: updateError } = await supabase
         .from("team_members")
         .update({
           status: "active",
           activated_at: new Date().toISOString(),
           invite_token: null,
-          full_name: fullName || null,
         })
-        .eq("id", inviteData!.id);
+        .eq("id", inviteData.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("[ACCEPT-INVITE] Activation error:", updateError);
+        throw updateError;
+      }
 
+      console.log("[ACCEPT-INVITE] ✓ Invitation activated successfully");
+      
       toast({
         title: "Success",
         description: "Welcome to the team!",
       });
 
-      // Redirect after short delay to let auth settle
+      // Redirect after short delay
       setTimeout(() => navigate("/client/dashboard"), 1500);
     } catch (err: any) {
+      console.error("[ACCEPT-INVITE] Activation failed:", err);
       toast({
         title: "Error",
         description: "Failed to activate your account. Please contact support.",
@@ -124,22 +155,16 @@ export default function AcceptInvitation() {
     }
   };
 
-  const handleAccept = async (e: React.FormEvent) => {
+  const handleNewUserSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteData) return;
 
     setSubmitting(true);
 
     try {
-      // Update the team member with full name first
-      const { error: nameUpdateError } = await supabase
-        .from("team_members")
-        .update({ full_name: fullName })
-        .eq("id", inviteData.id);
-
-      if (nameUpdateError) throw nameUpdateError;
-
-      // Sign up the user with emailRedirectTo
+      console.log("[ACCEPT-INVITE] Creating new user account for:", inviteData.email);
+      
+      // Sign up the user
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: inviteData.email,
         password,
@@ -151,20 +176,53 @@ export default function AcceptInvitation() {
         },
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        // If user already exists, show them the login link
+        if (signUpError.message.includes("already registered")) {
+          console.log("[ACCEPT-INVITE] User already exists, redirecting to login");
+          toast({
+            title: "Account Exists",
+            description: "An account with this email already exists. Please log in instead.",
+            variant: "destructive",
+          });
+          setSubmitting(false);
+          setTimeout(() => handleExistingUserLogin(), 2000);
+          return;
+        }
+        console.error("[ACCEPT-INVITE] Signup error:", signUpError);
+        throw signUpError;
+      }
+
+      console.log("[ACCEPT-INVITE] ✓ User created:", authData.user?.id);
+
+      // Update team member with full name
+      const { error: nameUpdateError } = await supabase
+        .from("team_members")
+        .update({ full_name: fullName })
+        .eq("id", inviteData.id);
+
+      if (nameUpdateError) {
+        console.warn("[ACCEPT-INVITE] Failed to update name:", nameUpdateError);
+      }
 
       if (authData.user) {
         // Activate team member and redirect
-        await activateAndRedirect(authData.user.id);
+        await activateAndRedirect();
       }
     } catch (err: any) {
+      console.error("[ACCEPT-INVITE] Signup failed:", err);
       toast({
         title: "Error",
-        description: err.message || "Failed to accept invitation",
+        description: err.message || "Failed to create account",
         variant: "destructive",
       });
       setSubmitting(false);
     }
+  };
+
+  const handleExistingUserLogin = () => {
+    // Redirect to login page with token preserved
+    navigate(`/login?inviteToken=${token}`);
   };
 
   if (validating) {
@@ -218,6 +276,7 @@ export default function AcceptInvitation() {
     );
   }
 
+  // Show signup form
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
       <Card className="w-full max-w-md">
@@ -231,7 +290,7 @@ export default function AcceptInvitation() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAccept} className="space-y-4">
+          <form onSubmit={handleNewUserSignup} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -286,9 +345,13 @@ export default function AcceptInvitation() {
 
             <p className="text-xs text-center text-muted-foreground">
               Already have an account?{" "}
-              <a href="/login" className="text-primary hover:underline">
-                Sign in here
-              </a>
+              <button
+                type="button"
+                onClick={handleExistingUserLogin}
+                className="text-primary hover:underline"
+              >
+                Log in here
+              </button>
             </p>
           </form>
         </CardContent>

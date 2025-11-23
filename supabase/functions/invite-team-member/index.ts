@@ -17,8 +17,8 @@ const sendInvitationEmail = async (to: string, role: string, inviterEmail: strin
         "Authorization": `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Exavo AI <info@exavoai.io>",
-        reply_to: "info@exavoai.io",
+        from: "Exavo AI <info@exavo.ai>",
+        reply_to: "info@exavo.ai",
         to: [to],
         subject: "You've been invited to join Exavo AI",
         html: `
@@ -39,7 +39,7 @@ const sendInvitationEmail = async (to: string, role: string, inviterEmail: strin
                       <!-- Header with Logo -->
                       <tr>
                         <td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                          <img src="https://2906855a-3f3b-4327-9a13-6b3ce2fbf463.lovableproject.com/src/assets/exavo-logo.png" alt="Exavo AI" style="height: 40px; width: auto; display: inline-block; margin-bottom: 16px;" />
+                          <img src="https://exavo.ai/assets/exavo-logo.png" alt="Exavo AI" style="height: 40px; width: auto; display: inline-block; margin-bottom: 16px;" />
                           <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; line-height: 1.3;">Team Invitation</h1>
                         </td>
                       </tr>
