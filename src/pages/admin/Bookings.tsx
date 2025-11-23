@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, Search, Filter, Pencil, Trash2 } from "lucide-react";
+import { Eye, Search, Filter, Pencil, Trash2, TrendingUp } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -131,6 +132,61 @@ export default function Bookings() {
     }
   };
 
+  const handleStatusChange = async (bookingId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .update({ status: newStatus })
+        .eq("id", bookingId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Booking status updated successfully",
+      });
+
+      loadBookings();
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update booking status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getProgressValue = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "pending":
+        return 25;
+      case "confirmed":
+        return 50;
+      case "completed":
+        return 100;
+      case "cancelled":
+        return 0;
+      default:
+        return 0;
+    }
+  };
+
+  const getProgressColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "pending":
+        return "hsl(45, 93%, 47%)"; // yellow
+      case "confirmed":
+        return "hsl(217, 91%, 60%)"; // blue
+      case "completed":
+        return "hsl(142, 76%, 36%)"; // green
+      case "cancelled":
+        return "hsl(0, 84%, 60%)"; // red
+      default:
+        return "hsl(var(--muted))";
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "confirmed":
@@ -217,6 +273,7 @@ export default function Bookings() {
                   <TableHead>Date</TableHead>
                   <TableHead className="hidden lg:table-cell">Time</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="hidden xl:table-cell">Progress</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -241,9 +298,52 @@ export default function Bookings() {
                         {booking.appointment_time}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusColor(booking.status)}>
-                          {booking.status}
-                        </Badge>
+                        <Select
+                          value={booking.status}
+                          onValueChange={(value) => handleStatusChange(booking.id, value)}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">
+                              <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                                Pending
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="confirmed">
+                              <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                Confirmed
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="completed">
+                              <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-green-500" />
+                                Completed
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="cancelled">
+                              <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-red-500" />
+                                Cancelled
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="hidden xl:table-cell">
+                        <div className="flex items-center gap-2 min-w-[120px]">
+                          <Progress 
+                            value={getProgressValue(booking.status)} 
+                            className="h-2"
+                            style={{ '--progress-background': getProgressColor(booking.status) } as any}
+                          />
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {getProgressValue(booking.status)}%
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
