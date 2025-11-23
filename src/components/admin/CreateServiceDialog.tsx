@@ -26,9 +26,7 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    name_ar: "",
     description: "",
-    description_ar: "",
     price: 0,
     currency: "USD",
     active: true,
@@ -61,9 +59,9 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
       const { error } = await supabase.functions.invoke('admin-create-service', {
         body: {
           name: formData.name,
-          name_ar: formData.name_ar,
+          name_ar: formData.name,
           description: formData.description,
-          description_ar: formData.description_ar,
+          description_ar: formData.description,
           price: formData.price,
           currency: formData.currency,
           active: formData.active,
@@ -81,9 +79,7 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
       // Reset form
       setFormData({
         name: "",
-        name_ar: "",
         description: "",
-        description_ar: "",
         price: 0,
         currency: "USD",
         active: true,
@@ -111,48 +107,24 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
           <DialogTitle>Add New Service</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Service Name (English)</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter service name"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="name_ar">Service Name (Arabic)</Label>
-              <Input
-                id="name_ar"
-                value={formData.name_ar}
-                onChange={(e) => setFormData({ ...formData, name_ar: e.target.value })}
-                placeholder="أدخل اسم الخدمة"
-                required
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
-            <Label htmlFor="description">Description (English)</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Enter service description"
-              rows={3}
+            <Label htmlFor="name">Service Name</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Enter service name"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description_ar">Description (Arabic)</Label>
+            <Label htmlFor="description">Description</Label>
             <Textarea
-              id="description_ar"
-              value={formData.description_ar}
-              onChange={(e) => setFormData({ ...formData, description_ar: e.target.value })}
-              placeholder="أدخل وصف الخدمة"
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Enter service description"
               rows={3}
               required
             />
