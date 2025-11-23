@@ -23,7 +23,6 @@ export function CreateCategoryDialog({ open, onOpenChange, onSuccess }: CreateCa
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    name_ar: "",
     icon: "Folder",
   });
 
@@ -36,7 +35,7 @@ export function CreateCategoryDialog({ open, onOpenChange, onSuccess }: CreateCa
         .from('categories')
         .insert({
           name: formData.name,
-          name_ar: formData.name_ar,
+          name_ar: formData.name,
           icon: formData.icon,
         });
 
@@ -50,7 +49,6 @@ export function CreateCategoryDialog({ open, onOpenChange, onSuccess }: CreateCa
       // Reset form
       setFormData({
         name: "",
-        name_ar: "",
         icon: "Folder",
       });
 
@@ -76,23 +74,12 @@ export function CreateCategoryDialog({ open, onOpenChange, onSuccess }: CreateCa
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Category Name (English)</Label>
+            <Label htmlFor="name">Category Name</Label>
             <Input
               id="name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Enter category name"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="name_ar">Category Name (Arabic)</Label>
-            <Input
-              id="name_ar"
-              value={formData.name_ar}
-              onChange={(e) => setFormData({ ...formData, name_ar: e.target.value })}
-              placeholder="أدخل اسم الفئة"
               required
             />
           </div>
