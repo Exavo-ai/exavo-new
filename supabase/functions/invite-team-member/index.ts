@@ -98,12 +98,18 @@ serve(async (req) => {
     }
 
     // Check if member already exists
-    const { data: existing } = await supabaseClient
+    const { data: existing, error: existingError } = await supabaseClient
       .from("team_members")
       .select("id")
       .eq("organization_id", user.id)
       .eq("email", email)
-      .single();
+      .maybeSingle();
+
+    // Only throw error if there's a database error (not "not found")
+    if (existingError) {
+      console.error("Error checking existing member:", existingError);
+      throw new Error(`Failed to check existing member: ${existingError.message}`);
+    }
 
     if (existing) {
       throw new Error("Team member with this email already exists");
