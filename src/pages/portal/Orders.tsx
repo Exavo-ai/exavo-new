@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -28,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, AlertCircle, MessageSquare, Filter, Trash2 } from "lucide-react";
+import { Search, AlertCircle, MessageSquare, Filter, Trash2, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +46,8 @@ interface Appointment {
   email: string;
   phone: string;
   notes: string | null;
+  project_progress: number;
+  project_status: string;
 }
 
 const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
@@ -87,9 +90,39 @@ export default function OrdersPage() {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'appointments',
+          filter: `user_id=eq.${user?.id}`,
+        },
+        (payload) => {
+          console.log('Appointment updated:', payload);
+          toast({
+            title: "Order Updated",
+            description: "Your order has been updated by the admin.",
+          });
+          loadAppointments();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'appointments',
+          filter: `user_id=eq.${user?.id}`,
+        },
+        () => {
+          loadAppointments();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'appointments',
+          filter: `user_id=eq.${user?.id}`,
         },
         () => {
           loadAppointments();
@@ -248,16 +281,17 @@ export default function OrdersPage() {
                   <TableRow className="bg-muted/50">
                     <TableHead className="font-semibold">Client Name</TableHead>
                     <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold">Project Status</TableHead>
+                    <TableHead className="font-semibold hidden lg:table-cell">Project Progress</TableHead>
                     <TableHead className="font-semibold">Appointment Date</TableHead>
-                    <TableHead className="font-semibold">Time</TableHead>
-                    <TableHead className="font-semibold">Created Date</TableHead>
+                    <TableHead className="font-semibold hidden md:table-cell">Time</TableHead>
                     <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredAppointments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         No orders found
                       </TableCell>
                     </TableRow>
@@ -274,12 +308,25 @@ export default function OrdersPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {appointment.project_status?.replace("_", " ") || "Not Started"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <div className="flex items-center gap-2 min-w-[120px]">
+                            <Progress 
+                              value={appointment.project_progress || 0} 
+                              className="h-2"
+                            />
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              {appointment.project_progress || 0}%
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           {new Date(appointment.appointment_date).toLocaleDateString()}
                         </TableCell>
-                        <TableCell>{appointment.appointment_time}</TableCell>
-                        <TableCell>
-                          {new Date(appointment.created_at).toLocaleDateString()}
-                        </TableCell>
+                        <TableCell className="hidden md:table-cell">{appointment.appointment_time}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button 
