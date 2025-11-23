@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -15,14 +15,73 @@ const Login = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { user, userRole } = useAuth();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('inviteToken');
 
   useEffect(() => {
-    // Redirect if already logged in with proper role
-    if (user && userRole && !loading) {
+    // Redirect if already logged in with proper role (but not if handling invite)
+    if (user && userRole && !loading && !inviteToken) {
       const targetPath = userRole === 'admin' ? '/admin' : '/client';
       navigate(targetPath, { replace: true });
     }
-  }, [user, userRole, loading, navigate]);
+  }, [user, userRole, loading, navigate, inviteToken]);
+
+  const handleInviteActivation = async () => {
+    if (!inviteToken) return;
+
+    try {
+      console.log("[LOGIN] Activating invite with token:", inviteToken);
+      
+      // Validate and activate the invitation
+      const { data: member, error: fetchError } = await supabase
+        .from("team_members")
+        .select("id, email, status, token_expires_at")
+        .eq("invite_token", inviteToken)
+        .maybeSingle();
+
+      if (fetchError || !member) {
+        console.error("[LOGIN] Invalid invite token:", fetchError);
+        toast.error("Invalid invitation link");
+        return;
+      }
+
+      // Check if token is expired
+      if (member.token_expires_at && new Date(member.token_expires_at) < new Date()) {
+        toast.error("This invitation link has expired");
+        return;
+      }
+
+      // Check if already activated
+      if (member.status === "active") {
+        console.log("[LOGIN] Invitation already activated");
+        toast.info("You're already part of the team!");
+        navigate("/client/dashboard");
+        return;
+      }
+
+      // Activate the team member
+      const { error: updateError } = await supabase
+        .from("team_members")
+        .update({
+          status: "active",
+          activated_at: new Date().toISOString(),
+          invite_token: null,
+        })
+        .eq("id", member.id);
+
+      if (updateError) {
+        console.error("[LOGIN] Failed to activate invitation:", updateError);
+        throw updateError;
+      }
+
+      console.log("[LOGIN] ✓ Invitation activated successfully");
+      toast.success("Welcome to the team!");
+      
+    } catch (err: any) {
+      console.error("[LOGIN] Invite activation error:", err);
+      toast.error("Failed to accept invitation. Please contact support.");
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +97,11 @@ const Login = () => {
       
       toast.success(t('auth.loginSuccess'));
       
+      // If there's an invite token, activate it first
+      if (inviteToken) {
+        await handleInviteActivation();
+      }
+      
       // Fetch user role immediately
       if (data.user) {
         const { data: roleData } = await supabase
@@ -47,7 +111,7 @@ const Login = () => {
           .single();
         
         const role = roleData?.role || 'client';
-        const targetPath = role === 'admin' ? '/admin' : '/client';
+        const targetPath = role === 'admin' ? '/admin' : '/client/dashboard';
         
         // Force immediate navigation
         navigate(targetPath, { replace: true });
@@ -69,9 +133,11 @@ const Login = () => {
           <div className="bg-card rounded-2xl p-8 border border-border shadow-glow">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold bg-gradient-hero bg-clip-text text-transparent mb-2">
-                {t('auth.welcomeBack')}
+                {inviteToken ? 'Log In to Accept Invitation' : t('auth.welcomeBack')}
               </h1>
-              <p className="text-muted-foreground">{t('auth.loginSubtitle')}</p>
+              <p className="text-muted-foreground">
+                {inviteToken ? 'Sign in to join your team' : t('auth.loginSubtitle')}
+              </p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-6">
