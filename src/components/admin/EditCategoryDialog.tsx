@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 
 interface Category {
   id: string;
@@ -28,6 +30,8 @@ interface EditCategoryDialogProps {
 export function EditCategoryDialog({ open, onOpenChange, onSuccess, category }: EditCategoryDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [generatingIcon, setGeneratingIcon] = useState(false);
+  const [initialName, setInitialName] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     icon: "Folder",
@@ -39,8 +43,38 @@ export function EditCategoryDialog({ open, onOpenChange, onSuccess, category }: 
         name: category.name,
         icon: category.icon || "Folder",
       });
+      setInitialName(category.name);
     }
   }, [category]);
+
+  // Auto-generate icon when category name changes (only if name was changed)
+  useEffect(() => {
+    const generateIcon = async () => {
+      if (formData.name.length < 3 || formData.name === initialName) {
+        return;
+      }
+
+      setGeneratingIcon(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('suggest-category-icon', {
+          body: { categoryName: formData.name }
+        });
+
+        if (error) throw error;
+
+        if (data?.icon) {
+          setFormData(prev => ({ ...prev, icon: data.icon }));
+        }
+      } catch (error) {
+        console.error('Error generating icon:', error);
+      } finally {
+        setGeneratingIcon(false);
+      }
+    };
+
+    const debounce = setTimeout(generateIcon, 800);
+    return () => clearTimeout(debounce);
+  }, [formData.name, initialName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,22 +132,29 @@ export function EditCategoryDialog({ open, onOpenChange, onSuccess, category }: 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="icon">Icon Name (Lucide)</Label>
-            <Input
-              id="icon"
-              value={formData.icon}
-              onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-              placeholder="Brain, Workflow, etc."
-              required
-            />
+            <Label htmlFor="icon">Icon Preview</Label>
+            <div className="flex items-center gap-3 p-3 border rounded-md bg-muted/50">
+              {generatingIcon ? (
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              ) : (() => {
+                const IconComponent = (LucideIcons as any)[formData.icon] || LucideIcons.Folder;
+                return <IconComponent className="h-8 w-8 text-primary" />;
+              })()}
+              <div className="flex-1">
+                <p className="font-medium">{formData.icon}</p>
+                <p className="text-xs text-muted-foreground">
+                  {generatingIcon ? "Generating..." : "Auto-generated based on category name"}
+                </p>
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Updating..." : "Update Category"}
+            <Button type="submit" disabled={loading || generatingIcon}>
+              {loading ? "Updating..." : generatingIcon ? "Generating Icon..." : "Update Category"}
             </Button>
           </DialogFooter>
         </form>
