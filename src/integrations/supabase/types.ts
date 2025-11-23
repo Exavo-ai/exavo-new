@@ -97,6 +97,33 @@ export type Database = {
           },
         ]
       }
+      categories: {
+        Row: {
+          created_at: string
+          icon: string | null
+          id: string
+          name: string
+          name_ar: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name: string
+          name_ar: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name?: string
+          name_ar?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
@@ -367,7 +394,7 @@ export type Database = {
       services: {
         Row: {
           active: boolean
-          category: string
+          category: string | null
           created_at: string
           currency: string
           description: string
@@ -381,7 +408,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
-          category?: string
+          category?: string | null
           created_at?: string
           currency?: string
           description: string
@@ -395,7 +422,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
-          category?: string
+          category?: string | null
           created_at?: string
           currency?: string
           description?: string
@@ -407,7 +434,15 @@ export type Database = {
           price?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "services_category_fkey"
+            columns: ["category"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tickets: {
         Row: {

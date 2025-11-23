@@ -50,7 +50,7 @@ serve(async (req) => {
         description_ar: z.string().trim().min(10, 'Arabic description must be at least 10 characters').max(2000, 'Arabic description must be less than 2000 characters').optional(),
         price: z.number().positive('Price must be positive').optional(),
         currency: z.string().length(3, 'Currency must be 3 characters').optional(),
-        category: z.enum(['ai', 'automation', 'analytics', 'marketing', 'content']).optional(),
+        category: z.string().uuid('Invalid category ID').optional(),
         active: z.boolean().optional(),
         image_url: z.string().url('Invalid image URL').max(500, 'Image URL must be less than 500 characters').nullable().optional()
       }).refine(data => Object.keys(data).length > 0, {

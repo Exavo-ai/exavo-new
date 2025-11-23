@@ -39,15 +39,33 @@ interface EditServiceDialogProps {
 export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: EditServiceDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     price: 0,
     currency: "USD",
-    category: "ai",
+    category: "",
     active: true,
     image_url: "",
   });
+
+  useEffect(() => {
+    if (open) {
+      fetchCategories();
+    }
+  }, [open]);
+
+  const fetchCategories = async () => {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('id, name')
+      .order('name');
+    
+    if (!error && data) {
+      setCategories(data);
+    }
+  };
 
   useEffect(() => {
     if (service) {
@@ -56,7 +74,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
         description: service.description || "",
         price: service.price || 0,
         currency: service.currency || "USD",
-        category: service.category || "ai",
+        category: service.category || "",
         active: service.active ?? true,
         image_url: service.image_url || "",
       });
@@ -191,11 +209,11 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ai">AI Services</SelectItem>
-                <SelectItem value="automation">Automation</SelectItem>
-                <SelectItem value="analytics">Analytics</SelectItem>
-                <SelectItem value="marketing">Marketing</SelectItem>
-                <SelectItem value="content">Content</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

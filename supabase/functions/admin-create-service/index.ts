@@ -57,7 +57,7 @@ serve(async (req) => {
       description_ar: z.string().min(1, "Arabic description is required").max(1000),
       price: z.number().min(0, "Price must be positive"),
       currency: z.string().min(3).max(3),
-      category: z.enum(['ai', 'automation', 'analytics', 'marketing', 'content']),
+      category: z.string().uuid("Invalid category ID"),
       active: z.boolean().optional().default(true),
       image_url: z.string().nullable().optional(),
     });
