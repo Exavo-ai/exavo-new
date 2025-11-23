@@ -141,18 +141,17 @@ serve(async (req) => {
 
     console.log("[INVITE] Auth header present, validating user...");
     
-    // Create client for auth verification with the Authorization header
+    // Extract JWT token from Authorization header
+    const jwt = authHeader.replace("Bearer ", "");
+    
+    // Create client for auth verification
     const supabaseAuth = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      {
-        global: {
-          headers: { Authorization: authHeader }
-        }
-      }
+      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    // Verify the JWT by passing it directly to getUser
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(jwt);
 
     if (userError) {
       console.error("[INVITE] Auth error:", userError);
