@@ -6,7 +6,6 @@ import {
   Calendar,
   CreditCard,
   LifeBuoy,
-  Activity,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -21,7 +20,6 @@ const navigation = [
   { name: "Bookings", href: "/admin/bookings", icon: Calendar },
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
   { name: "Tickets", href: "/admin/tickets", icon: LifeBuoy },
-  { name: "Activity Logs", href: "/admin/activity", icon: Activity },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

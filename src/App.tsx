@@ -24,7 +24,6 @@ import AdminServices from "@/pages/admin/Services";
 import AdminBookings from "@/pages/admin/Bookings";
 import AdminPayments from "@/pages/admin/Payments";
 import AdminTickets from "@/pages/admin/Tickets";
-import AdminActivityLogs from "@/pages/admin/ActivityLogs";
 import AdminSettings from "@/pages/admin/Settings";
 import ClientDashboard from "./pages/ClientDashboard";
 import PaymentSuccess from "./pages/PaymentSuccess";
@@ -125,16 +124,6 @@ const App = () => (
                   <ProtectedRoute requireRole="admin">
                     <AdminLayout>
                       <AdminTickets />
-                    </AdminLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/activity"
-                element={
-                  <ProtectedRoute requireRole="admin">
-                    <AdminLayout>
-                      <AdminActivityLogs />
                     </AdminLayout>
                   </ProtectedRoute>
                 }
