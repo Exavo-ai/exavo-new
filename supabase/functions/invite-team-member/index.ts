@@ -133,12 +133,6 @@ serve(async (req) => {
   try {
     console.log("[INVITE] Processing invitation request");
     
-    // Create client for auth verification
-    const supabaseAuth = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-    );
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       console.error("[INVITE] No Authorization header provided");
@@ -146,8 +140,19 @@ serve(async (req) => {
     }
 
     console.log("[INVITE] Auth header present, validating user...");
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(token);
+    
+    // Create client for auth verification with the Authorization header
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      {
+        global: {
+          headers: { Authorization: authHeader }
+        }
+      }
+    );
+
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
 
     if (userError) {
       console.error("[INVITE] Auth error:", userError);
@@ -183,7 +188,7 @@ serve(async (req) => {
     const limitsResponse = await fetch(limitsCheckUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${token}`,
+        "Authorization": authHeader,
         "Content-Type": "application/json",
       },
     });
