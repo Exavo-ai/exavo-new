@@ -45,6 +45,12 @@ interface Service {
   created_at: string;
 }
 
+interface CategoryAnalytics {
+  categoryId: string;
+  totalRevenue: number;
+  bookingCount: number;
+}
+
 export default function Services() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -55,6 +61,7 @@ export default function Services() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createCategoryDialogOpen, setCreateCategoryDialogOpen] = useState(false);
   const [editCategoryDialogOpen, setEditCategoryDialogOpen] = useState(false);
+  const [analytics, setAnalytics] = useState<CategoryAnalytics[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -63,16 +70,46 @@ export default function Services() {
 
   const loadData = async () => {
     try {
-      const [categoriesResult, servicesResult] = await Promise.all([
+      const [categoriesResult, servicesResult, ordersResult, appointmentsResult] = await Promise.all([
         supabase.from("categories").select("*").order("name"),
-        supabase.from("services").select("*").order("created_at", { ascending: false })
+        supabase.from("services").select("*").order("created_at", { ascending: false }),
+        supabase.from("orders").select("service_id, amount, payment_status"),
+        supabase.from("appointments").select("service_id, status")
       ]);
 
       if (categoriesResult.error) throw categoriesResult.error;
       if (servicesResult.error) throw servicesResult.error;
 
-      setCategories(categoriesResult.data || []);
-      setServices(servicesResult.data || []);
+      const categoriesData = categoriesResult.data || [];
+      const servicesData = servicesResult.data || [];
+      const ordersData = ordersResult.data || [];
+      const appointmentsData = appointmentsResult.data || [];
+
+      setCategories(categoriesData);
+      setServices(servicesData);
+
+      // Calculate analytics per category
+      const analyticsData: CategoryAnalytics[] = categoriesData.map(category => {
+        const categoryServiceIds = servicesData
+          .filter(s => s.category === category.id)
+          .map(s => s.id);
+
+        const totalRevenue = ordersData
+          .filter(o => categoryServiceIds.includes(o.service_id!) && o.payment_status === 'paid')
+          .reduce((sum, o) => sum + Number(o.amount), 0);
+
+        const bookingCount = appointmentsData
+          .filter(a => categoryServiceIds.includes(a.service_id!))
+          .length;
+
+        return {
+          categoryId: category.id,
+          totalRevenue,
+          bookingCount
+        };
+      });
+
+      setAnalytics(analyticsData);
     } catch (error: any) {
       console.error("Error loading data:", error);
       toast({
@@ -218,16 +255,33 @@ export default function Services() {
       <Accordion type="multiple" className="space-y-4" defaultValue={categories.map(c => c.id)}>
         {categories.map((category) => {
           const categoryServices = getServicesByCategory(category.id);
+          const categoryAnalytics = analytics.find(a => a.categoryId === category.id);
           
           return (
             <AccordionItem key={category.id} value={category.id} className="border rounded-lg">
               <AccordionTrigger className="px-6 hover:no-underline">
                 <div className="flex items-center justify-between w-full pr-4">
-                  <div className="text-left">
-                    <h3 className="font-semibold text-lg">{category.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {categoryServices.length} service{categoryServices.length !== 1 ? 's' : ''}
-                    </p>
+                  <div className="flex items-center gap-8 flex-1">
+                    <div className="text-left">
+                      <h3 className="font-semibold text-lg">{category.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {categoryServices.length} service{categoryServices.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    {categoryAnalytics && (
+                      <div className="flex items-center gap-6">
+                        <div className="text-left">
+                          <p className="text-xs text-muted-foreground">Total Revenue</p>
+                          <p className="font-semibold">
+                            EGP {categoryAnalytics.totalRevenue.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs text-muted-foreground">Bookings</p>
+                          <p className="font-semibold">{categoryAnalytics.bookingCount}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-1">
                     <Button
