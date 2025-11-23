@@ -5,6 +5,7 @@ import { Calendar, CreditCard, RefreshCw, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/portal/StatusBadge";
+import { useNavigate } from "react-router-dom";
 
 interface Subscription {
   id: string;
@@ -30,6 +31,7 @@ export default function SubscriptionsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingInvoices, setLoadingInvoices] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const fetchSubscriptions = async () => {
     try {
@@ -109,7 +111,7 @@ export default function SubscriptionsPage() {
           <h1 className="text-3xl font-bold">Subscriptions</h1>
           <p className="text-muted-foreground">Manage your active subscriptions</p>
         </div>
-        <Button onClick={() => window.location.href = "/client/browse-services"}>
+        <Button onClick={() => navigate("/client/services")}>
           Browse Services
         </Button>
       </div>
@@ -123,7 +125,7 @@ export default function SubscriptionsPage() {
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
               <p>No active subscriptions</p>
-              <Button className="mt-4" onClick={() => window.location.href = "/client/browse-services"}>
+              <Button className="mt-4" onClick={() => navigate("/client/services")}>
                 Browse Services
               </Button>
             </div>
