@@ -223,16 +223,11 @@ export default function Services() {
             <AccordionItem key={category.id} value={category.id} className="border rounded-lg">
               <AccordionTrigger className="px-6 hover:no-underline">
                 <div className="flex items-center justify-between w-full pr-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <span className="text-lg">{category.icon || "📁"}</span>
-                    </div>
-                    <div className="text-left">
-                      <h3 className="font-semibold text-lg">{category.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {categoryServices.length} service{categoryServices.length !== 1 ? 's' : ''}
-                      </p>
-                    </div>
+                  <div className="text-left">
+                    <h3 className="font-semibold text-lg">{category.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {categoryServices.length} service{categoryServices.length !== 1 ? 's' : ''}
+                    </p>
                   </div>
                   <div className="flex gap-1">
                     <Button
