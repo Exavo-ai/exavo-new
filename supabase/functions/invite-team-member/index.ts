@@ -131,19 +131,35 @@ serve(async (req) => {
   }
 
   try {
+    console.log("[INVITE] Processing invitation request");
+    
     // Create client for auth verification
     const supabaseAuth = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("[INVITE] No Authorization header provided");
+      throw new Error("Unauthorized - No authorization header");
+    }
+
+    console.log("[INVITE] Auth header present, validating user...");
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(token);
 
-    if (userError || !user) {
-      throw new Error("Unauthorized");
+    if (userError) {
+      console.error("[INVITE] Auth error:", userError);
+      throw new Error("Unauthorized - Invalid token");
     }
+
+    if (!user) {
+      console.error("[INVITE] No user found");
+      throw new Error("Unauthorized - User not found");
+    }
+
+    console.log("[INVITE] ✓ User authenticated:", user.email);
 
     // Create client with service role for database operations (bypasses RLS)
     const supabaseClient = createClient(
@@ -264,6 +280,7 @@ serve(async (req) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("[INVITE] Error occurred:", errorMessage);
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 400,
