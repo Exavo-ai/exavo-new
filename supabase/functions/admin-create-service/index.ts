@@ -18,9 +18,21 @@ serve(async (req) => {
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // Initialize Supabase client with user's token
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+    console.log("Auth header present:", !!authHeader);
+    console.log("All headers:", Array.from(req.headers.entries()));
+    
+    if (!authHeader) {
+      console.error("No authorization header found");
+      return new Response(JSON.stringify({ error: "No authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+      global: { headers: { authorization: authHeader } },
+      auth: { persistSession: false },
     });
 
     // Verify user is authenticated
@@ -28,6 +40,12 @@ serve(async (req) => {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
+
+    console.log("Auth check result:", { hasUser: !!user, hasError: !!authError });
+    
+    if (authError) {
+      console.error("Auth error:", authError);
+    }
 
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
