@@ -41,12 +41,35 @@ export function TicketReplyDialog({ ticket, open, onOpenChange, onSuccess }: Tic
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ticket) return;
+    if (!ticket || !reply.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a reply message",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoading(true);
     try {
+      // Get current admin user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      // Save the reply to ticket_replies table
+      const { error: replyError } = await supabase
+        .from("ticket_replies")
+        .insert({
+          ticket_id: ticket.id,
+          user_id: user.id,
+          message: reply,
+          is_admin: true,
+        });
+
+      if (replyError) throw replyError;
+
       // Update ticket status
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from("tickets")
         .update({
           status: status,
@@ -55,24 +78,44 @@ export function TicketReplyDialog({ ticket, open, onOpenChange, onSuccess }: Tic
         })
         .eq("id", ticket.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      // In a real app, you'd also save the reply message to a ticket_messages table
-      // For now, we'll just update the status
+      // Send email notification to user
+      const { error: emailError } = await supabase.functions.invoke(
+        "send-ticket-reply-notification",
+        {
+          body: {
+            ticketId: ticket.id,
+            replyMessage: reply,
+            adminUserId: user.id,
+          },
+        }
+      );
+
+      if (emailError) {
+        console.error("Error sending email notification:", emailError);
+        // Don't fail the whole operation if email fails
+        toast({
+          title: "Warning",
+          description: "Reply saved but email notification failed",
+          variant: "destructive",
+        });
+      }
 
       toast({
         title: "Success",
-        description: `Ticket ${status === "closed" ? "closed" : "updated"} successfully`,
+        description: "Reply sent and user notified via email",
       });
 
       onSuccess();
       onOpenChange(false);
       setReply("");
+      setStatus("open");
     } catch (error: any) {
-      console.error("Error updating ticket:", error);
+      console.error("Error sending reply:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update ticket",
+        description: error.message || "Failed to send reply",
         variant: "destructive",
       });
     } finally {
