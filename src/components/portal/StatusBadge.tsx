@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 
-type Status = 'Active' | 'Inactive' | 'Pending' | 'Completed' | 'Ongoing' | 'Review' | 'Resolved' | 'Open' | 'In Progress' | 'Hot' | 'Warm' | 'Cold' | 'Expiring Soon';
+type Status = 'Active' | 'Inactive' | 'Pending' | 'Completed' | 'Ongoing' | 'Review' | 'Resolved' | 'Open' | 'In Progress' | 'Hot' | 'Warm' | 'Cold' | 'Expiring Soon' | 'Canceled';
 
 interface StatusBadgeProps {
   status: Status;
@@ -19,6 +19,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
       case 'Pending':
       case 'Review':
       case 'Cold':
+      case 'Canceled':
         return 'secondary';
       case 'Open':
       case 'Expiring Soon':
