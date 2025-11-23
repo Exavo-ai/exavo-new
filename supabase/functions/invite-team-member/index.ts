@@ -227,6 +227,13 @@ serve(async (req) => {
     const tokenExpiresAt = new Date();
     tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 7); // Token expires in 7 days
 
+    console.log(`[INVITE] Creating team member with token:`, {
+      token: inviteToken,
+      expires: tokenExpiresAt.toISOString(),
+      email,
+      role,
+    });
+
     // Create team member
     const { data: member, error: insertError } = await supabaseServiceClient
       .from("team_members")
@@ -246,8 +253,10 @@ serve(async (req) => {
       throw new Error(`Failed to create team member: ${insertError.message}`);
     }
 
+    console.log(`[INVITE] ✓ Team member created with ID: ${member.id}, token stored: ${member.invite_token}`);
+
     // Send invitation email with token
-    console.log(`[INVITE] Team member created: ${email} with role ${role}. Sending email...`);
+    console.log(`[INVITE] Sending email to ${email} with token: ${member.invite_token}`);
     
     const emailResult = await sendInvitationEmail(
       email, 

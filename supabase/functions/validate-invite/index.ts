@@ -12,12 +12,12 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const token = url.searchParams.get("token");
+    const { token } = await req.json();
 
     if (!token) {
+      console.log("[VALIDATE-INVITE] No token provided in request");
       return new Response(
-        JSON.stringify({ error: "Token is required" }),
+        JSON.stringify({ valid: false, error: "Token is required" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
@@ -37,10 +37,17 @@ serve(async (req) => {
       .eq("invite_token", token)
       .maybeSingle();
 
+    console.log("[VALIDATE-INVITE] Database query result:", {
+      found: !!member,
+      error: fetchError?.message,
+      status: member?.status,
+      expires: member?.token_expires_at,
+    });
+
     if (fetchError) {
       console.error("[VALIDATE-INVITE] Database error:", fetchError);
       return new Response(
-        JSON.stringify({ error: "Database error", details: fetchError.message }),
+        JSON.stringify({ valid: false, error: "Database error", details: fetchError.message }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }

@@ -46,9 +46,9 @@ export default function AcceptInvitation() {
       
       // Call the validate-invite edge function (uses service role to bypass RLS)
       const { data: validationResponse, error: functionError } = await supabase.functions.invoke(
-        `validate-invite?token=${encodeURIComponent(token)}`,
+        "validate-invite",
         {
-          method: "GET",
+          body: { token },
         }
       );
 
@@ -60,17 +60,19 @@ export default function AcceptInvitation() {
         return;
       }
 
+      console.log("[ACCEPT-INVITE] Validation response:", validationResponse);
+
       // Check validation result
-      if (!validationResponse.valid) {
-        console.log("[ACCEPT-INVITE] Invalid token:", validationResponse.error);
-        setError(validationResponse.error || "Invalid or expired invitation link.");
+      if (!validationResponse || !validationResponse.valid) {
+        console.log("[ACCEPT-INVITE] Invalid token:", validationResponse?.error);
+        setError(validationResponse?.error || "Invalid or expired invitation link.");
         setValidating(false);
         setLoading(false);
         return;
       }
 
       const member = validationResponse.data;
-      console.log("[ACCEPT-INVITE] Valid invitation for:", member.email);
+      console.log("[ACCEPT-INVITE] ✓ Valid invitation for:", member.email);
       
       setInviteData({
         email: member.email,
