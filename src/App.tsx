@@ -14,6 +14,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import PasswordReset from "./pages/PasswordReset";
 import UpdatePassword from "./pages/UpdatePassword";
+import AcceptInvitation from "./pages/AcceptInvitation";
 import Booking from "./pages/Booking";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import AdminDashboard from "@/pages/admin/Dashboard";
@@ -53,6 +54,7 @@ const App = () => (
         <Route path="/blog" element={<Blog />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/accept-invitation" element={<AcceptInvitation />} />
               <Route path="/password-reset" element={<PasswordReset />} />
               <Route path="/update-password" element={<UpdatePassword />} />
               <Route

@@ -487,11 +487,13 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          invite_token: string | null
           invited_at: string | null
           invited_by: string | null
           organization_id: string
           role: string
           status: string
+          token_expires_at: string | null
           updated_at: string | null
         }
         Insert: {
@@ -500,11 +502,13 @@ export type Database = {
           email: string
           full_name?: string | null
           id?: string
+          invite_token?: string | null
           invited_at?: string | null
           invited_by?: string | null
           organization_id: string
           role: string
           status?: string
+          token_expires_at?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -513,11 +517,13 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          invite_token?: string | null
           invited_at?: string | null
           invited_by?: string | null
           organization_id?: string
           role?: string
           status?: string
+          token_expires_at?: string | null
           updated_at?: string | null
         }
         Relationships: []

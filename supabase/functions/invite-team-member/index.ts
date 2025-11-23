@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const sendInvitationEmail = async (to: string, role: string, inviterEmail: string) => {
+const sendInvitationEmail = async (to: string, role: string, inviterEmail: string, inviteToken: string) => {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   
   try {
@@ -17,7 +17,7 @@ const sendInvitationEmail = async (to: string, role: string, inviterEmail: strin
         "Authorization": `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "info@exavoai.io",
+        from: "Exavo AI <info@exavoai.io>",
         reply_to: "info@exavoai.io",
         to: [to],
         subject: "You've been invited to join Exavo AI",
@@ -61,7 +61,7 @@ const sendInvitationEmail = async (to: string, role: string, inviterEmail: strin
                           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                             <tr>
                               <td style="text-align: center; padding: 8px 0 24px;">
-                                <a href="https://exavoai.io/register?email=${encodeURIComponent(to)}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 8px; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);">Accept Invitation</a>
+                                <a href="https://exavo.ai/accept-invitation?token=${inviteToken}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 8px; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);">Accept Invitation</a>
                               </td>
                             </tr>
                           </table>
@@ -69,7 +69,7 @@ const sendInvitationEmail = async (to: string, role: string, inviterEmail: strin
                           <!-- Fallback URL -->
                           <p style="margin: 0 0 24px; font-size: 14px; line-height: 1.6; color: #9ca3af; text-align: center;">
                             Or copy and paste this URL into your browser:<br/>
-                            <a href="https://exavoai.io/register?email=${encodeURIComponent(to)}" style="color: #667eea; text-decoration: underline; word-break: break-all;">https://exavoai.io/register?email=${encodeURIComponent(to)}</a>
+                            <a href="https://exavo.ai/accept-invitation?token=${inviteToken}" style="color: #667eea; text-decoration: underline; word-break: break-all;">https://exavo.ai/accept-invitation?token=${inviteToken}</a>
                           </p>
                           
                           <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #6b7280; padding-top: 16px; border-top: 1px solid #374151;">
@@ -86,7 +86,7 @@ const sendInvitationEmail = async (to: string, role: string, inviterEmail: strin
                             AI-Powered Business Solutions
                           </p>
                           <p style="margin: 0; font-size: 12px; color: #6b7280;">
-                            <a href="https://exavoai.io" style="color: #667eea; text-decoration: none;">exavoai.io</a>
+                            <a href="https://exavo.ai" style="color: #667eea; text-decoration: none;">exavo.ai</a>
                           </p>
                         </td>
                       </tr>
@@ -171,6 +171,11 @@ serve(async (req) => {
       throw new Error("Team member with this email already exists");
     }
 
+    // Generate secure invitation token
+    const inviteToken = crypto.randomUUID();
+    const tokenExpiresAt = new Date();
+    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 7); // Token expires in 7 days
+
     // Create team member
     const { data: member, error: insertError } = await supabaseClient
       .from("team_members")
@@ -180,6 +185,8 @@ serve(async (req) => {
         role,
         status: "pending",
         invited_by: user.id,
+        invite_token: inviteToken,
+        token_expires_at: tokenExpiresAt.toISOString(),
       })
       .select()
       .single();
@@ -188,10 +195,15 @@ serve(async (req) => {
       throw new Error(`Failed to create team member: ${insertError.message}`);
     }
 
-    // Send invitation email
+    // Send invitation email with token
     console.log(`Team member invited: ${email} with role ${role}`);
     
-    const emailResult = await sendInvitationEmail(email, role, user.email || "a team member");
+    const emailResult = await sendInvitationEmail(
+      email, 
+      role, 
+      user.email || "a team member",
+      member.invite_token
+    );
     
     if (!emailResult.success) {
       console.error(`Warning: Team member created but email failed: ${emailResult.error}`);
