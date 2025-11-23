@@ -24,6 +24,7 @@ interface Service {
   description_ar: string;
   price: number;
   currency: string;
+  category: string;
   active: boolean;
   image_url: string | null;
   created_at: string;

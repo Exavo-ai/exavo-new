@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { serviceSchema } from "@/lib/validation";
@@ -23,6 +24,7 @@ interface Service {
   description_ar: string;
   price: number;
   currency: string;
+  category: string;
   active: boolean;
   image_url: string | null;
 }
@@ -42,6 +44,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
     description: "",
     price: 0,
     currency: "USD",
+    category: "ai",
     active: true,
     image_url: "",
   });
@@ -53,6 +56,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
         description: service.description || "",
         price: service.price || 0,
         currency: service.currency || "USD",
+        category: service.category || "ai",
         active: service.active ?? true,
         image_url: service.image_url || "",
       });
@@ -93,6 +97,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
             description_ar: formData.description,
             price: formData.price,
             currency: formData.currency,
+            category: formData.category,
             active: formData.active,
             image_url: formData.image_url || null,
           },
@@ -174,6 +179,25 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
                 required
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => setFormData({ ...formData, category: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ai">AI Services</SelectItem>
+                <SelectItem value="automation">Automation</SelectItem>
+                <SelectItem value="analytics">Analytics</SelectItem>
+                <SelectItem value="marketing">Marketing</SelectItem>
+                <SelectItem value="content">Content</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
