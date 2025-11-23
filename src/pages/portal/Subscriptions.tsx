@@ -158,22 +158,15 @@ export default function SubscriptionsPage() {
     fetchSubscriptions();
     fetchInvoices();
     
-    // Check for success/cancel params from Stripe redirect
+    // Check for checkout=success param from Stripe redirect
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("success") === "true") {
+    if (urlParams.get("checkout") === "success") {
       toast({
         title: "Success!",
-        description: "Your subscription has been updated. Team features are now available.",
+        description: "Your plan has been updated",
       });
       // Refresh team data to get new limits
       refreshTeam();
-      // Clean up URL
-      window.history.replaceState({}, "", "/client/subscriptions");
-    } else if (urlParams.get("canceled") === "true") {
-      toast({
-        title: "Checkout canceled",
-        description: "You can upgrade anytime from this page.",
-      });
       // Clean up URL
       window.history.replaceState({}, "", "/client/subscriptions");
     }

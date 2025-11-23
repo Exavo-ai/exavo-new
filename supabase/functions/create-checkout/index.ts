@@ -53,9 +53,9 @@ serve(async (req) => {
             quantity: 1,
           },
         ],
-        mode: 'subscription',
-        success_url: `${req.headers.get('origin')}/client/subscriptions?success=true`,
-        cancel_url: `${req.headers.get('origin')}/client/subscriptions?canceled=true`,
+      mode: 'subscription',
+      success_url: `${req.headers.get('origin')}/client/subscriptions?checkout=success`,
+      cancel_url: `${req.headers.get('origin')}/client/subscriptions`,
         metadata: {
           user_id: user.id,
           user_email: user.email,
