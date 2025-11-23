@@ -141,17 +141,47 @@ serve(async (req) => {
         
         console.log(`[STRIPE-WEBHOOK] Email: ${customerEmail}, Product: ${productId}, Plan: ${planName}`);
         
-        // Update workspace by stripe_subscription_id or customer_id
+        // Find user by email
+        const { data: userData } = await supabase.auth.admin.listUsers();
+        const user = userData?.users.find(u => u.email === customerEmail);
+        
+        if (!user) {
+          console.error('[STRIPE-WEBHOOK] User not found for email:', customerEmail);
+          break;
+        }
+        
+        // Get existing workspace to check for old subscription
+        const { data: existingWorkspace } = await supabase
+          .from('workspaces')
+          .select('stripe_subscription_id')
+          .eq('owner_id', user.id)
+          .single();
+        
+        // If there's a different subscription ID, cancel the old one
+        if (existingWorkspace?.stripe_subscription_id && 
+            existingWorkspace.stripe_subscription_id !== subscription.id) {
+          console.log(`[STRIPE-WEBHOOK] Canceling old subscription: ${existingWorkspace.stripe_subscription_id}`);
+          try {
+            await stripe.subscriptions.cancel(existingWorkspace.stripe_subscription_id);
+            console.log(`[STRIPE-WEBHOOK] ✓ Old subscription canceled`);
+          } catch (cancelError) {
+            console.error('[STRIPE-WEBHOOK] Error canceling old subscription:', cancelError);
+          }
+        }
+        
+        // Update workspace with new subscription
         const { error: updateError } = await supabase
           .from('workspaces')
-          .update({
+          .upsert({
+            owner_id: user.id,
             current_plan_product_id: productId,
             subscription_status: subscription.status,
             stripe_customer_id: customerId,
             stripe_subscription_id: subscription.id,
             updated_at: new Date().toISOString()
-          })
-          .eq('stripe_subscription_id', subscription.id);
+          }, {
+            onConflict: 'owner_id'
+          });
         
         if (updateError) {
           console.error('[STRIPE-WEBHOOK] Error updating workspace:', updateError);
