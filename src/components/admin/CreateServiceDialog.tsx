@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { serviceSchema } from "@/lib/validation";
@@ -29,6 +30,7 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
     description: "",
     price: 0,
     currency: "USD",
+    category: "ai",
     active: true,
     image_url: "",
   });
@@ -64,6 +66,7 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
           description_ar: formData.description,
           price: formData.price,
           currency: formData.currency,
+          category: formData.category,
           active: formData.active,
           image_url: formData.image_url || null,
         },
@@ -82,6 +85,7 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
         description: "",
         price: 0,
         currency: "USD",
+        category: "ai",
         active: true,
         image_url: "",
       });
@@ -154,6 +158,25 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
                 required
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => setFormData({ ...formData, category: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ai">AI Services</SelectItem>
+                <SelectItem value="automation">Automation</SelectItem>
+                <SelectItem value="analytics">Analytics</SelectItem>
+                <SelectItem value="marketing">Marketing</SelectItem>
+                <SelectItem value="content">Content</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
