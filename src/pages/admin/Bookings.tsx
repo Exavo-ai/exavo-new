@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, Search, Filter } from "lucide-react";
+import { Eye, Search, Filter, Pencil, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -19,9 +19,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { EditBookingDialog } from "@/components/admin/EditBookingDialog";
+import { ViewBookingDialog } from "@/components/admin/ViewBookingDialog";
 
 interface Booking {
   id: string;
@@ -32,6 +44,7 @@ interface Booking {
   appointment_time: string;
   status: string;
   service_id: string | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -40,6 +53,11 @@ export default function Bookings() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -64,6 +82,52 @@ export default function Bookings() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleView = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setViewDialogOpen(true);
+  };
+
+  const handleEdit = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setDeletingId(booking.id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingId) return;
+
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .delete()
+        .eq("id", deletingId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Booking deleted successfully",
+      });
+
+      loadBookings();
+      setDeleteDialogOpen(false);
+      setDeletingId(null);
+      setSelectedBooking(null);
+    } catch (error) {
+      console.error("Error deleting booking:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete booking",
+        variant: "destructive",
+      });
     }
   };
 
@@ -182,9 +246,33 @@ export default function Bookings() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon">
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleView(booking)}
+                            title="View details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(booking)}
+                            title="Edit booking"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteClick(booking)}
+                            title="Delete booking"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -194,6 +282,41 @@ export default function Bookings() {
           </div>
         </CardContent>
       </Card>
+
+      <ViewBookingDialog
+        booking={selectedBooking}
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+      />
+
+      <EditBookingDialog
+        booking={selectedBooking}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSuccess={loadBookings}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the booking for{" "}
+              <strong>{selectedBooking?.full_name}</strong>. This action cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
