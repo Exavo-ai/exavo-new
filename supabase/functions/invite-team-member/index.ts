@@ -68,7 +68,7 @@ const sendInvitationEmail = async (to: string, role: string, inviterEmail: strin
                           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                             <tr>
                               <td style="text-align: center; padding: 0 0 32px;">
-                                <a href="https://exavo.ai/accept-invitation?token=${inviteToken}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 16px 48px; border-radius: 10px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">Accept Invitation</a>
+                                <a href="https://exavo.ai/client/invite/accept?token=${inviteToken}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 16px 48px; border-radius: 10px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">Accept Invitation</a>
                               </td>
                             </tr>
                           </table>
@@ -76,7 +76,7 @@ const sendInvitationEmail = async (to: string, role: string, inviterEmail: strin
                           <!-- Fallback URL -->
                           <p style="margin: 0 0 32px; font-size: 14px; line-height: 1.6; color: #9ca3af; text-align: center; padding-top: 16px; border-top: 1px solid #374151;">
                             Or copy and paste this URL into your browser:<br/>
-                            <a href="https://exavo.ai/accept-invitation?token=${inviteToken}" style="color: #667eea; text-decoration: underline; word-break: break-all;">https://exavo.ai/accept-invitation?token=${inviteToken}</a>
+                            <a href="https://exavo.ai/client/invite/accept?token=${inviteToken}" style="color: #667eea; text-decoration: underline; word-break: break-all;">https://exavo.ai/client/invite/accept?token=${inviteToken}</a>
                           </p>
                           
                           <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #6b7280;">
