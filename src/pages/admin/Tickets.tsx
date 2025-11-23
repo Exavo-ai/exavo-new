@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, MessageSquare } from "lucide-react";
+import { Eye, MessageSquare, Pencil, Trash2 } from "lucide-react";
 import { TicketReplyDialog } from "@/components/admin/TicketReplyDialog";
+import { ViewTicketDialog } from "@/components/admin/ViewTicketDialog";
+import { EditTicketDialog } from "@/components/admin/EditTicketDialog";
+import { DeleteTicketDialog } from "@/components/admin/DeleteTicketDialog";
 import {
   Table,
   TableBody,
@@ -12,6 +15,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -19,9 +29,13 @@ import { format } from "date-fns";
 interface Ticket {
   id: string;
   subject: string;
+  description: string;
   status: string;
   priority: string;
+  service: string | null;
   created_at: string;
+  updated_at: string;
+  closed_at: string | null;
   user_id: string;
 }
 
@@ -30,10 +44,34 @@ export default function Tickets() {
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [replyDialogOpen, setReplyDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     loadTickets();
+
+    // Set up realtime subscription for ticket changes
+    const channel = supabase
+      .channel('admin-tickets-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tickets'
+        },
+        (payload) => {
+          console.log('Ticket change detected:', payload);
+          loadTickets(); // Reload tickets when any change occurs
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadTickets = async () => {
@@ -60,6 +98,50 @@ export default function Tickets() {
   const handleReplyToTicket = (ticket: Ticket) => {
     setSelectedTicket(ticket);
     setReplyDialogOpen(true);
+  };
+
+  const handleViewTicket = (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+    setViewDialogOpen(true);
+  };
+
+  const handleEditTicket = (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteTicket = (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleStatusChange = async (ticketId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("tickets")
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+          ...(newStatus === "closed" && { closed_at: new Date().toISOString() }),
+        })
+        .eq("id", ticketId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Ticket status updated successfully",
+      });
+
+      loadTickets();
+    } catch (error: any) {
+      console.error("Error updating ticket status:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update ticket status",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -175,18 +257,54 @@ export default function Tickets() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusColor(ticket.status)}>
-                          {ticket.status}
-                        </Badge>
+                        <Select
+                          value={ticket.status}
+                          onValueChange={(value) => handleStatusChange(ticket.id, value)}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleViewTicket(ticket)}
+                            title="View details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditTicket(ticket)}
+                            title="Edit ticket"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleReplyToTicket(ticket)}
+                            title="Reply to ticket"
                           >
                             <MessageSquare className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteTicket(ticket)}
+                            title="Delete ticket"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -203,6 +321,23 @@ export default function Tickets() {
         ticket={selectedTicket}
         open={replyDialogOpen}
         onOpenChange={setReplyDialogOpen}
+        onSuccess={loadTickets}
+      />
+      <ViewTicketDialog
+        ticket={selectedTicket}
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+      />
+      <EditTicketDialog
+        ticket={selectedTicket}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSuccess={loadTickets}
+      />
+      <DeleteTicketDialog
+        ticket={selectedTicket}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
         onSuccess={loadTickets}
       />
     </div>
