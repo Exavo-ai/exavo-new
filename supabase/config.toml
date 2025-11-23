@@ -18,6 +18,22 @@ verify_jwt = false
 [functions.send-welcome-email]
 verify_jwt = true
 
+[functions.invite-team-member]
+verify_jwt = true
+
+[functions.update-team-member]
+verify_jwt = true
+
+[functions.remove-team-member]
+verify_jwt = true
+
+[functions.get-subscriptions]
+verify_jwt = true
+
+[functions.create-billing-portal]
+verify_jwt = true
+
+[functions.get-invoices]
 [functions.admin-create-service]
 verify_jwt = true
 
