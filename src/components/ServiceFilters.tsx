@@ -5,11 +5,19 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Search, ChevronDown, X } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+
+interface Category {
+  id: string;
+  name: string;
+  name_ar: string;
+}
 
 interface ServiceFiltersProps {
   searchQuery: string;
@@ -22,14 +30,6 @@ interface ServiceFiltersProps {
   categoryCounts: Record<string, number>;
   onClearFilters: () => void;
 }
-
-const categories = [
-  { id: 'ai', name: 'AI Services', name_ar: 'خدمات الذكاء الاصطناعي' },
-  { id: 'automation', name: 'Automation', name_ar: 'الأتمتة' },
-  { id: 'analytics', name: 'Analytics', name_ar: 'التحليلات' },
-  { id: 'marketing', name: 'Marketing', name_ar: 'التسويق' },
-  { id: 'content', name: 'Content', name_ar: 'المحتوى' },
-];
 
 export const ServiceFilters = ({
   searchQuery,
@@ -46,6 +46,42 @@ export const ServiceFilters = ({
   const [categoriesOpen, setCategoriesOpen] = useState(true);
   const [priceOpen, setPriceOpen] = useState(true);
   const [emailAlert, setEmailAlert] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    fetchCategories();
+
+    // Set up real-time subscription for category changes
+    const channel = supabase
+      .channel('categories-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'categories'
+        },
+        () => {
+          fetchCategories();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchCategories = async () => {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('id, name, name_ar')
+      .order('name');
+    
+    if (!error && data) {
+      setCategories(data);
+    }
+  };
 
   return (
     <aside className="lg:w-64 flex-shrink-0">

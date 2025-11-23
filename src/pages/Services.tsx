@@ -20,8 +20,16 @@ interface Service {
   description_ar: string;
   price: number;
   currency: string;
+  category: string;
   active: boolean;
   image_url?: string | null;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  name_ar: string;
+  icon: string | null;
 }
 
 const iconMap: Record<string, any> = {
@@ -31,63 +39,20 @@ const iconMap: Record<string, any> = {
   'Marketing Automation': Mail,
   'Content Generation': FileText,
   'Data Visualization': BarChart3,
-  'AI': Brain,
+  'AI Services': Brain,
   'Automation': Zap,
   'Analytics': LineChart,
+  'Marketing': Mail,
+  'Content': FileText,
   'Security': Shield,
   'Business': Target
-};
-
-const serviceToCategoryMap: Record<string, string> = {
-  'Customer Support': 'ai',
-  'Lead': 'marketing',
-  'Workflow': 'automation',
-  'Analytics': 'analytics',
-  'Predictive': 'analytics',
-  'Marketing': 'marketing',
-  'Bot': 'automation',
-  'HR': 'business',
-  'Fraud': 'ai',
-  'KPI': 'analytics',
-  'Competitor': 'analytics',
-  'Financial': 'analytics',
-  'Email': 'marketing',
-  'Social': 'marketing',
-  'Document': 'business',
-  'Sales': 'business',
-  'Inventory': 'business',
-  'Sentiment': 'analytics',
-  'Voice': 'ai',
-  'Content': 'ai',
-  'Price': 'business',
-  'Quality': 'automation',
-  'Translation': 'ai',
-  'Video': 'ai',
-  'Recruitment': 'business',
-  'Energy': 'analytics',
-  'Supply': 'analytics',
-  'Personalization': 'ai',
-  'Churn': 'analytics',
-  'Legal': 'business',
-  'Healthcare': 'ai',
-  'Real Estate': 'business',
-  'Credit': 'business',
-  'Scheduling': 'business',
-  'Product': 'business',
-  'Network': 'ai'
-};
-
-const getServiceCategory = (serviceName: string): string => {
-  for (const [keyword, category] of Object.entries(serviceToCategoryMap)) {
-    if (serviceName.includes(keyword)) return category;
-  }
-  return 'business';
 };
 
 const Services = () => {
   const { language } = useLanguage();
   const isMobile = useIsMobile();
   const [services, setServices] = useState<Service[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
@@ -99,24 +64,27 @@ const Services = () => {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000]);
 
   useEffect(() => {
-    fetchServices();
+    fetchData();
   }, []);
 
   useEffect(() => {
     setSidebarOpen(!isMobile);
   }, [isMobile]);
 
-  const fetchServices = async () => {
-    const { data } = await supabase
-      .from('services')
-      .select('*')
-      .eq('active', true)
-      .order('name');
+  const fetchData = async () => {
+    const [servicesResult, categoriesResult] = await Promise.all([
+      supabase.from('services').select('*').eq('active', true).order('name'),
+      supabase.from('categories').select('id, name, name_ar, icon').order('name')
+    ]);
     
-    if (data) {
-      setServices(data);
-      const maxPrice = Math.max(...data.map(s => s.price), 50000);
+    if (servicesResult.data) {
+      setServices(servicesResult.data);
+      const maxPrice = Math.max(...servicesResult.data.map(s => s.price), 50000);
       setPriceRange([0, maxPrice]);
+    }
+
+    if (categoriesResult.data) {
+      setCategories(categoriesResult.data);
     }
   };
 
@@ -125,11 +93,11 @@ const Services = () => {
     setDialogOpen(true);
   };
 
-  const handleCategoryToggle = (category: string) => {
+  const handleCategoryToggle = (categoryId: string) => {
     setSelectedCategories(prev => 
-      prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category]
+      prev.includes(categoryId)
+        ? prev.filter(c => c !== categoryId)
+        : [...prev, categoryId]
     );
   };
 
@@ -143,8 +111,9 @@ const Services = () => {
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     services.forEach(service => {
-      const category = getServiceCategory(service.name);
-      counts[category] = (counts[category] || 0) + 1;
+      if (service.category) {
+        counts[service.category] = (counts[service.category] || 0) + 1;
+      }
     });
     return counts;
   }, [services]);
@@ -156,7 +125,7 @@ const Services = () => {
         service.description.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesCategory = selectedCategories.length === 0 || 
-        selectedCategories.includes(getServiceCategory(service.name));
+        (service.category && selectedCategories.includes(service.category));
 
       const matchesPrice = service.price >= priceRange[0] && service.price <= priceRange[1];
 
@@ -248,8 +217,9 @@ const Services = () => {
               {filteredServices.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                   {filteredServices.map((service) => {
-                    const category = getServiceCategory(service.name);
-                    const IconComponent = iconMap[service.name] || iconMap[category] || Brain;
+                    const category = categories.find(c => c.id === service.category);
+                    const categoryName = category?.name || '';
+                    const IconComponent = iconMap[service.name] || iconMap[categoryName] || Brain;
                     
                     return (
                       <PremiumServiceCard

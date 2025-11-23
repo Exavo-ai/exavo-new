@@ -1,11 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Search, X, ChevronLeft } from "lucide-react";
+
+interface Category {
+  id: string;
+  name: string;
+  name_ar: string;
+  icon: string | null;
+}
 
 interface PremiumServiceFiltersProps {
   searchQuery: string;
@@ -20,14 +28,6 @@ interface PremiumServiceFiltersProps {
   isOpen: boolean;
   onToggle: () => void;
 }
-
-const categories = [
-  { id: 'ai', name: 'AI Services', name_ar: 'خدمات الذكاء الاصطناعي', icon: '🤖' },
-  { id: 'automation', name: 'Automation', name_ar: 'الأتمتة', icon: '⚡' },
-  { id: 'analytics', name: 'Analytics', name_ar: 'التحليلات', icon: '📊' },
-  { id: 'marketing', name: 'Marketing', name_ar: 'التسويق', icon: '📱' },
-  { id: 'business', name: 'Business Tools', name_ar: 'أدوات الأعمال', icon: '💼' },
-];
 
 export const PremiumServiceFilters = ({
   searchQuery,
@@ -44,6 +44,42 @@ export const PremiumServiceFilters = ({
 }: PremiumServiceFiltersProps) => {
   const { language } = useLanguage();
   const [emailAlert, setEmailAlert] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    fetchCategories();
+
+    // Set up real-time subscription for category changes
+    const channel = supabase
+      .channel('categories-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'categories'
+        },
+        () => {
+          fetchCategories();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchCategories = async () => {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('id, name, name_ar, icon')
+      .order('name');
+    
+    if (!error && data) {
+      setCategories(data);
+    }
+  };
 
   const hasActiveFilters = searchQuery || selectedCategories.length > 0 || 
     priceRange[0] !== 0 || priceRange[1] !== maxPrice;
@@ -109,7 +145,7 @@ export const PremiumServiceFilters = ({
                   }
                 `}
               >
-                <span className="text-base leading-none">{category.icon}</span>
+                <span className="text-base leading-none">{category.icon || '📁'}</span>
                 <span>{language === 'ar' ? category.name_ar : category.name}</span>
                 <Badge 
                   variant="secondary" 
