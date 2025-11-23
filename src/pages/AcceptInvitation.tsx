@@ -22,7 +22,6 @@ export default function AcceptInvitation() {
     id: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [userExists, setUserExists] = useState<boolean | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const [fullName, setFullName] = useState("");
@@ -114,10 +113,10 @@ export default function AcceptInvitation() {
           // User exists, redirect to login
           console.log("[ACCEPT-INVITE] User exists, redirecting to login");
           navigate(`/login?inviteToken=${token}`);
+          return;
         } else {
           // New user - show signup form
           console.log("[ACCEPT-INVITE] New user, showing signup form");
-          setUserExists(false);
           setLoading(false);
         }
       }

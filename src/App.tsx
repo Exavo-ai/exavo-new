@@ -54,8 +54,8 @@ const App = () => (
         <Route path="/blog" element={<Blog />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/accept-invitation" element={<AcceptInvitation />} />
-              <Route path="/password-reset" element={<PasswordReset />} />
+        <Route path="/client/invite/accept" element={<AcceptInvitation />} />
+        <Route path="/password-reset" element={<PasswordReset />} />
               <Route path="/update-password" element={<UpdatePassword />} />
               <Route
                 path="/booking"
