@@ -61,7 +61,7 @@ const sendInvitationEmail = async (to: string, role: string, inviterEmail: strin
                           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                             <tr>
                               <td style="text-align: center; padding: 8px 0 24px;">
-                                <a href="https://exavo.ai/accept-invitation?token=${inviteToken}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 8px; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);">Accept Invitation</a>
+                                 <a href="https://exavo.ai/accept-invitation?token=${inviteToken}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 8px; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);">Accept Invitation</a>
                               </td>
                             </tr>
                           </table>

@@ -95,13 +95,14 @@ export default function AcceptInvitation() {
 
   const activateAndRedirect = async (userId: string) => {
     try {
-      // Update team member status to active
+      // Update team member status to active and set full_name
       const { error: updateError } = await supabase
         .from("team_members")
         .update({
           status: "active",
           activated_at: new Date().toISOString(),
           invite_token: null,
+          full_name: fullName || null,
         })
         .eq("id", inviteData!.id);
 
@@ -112,7 +113,8 @@ export default function AcceptInvitation() {
         description: "Welcome to the team!",
       });
 
-      navigate("/client/dashboard");
+      // Redirect after short delay to let auth settle
+      setTimeout(() => navigate("/client/dashboard"), 1500);
     } catch (err: any) {
       toast({
         title: "Error",
@@ -129,22 +131,30 @@ export default function AcceptInvitation() {
     setSubmitting(true);
 
     try {
-      // Sign up the user
+      // Update the team member with full name first
+      const { error: nameUpdateError } = await supabase
+        .from("team_members")
+        .update({ full_name: fullName })
+        .eq("id", inviteData.id);
+
+      if (nameUpdateError) throw nameUpdateError;
+
+      // Sign up the user with emailRedirectTo
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: inviteData.email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/client/dashboard`,
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: `${window.location.origin}/client/dashboard`,
         },
       });
 
       if (signUpError) throw signUpError;
 
       if (authData.user) {
-        // Activate team member
+        // Activate team member and redirect
         await activateAndRedirect(authData.user.id);
       }
     } catch (err: any) {

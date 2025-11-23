@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Calendar, CreditCard, RefreshCw, Loader2, Lock } from "lucide-react";
+import { Calendar, CreditCard, RefreshCw, Loader2, Lock, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/portal/StatusBadge";
@@ -27,11 +27,71 @@ interface Invoice {
   invoiceUrl: string | null;
 }
 
+interface Plan {
+  id: string;
+  name: string;
+  price: string;
+  priceId: string;
+  features: string[];
+  teamMembers: number;
+  teamEnabled: boolean;
+}
+
+const AVAILABLE_PLANS: Plan[] = [
+  {
+    id: "starter",
+    name: "Starter",
+    price: "$29",
+    priceId: "price_starter",
+    features: [
+      "Basic AI tools access",
+      "1 team member (you)",
+      "Standard support",
+      "5 GB storage",
+    ],
+    teamMembers: 1,
+    teamEnabled: false,
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: "$99",
+    priceId: "price_pro",
+    features: [
+      "Full AI tools suite",
+      "Up to 5 team members",
+      "Priority support",
+      "50 GB storage",
+      "Advanced analytics",
+    ],
+    teamMembers: 5,
+    teamEnabled: true,
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    price: "$299",
+    priceId: "price_enterprise",
+    features: [
+      "Unlimited AI tools",
+      "Unlimited team members",
+      "24/7 dedicated support",
+      "Unlimited storage",
+      "Custom integrations",
+      "SLA guarantee",
+    ],
+    teamMembers: 999,
+    teamEnabled: true,
+  },
+];
+
 export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingInvoices, setLoadingInvoices] = useState(true);
+  const [currentPlanId, setCurrentPlanId] = useState<string>("starter");
+  const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { canManageBilling, currentUserRole, isAdmin } = useTeam();
@@ -107,6 +167,45 @@ export default function SubscriptionsPage() {
     }
   };
 
+  const handleUpgrade = async (planId: string, priceId: string) => {
+    if (!canManageBilling) {
+      toast({
+        title: "Access Denied",
+        description: "Only workspace administrators can manage subscriptions",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setUpgradingPlan(planId);
+      
+      // For now, show a contact message until full billing integration
+      toast({
+        title: "Upgrade Request",
+        description: "To upgrade to this plan, please contact us at info@exavo.ai or use the Manage Billing portal.",
+      });
+      
+      // TODO: Implement full checkout flow
+      // const { data: { session } } = await supabase.auth.getSession();
+      // const { data, error } = await supabase.functions.invoke("create-checkout", {
+      //   body: { priceId },
+      //   headers: { Authorization: `Bearer ${session?.access_token}` },
+      // });
+      // if (error) throw error;
+      // if (data?.url) window.open(data.url, "_blank");
+      
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUpgradingPlan(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -126,68 +225,107 @@ export default function SubscriptionsPage() {
         </Alert>
       )}
 
+      {/* Available Plans */}
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Available Plans</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {AVAILABLE_PLANS.map((plan) => {
+            const isCurrent = plan.id === currentPlanId;
+            return (
+              <Card 
+                key={plan.id} 
+                className={`relative hover:shadow-lg transition-shadow ${
+                  isCurrent ? "border-primary border-2" : ""
+                }`}
+              >
+                {isCurrent && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-semibold">
+                    Current Plan
+                  </div>
+                )}
+                <CardHeader>
+                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                  <div className="text-3xl font-bold mt-2">
+                    {plan.price}
+                    <span className="text-base font-normal text-muted-foreground">/month</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <ul className="space-y-2">
+                    {plan.features.map((feature, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                        <span className="text-sm">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    className="w-full"
+                    variant={isCurrent ? "outline" : "default"}
+                    disabled={isCurrent || !canManageBilling || upgradingPlan !== null}
+                    onClick={() => handleUpgrade(plan.id, plan.priceId)}
+                  >
+                    {upgradingPlan === plan.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : isCurrent ? (
+                      "Current Plan"
+                    ) : (
+                      "Upgrade"
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Current Subscriptions */}
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      ) : subscriptions.length === 0 ? (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center text-muted-foreground">
-              <p>No active subscriptions</p>
-              <Button className="mt-4" onClick={() => navigate("/client/services/browse")}>
-                Browse Services
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {subscriptions.map((sub) => (
-            <Card key={sub.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <CardTitle className="text-lg">{sub.productName}</CardTitle>
-                <StatusBadge status={sub.status} className="w-fit" />
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Plan</span>
-                    <span className="font-medium">{sub.plan}</span>
+      ) : subscriptions.length > 0 && (
+        <div>
+          <h2 className="text-2xl font-bold mb-4">Active Subscriptions</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {subscriptions.map((sub) => (
+              <Card key={sub.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="text-lg">{sub.productName}</CardTitle>
+                  <StatusBadge status={sub.status} className="w-fit" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Plan</span>
+                      <span className="font-medium">{sub.plan}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground text-sm">Price</span>
+                      <span className="text-2xl font-bold">{sub.price}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Next billing:</span>
+                      <span className="font-medium">{sub.nextBilling}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground text-sm">Price</span>
-                    <span className="text-2xl font-bold">{sub.price}</span>
+                  <div className="space-y-2 pt-4 border-t">
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={handleManageBilling}
+                      disabled={!canManageBilling}
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Manage Billing
+                    </Button>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Next billing:</span>
-                    <span className="font-medium">{sub.nextBilling}</span>
-                  </div>
-                </div>
-                <div className="space-y-2 pt-4 border-t">
-                  <Button 
-                    variant="outline" 
-                    className="w-full" 
-                    onClick={handleManageBilling}
-                    disabled={!canManageBilling}
-                  >
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    Manage Billing
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full" 
-                    onClick={handleManageBilling}
-                    disabled={!canManageBilling}
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Change Plan
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
