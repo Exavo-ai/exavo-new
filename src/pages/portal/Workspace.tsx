@@ -219,6 +219,43 @@ export default function WorkspacePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Workspace Permissions - Owner/Admin Only */}
+      {canManageTeam && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Workspace Permissions</CardTitle>
+            <CardDescription>
+              Configure what each role can access in your workspace
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div>
+                  <h3 className="font-semibold">Admin</h3>
+                  <p className="text-sm text-muted-foreground">Full access to workspace management, team, and billing</p>
+                </div>
+                <Badge>Full Access</Badge>
+              </div>
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div>
+                  <h3 className="font-semibold">Member</h3>
+                  <p className="text-sm text-muted-foreground">Can access services, create tickets, upload files</p>
+                </div>
+                <Badge variant="secondary">Standard Access</Badge>
+              </div>
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div>
+                  <h3 className="font-semibold">Viewer</h3>
+                  <p className="text-sm text-muted-foreground">Read-only access to workspace content</p>
+                </div>
+                <Badge variant="outline">View Only</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

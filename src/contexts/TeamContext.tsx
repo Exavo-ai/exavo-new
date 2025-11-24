@@ -42,14 +42,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!user) {
       setCurrentUserRole(null);
       setOrganizationId(null);
-      setIsWorkspaceOwner(true); // Default to true
+      setIsWorkspaceOwner(false);
       setWorkspaceOwnerEmail(null);
       return;
     }
 
     try {
-      // Check if user is a team member of another organization
-      // Look for both active and pending members to properly identify invited users
+      // First, check if user is a team member (invited user)
       const { data: memberOf } = await supabase
         .from("team_members")
         .select("role, organization_id, status")
@@ -58,7 +57,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (memberOf) {
-        // User is a team member
+        // User is an invited team member - use their assigned role
         setCurrentUserRole(memberOf.role);
         setOrganizationId(memberOf.organization_id);
         setIsWorkspaceOwner(false);
@@ -71,20 +70,37 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
         
         setWorkspaceOwnerEmail(ownerProfile?.email || null);
-      } else {
-        // User is the workspace owner
+        return;
+      }
+
+      // Not a team member - check if they own a workspace
+      const { data: workspace } = await supabase
+        .from("workspaces")
+        .select("id, owner_id")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+
+      if (workspace) {
+        // User owns a workspace - they are the owner
         setCurrentUserRole("Admin");
         setOrganizationId(user.id);
         setIsWorkspaceOwner(true);
         setWorkspaceOwnerEmail(user.email || null);
+      } else {
+        // User doesn't own a workspace and isn't a team member
+        // This shouldn't happen in normal flow, but handle gracefully
+        setCurrentUserRole(null);
+        setOrganizationId(null);
+        setIsWorkspaceOwner(false);
+        setWorkspaceOwnerEmail(null);
       }
     } catch (error) {
       console.error("Error fetching user role:", error);
-      // Default to Admin owner on error to avoid blocking the app
-      setCurrentUserRole("Admin");
-      setOrganizationId(user.id);
-      setIsWorkspaceOwner(true);
-      setWorkspaceOwnerEmail(user.email || null);
+      // Don't default to owner on error - this prevents privilege escalation
+      setCurrentUserRole(null);
+      setOrganizationId(null);
+      setIsWorkspaceOwner(false);
+      setWorkspaceOwnerEmail(null);
     }
   };
 
@@ -140,9 +156,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const isMember = currentUserRole === "Member";
   const isViewer = currentUserRole === "Viewer";
 
-  const canManageTeam = isAdmin;
-  const canInviteMembers = isAdmin;
-  const canManageBilling = isAdmin; // Simplified - all admins can manage billing
+  // Only workspace owners and admins can manage team and billing
+  const canManageTeam = isWorkspaceOwner || isAdmin;
+  const canInviteMembers = isWorkspaceOwner || isAdmin;
+  const canManageBilling = isWorkspaceOwner || isAdmin;
 
   return (
     <TeamContext.Provider
@@ -170,18 +187,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 export function useTeam() {
   const context = useContext(TeamContext);
   if (context === undefined) {
-    // Return safe defaults that allow the app to work
+    // Return restricted defaults - don't grant permissions by default
     return {
-      currentUserRole: "Admin",
+      currentUserRole: null,
       teamMembers: [],
       loading: false,
-      canInviteMembers: true,
-      canManageBilling: true,
-      canManageTeam: true,
+      canInviteMembers: false,
+      canManageBilling: false,
+      canManageTeam: false,
       isViewer: false,
       isMember: false,
-      isAdmin: true,
-      isWorkspaceOwner: true,
+      isAdmin: false,
+      isWorkspaceOwner: false,
       workspaceId: null,
       workspaceOwnerEmail: null,
       refreshTeam: async () => {},
