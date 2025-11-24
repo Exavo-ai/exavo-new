@@ -15,8 +15,9 @@ serve(async (req) => {
     const { token, fullName } = await req.json();
 
     if (!token) {
+      console.log("[ACCEPT-INVITE] No token provided");
       return new Response(
-        JSON.stringify({ error: "Token is required" }),
+        JSON.stringify({ success: false, error: "Token is required" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
@@ -32,32 +33,40 @@ serve(async (req) => {
     // First, validate that the token is still valid
     const { data: member, error: fetchError } = await supabaseServiceClient
       .from("team_members")
-      .select("id, email, status, token_expires_at")
+      .select("id, email, status, token_expires_at, role, organization_id")
       .eq("invite_token", token)
       .maybeSingle();
+
+    console.log("[ACCEPT-INVITE] Member lookup result:", {
+      found: !!member,
+      status: member?.status,
+      email: member?.email,
+      error: fetchError?.message,
+    });
 
     if (fetchError) {
       console.error("[ACCEPT-INVITE] Database error:", fetchError);
       return new Response(
-        JSON.stringify({ error: "Database error", details: fetchError.message }),
+        JSON.stringify({ success: false, error: "Database error", details: fetchError.message }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
 
     if (!member) {
-      console.log("[ACCEPT-INVITE] No invitation found");
+      console.log("[ACCEPT-INVITE] No invitation found for token");
       return new Response(
-        JSON.stringify({ error: "Invalid invitation token" }),
+        JSON.stringify({ success: false, error: "Invalid invitation token" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
 
     // Check if already activated
     if (member.status === "active") {
-      console.log("[ACCEPT-INVITE] Already activated");
+      console.log("[ACCEPT-INVITE] Already activated, returning success");
+      // Return success since the invitation is already accepted (idempotent)
       return new Response(
-        JSON.stringify({ error: "This invitation has already been accepted" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        JSON.stringify({ success: true, message: "This invitation has already been accepted" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
 
@@ -65,7 +74,7 @@ serve(async (req) => {
     if (member.token_expires_at && new Date(member.token_expires_at) < new Date()) {
       console.log("[ACCEPT-INVITE] Token expired");
       return new Response(
-        JSON.stringify({ error: "This invitation has expired" }),
+        JSON.stringify({ success: false, error: "This invitation has expired" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
@@ -81,6 +90,8 @@ serve(async (req) => {
       updateData.full_name = fullName;
     }
 
+    console.log("[ACCEPT-INVITE] Updating team member to active:", member.id);
+
     const { error: updateError } = await supabaseServiceClient
       .from("team_members")
       .update(updateData)
@@ -89,7 +100,7 @@ serve(async (req) => {
     if (updateError) {
       console.error("[ACCEPT-INVITE] Update error:", updateError);
       return new Response(
-        JSON.stringify({ error: "Failed to activate invitation", details: updateError.message }),
+        JSON.stringify({ success: false, error: "Failed to activate invitation", details: updateError.message }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
@@ -97,13 +108,24 @@ serve(async (req) => {
     console.log("[ACCEPT-INVITE] ✓ Invitation activated successfully for:", member.email);
 
     return new Response(
-      JSON.stringify({ success: true, message: "Invitation accepted successfully" }),
+      JSON.stringify({ 
+        success: true, 
+        message: "Invitation accepted successfully",
+        data: {
+          email: member.email,
+          role: member.role,
+          organization_id: member.organization_id,
+        }
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   } catch (error) {
     console.error("[ACCEPT-INVITE] Error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }

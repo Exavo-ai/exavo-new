@@ -199,6 +199,9 @@ export default function AcceptInvitation() {
 
       console.log("[ACCEPT-INVITE] ✓ User created:", authData.user?.id);
 
+      // Wait a moment for auth to propagate
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Activate invitation using edge function
       const { data: activateData, error: activateError } = await supabase.functions.invoke(
         "accept-invite",
@@ -207,9 +210,18 @@ export default function AcceptInvitation() {
         }
       );
 
-      if (activateError || !activateData?.success) {
-        console.error("[ACCEPT-INVITE] Activation error:", activateError || activateData);
+      console.log("[ACCEPT-INVITE] Activation response:", { activateData, activateError });
+
+      if (activateError) {
+        console.error("[ACCEPT-INVITE] Activation function error:", activateError);
         toast.error("Account created but failed to activate invitation. Please contact support.");
+        setSubmitting(false);
+        return;
+      }
+
+      if (!activateData?.success) {
+        console.error("[ACCEPT-INVITE] Activation failed:", activateData?.error);
+        toast.error(activateData?.error || "Failed to activate invitation. Please contact support.");
         setSubmitting(false);
         return;
       }
