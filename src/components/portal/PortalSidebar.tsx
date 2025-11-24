@@ -16,17 +16,17 @@ import { cn } from "@/lib/utils";
 import { useTeam } from "@/contexts/TeamContext";
 
 const allNavigation = [
-  { name: "Dashboard", href: "/client", icon: LayoutDashboard, roles: ["Admin", "Member", "Viewer"], ownerOnly: false },
-  { name: "Workspace", href: "/client/workspace", icon: UsersRound, roles: ["Admin", "Member", "Viewer"], ownerOnly: false },
-  { name: "Services", href: "/client/services/browse", icon: Briefcase, roles: ["Admin", "Member"], ownerOnly: false },
-  { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard, roles: ["Admin"], ownerOnly: true },
-  { name: "My Orders", href: "/client/orders", icon: ShoppingBag, roles: ["Admin", "Member"], ownerOnly: false },
-  { name: "Subscriptions", href: "/client/subscriptions", icon: Receipt, roles: ["Admin"], ownerOnly: true },
-  { name: "Invoices", href: "/client/invoices", icon: Receipt, roles: ["Admin"], ownerOnly: true },
-  { name: "Tickets", href: "/client/tickets", icon: LifeBuoy, roles: ["Admin", "Member"], ownerOnly: false },
-  { name: "Team", href: "/client/team", icon: UsersRound, roles: ["Admin", "Member"], ownerOnly: false },
-  { name: "Files", href: "/client/files", icon: FolderOpen, roles: ["Admin", "Member"], ownerOnly: false },
-  { name: "Settings", href: "/client/settings", icon: Settings, roles: ["Admin", "Member", "Viewer"], ownerOnly: false },
+  { name: "Dashboard", href: "/client", icon: LayoutDashboard, permission: null },
+  { name: "Workspace", href: "/client/workspace", icon: UsersRound, permission: null },
+  { name: "Services", href: "/client/services/browse", icon: Briefcase, permission: "create_items" },
+  { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard, ownerOnly: true },
+  { name: "My Orders", href: "/client/orders", icon: ShoppingBag, permission: "create_items" },
+  { name: "Subscriptions", href: "/client/subscriptions", icon: Receipt, ownerOnly: true },
+  { name: "Invoices", href: "/client/invoices", icon: Receipt, ownerOnly: true },
+  { name: "Tickets", href: "/client/tickets", icon: LifeBuoy, permission: "create_items" },
+  { name: "Team", href: "/client/team", icon: UsersRound, permission: "manage_team" },
+  { name: "Files", href: "/client/files", icon: FolderOpen, permission: "create_items" },
+  { name: "Settings", href: "/client/settings", icon: Settings, permission: "access_settings" },
 ];
 
 interface PortalSidebarProps {
@@ -37,20 +37,20 @@ interface PortalSidebarProps {
 export function PortalSidebar({ collapsed, onToggle }: PortalSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUserRole, isWorkspaceOwner, loading: teamLoading } = useTeam();
+  const { isWorkspaceOwner, permissions } = useTeam();
 
   const isActive = (href: string) => location.pathname === href;
 
-  // Filter navigation based on user role and ownership
+  // Filter navigation based on workspace ownership and permissions
   const navigation = allNavigation.filter(item => {
-    // Show all items if role not loaded yet
-    if (!currentUserRole) return true;
-    
-    // Check role permission
-    if (!item.roles.includes(currentUserRole)) return false;
-    
-    // For owner-only items, check if user is the workspace owner
+    // Owner-only items (billing routes)
     if (item.ownerOnly && !isWorkspaceOwner) return false;
+    
+    // Check permission requirements
+    if (item.permission) {
+      // @ts-ignore - permissions is a dynamic object
+      if (!permissions[item.permission]) return false;
+    }
     
     return true;
   });

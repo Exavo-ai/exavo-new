@@ -41,11 +41,11 @@ export default function InvoicesPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { isAdmin, isWorkspaceOwner, loading: teamLoading } = useTeam();
+  const { isWorkspaceOwner, currentUserRole, loading: teamLoading } = useTeam();
   const { user } = useAuth();
 
   // Check permissions - only owners and admins can see invoices
-  const canViewInvoices = isWorkspaceOwner || isAdmin;
+  const canViewInvoices = isWorkspaceOwner || currentUserRole === "admin";
 
   useEffect(() => {
     fetchInvoices();

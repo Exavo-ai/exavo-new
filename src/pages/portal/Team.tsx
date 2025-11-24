@@ -44,7 +44,11 @@ export default function TeamPage() {
   const [limitsLoading, setLimitsLoading] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { canInviteMembers, canManageTeam, isAdmin, currentUserRole, loading: teamLoading } = useTeam();
+  const { permissions, currentUserRole, loading: teamLoading } = useTeam();
+
+  // Permission checks
+  const canManageTeam = permissions.manage_team;
+  const canInviteMembers = permissions.manage_team;
 
   const fetchMembers = async () => {
     try {

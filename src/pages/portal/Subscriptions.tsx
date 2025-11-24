@@ -98,7 +98,7 @@ export default function SubscriptionsPage() {
   const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { canManageBilling, currentUserRole, isAdmin, refreshTeam } = useTeam();
+  const { canManageBilling, currentUserRole, refreshTeam } = useTeam();
 
   useEffect(() => {
     // Check if returning from successful checkout

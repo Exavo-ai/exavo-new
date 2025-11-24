@@ -47,27 +47,27 @@ export default function DashboardPage() {
     workspaceOwnerEmail,
     teamMembers,
     loading: teamLoading,
-    workspaceId 
+    organizationId 
   } = useTeam();
 
   useEffect(() => {
-    if (user && !teamLoading && workspaceId) {
+    if (user && !teamLoading && organizationId) {
       loadDashboardData();
     }
-  }, [user, teamLoading, workspaceId]);
+  }, [user, teamLoading, organizationId]);
 
   const loadDashboardData = async () => {
     try {
       setError(null);
       const { data: { user } } = await supabase.auth.getUser();
       
-      if (!user || !workspaceId) {
+      if (!user || !organizationId) {
         throw new Error("Not authenticated or workspace not found");
       }
 
       // For workspace owner, show their data
       // For team members, show workspace-scoped data
-      const userId = isWorkspaceOwner ? user.id : workspaceId;
+      const userId = isWorkspaceOwner ? user.id : organizationId;
 
       // Fetch all tickets count for this workspace
       const { count: ticketsCount, error: ticketsCountError } = await supabase

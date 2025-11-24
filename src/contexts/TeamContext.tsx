@@ -11,20 +11,27 @@ interface TeamMember {
   organization_id: string;
 }
 
+interface WorkspacePermissions {
+  manage_team: boolean;
+  access_settings: boolean;
+  delete_items: boolean;
+  create_items: boolean;
+  view_analytics: boolean;
+  access_advanced_tools: boolean;
+}
+
 interface TeamContextType {
   currentUserRole: string | null;
+  organizationId: string | null;
   teamMembers: TeamMember[];
   loading: boolean;
-  canInviteMembers: boolean;
-  canManageBilling: boolean;
-  canManageTeam: boolean;
-  isViewer: boolean;
-  isMember: boolean;
-  isAdmin: boolean;
   isWorkspaceOwner: boolean;
-  workspaceId: string | null;
   workspaceOwnerEmail: string | null;
+  workspaceOwnerId: string | null;
+  permissions: WorkspacePermissions;
+  canManageBilling: boolean;
   refreshTeam: () => Promise<void>;
+  updatePermissions: (role: string, permissions: WorkspacePermissions) => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -37,6 +44,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isWorkspaceOwner, setIsWorkspaceOwner] = useState(false);
   const [workspaceOwnerEmail, setWorkspaceOwnerEmail] = useState<string | null>(null);
+  const [workspaceOwnerId, setWorkspaceOwnerId] = useState<string | null>(null);
+  const [permissions, setPermissions] = useState<WorkspacePermissions>({
+    manage_team: false,
+    access_settings: false,
+    delete_items: false,
+    create_items: false,
+    view_analytics: false,
+    access_advanced_tools: false,
+  });
 
   const fetchUserRole = async () => {
     if (!user) {
@@ -44,6 +60,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       setOrganizationId(null);
       setIsWorkspaceOwner(false);
       setWorkspaceOwnerEmail(null);
+      setWorkspaceOwnerId(null);
+      setPermissions({
+        manage_team: false,
+        access_settings: false,
+        delete_items: false,
+        create_items: false,
+        view_analytics: false,
+        access_advanced_tools: false,
+      });
       return;
     }
 
@@ -57,10 +82,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (memberOf) {
-        // User is an invited team member - use their assigned role
+        // User is an invited team member
         setCurrentUserRole(memberOf.role);
         setOrganizationId(memberOf.organization_id);
         setIsWorkspaceOwner(false);
+        setWorkspaceOwnerId(memberOf.organization_id);
         
         // Fetch workspace owner email
         const { data: ownerProfile } = await supabase
@@ -70,6 +96,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
         
         setWorkspaceOwnerEmail(ownerProfile?.email || null);
+
+        // Fetch permissions for this role
+        const { data: perms } = await supabase
+          .from("workspace_permissions")
+          .select("permissions")
+          .eq("organization_id", memberOf.organization_id)
+          .eq("role", memberOf.role)
+          .maybeSingle();
+
+        if (perms?.permissions) {
+          setPermissions(perms.permissions as any);
+        }
         return;
       }
 
@@ -82,25 +120,51 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
       if (workspace) {
         // User owns a workspace - they are the owner
-        setCurrentUserRole("Admin");
+        setCurrentUserRole("workspaceOwner");
         setOrganizationId(user.id);
         setIsWorkspaceOwner(true);
         setWorkspaceOwnerEmail(user.email || null);
+        setWorkspaceOwnerId(user.id);
+        // Workspace owners have all permissions
+        setPermissions({
+          manage_team: true,
+          access_settings: true,
+          delete_items: true,
+          create_items: true,
+          view_analytics: true,
+          access_advanced_tools: true,
+        });
       } else {
         // User doesn't own a workspace and isn't a team member
-        // This shouldn't happen in normal flow, but handle gracefully
         setCurrentUserRole(null);
         setOrganizationId(null);
         setIsWorkspaceOwner(false);
         setWorkspaceOwnerEmail(null);
+        setWorkspaceOwnerId(null);
+        setPermissions({
+          manage_team: false,
+          access_settings: false,
+          delete_items: false,
+          create_items: false,
+          view_analytics: false,
+          access_advanced_tools: false,
+        });
       }
     } catch (error) {
       console.error("Error fetching user role:", error);
-      // Don't default to owner on error - this prevents privilege escalation
       setCurrentUserRole(null);
       setOrganizationId(null);
       setIsWorkspaceOwner(false);
       setWorkspaceOwnerEmail(null);
+      setWorkspaceOwnerId(null);
+      setPermissions({
+        manage_team: false,
+        access_settings: false,
+        delete_items: false,
+        create_items: false,
+        view_analytics: false,
+        access_advanced_tools: false,
+      });
     }
   };
 
@@ -129,11 +193,34 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updatePermissions = async (role: string, newPermissions: WorkspacePermissions) => {
+    if (!organizationId || !isWorkspaceOwner) {
+      throw new Error("Only workspace owners can update permissions");
+    }
+
+    try {
+      const { error } = await supabase
+        .from("workspace_permissions")
+        .update({ permissions: newPermissions as any })
+        .eq("organization_id", organizationId)
+        .eq("role", role);
+
+      if (error) throw error;
+
+      // If updating current user's role permissions, refresh
+      if (role === currentUserRole) {
+        await fetchUserRole();
+      }
+    } catch (error) {
+      console.error("Error updating permissions:", error);
+      throw error;
+    }
+  };
+
   const refreshTeam = async () => {
     setLoading(true);
     try {
       await fetchUserRole();
-      // Give organizationId time to be set before fetching members
       setTimeout(() => {
         fetchTeamMembers();
       }, 100);
@@ -152,31 +239,22 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const isAdmin = currentUserRole === "Admin";
-  const isMember = currentUserRole === "Member";
-  const isViewer = currentUserRole === "Viewer";
-
-  // Only workspace owners and admins can manage team and billing
-  const canManageTeam = isWorkspaceOwner || isAdmin;
-  const canInviteMembers = isWorkspaceOwner || isAdmin;
-  const canManageBilling = isWorkspaceOwner || isAdmin;
+  const canManageBilling = isWorkspaceOwner;
 
   return (
     <TeamContext.Provider
       value={{
         currentUserRole,
+        organizationId,
         teamMembers,
         loading,
-        canInviteMembers,
-        canManageBilling,
-        canManageTeam,
-        isViewer,
-        isMember,
-        isAdmin,
         isWorkspaceOwner,
-        workspaceId: organizationId,
         workspaceOwnerEmail,
+        workspaceOwnerId,
+        permissions,
+        canManageBilling,
         refreshTeam,
+        updatePermissions,
       }}
     >
       {children}
@@ -187,21 +265,25 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 export function useTeam() {
   const context = useContext(TeamContext);
   if (context === undefined) {
-    // Return restricted defaults - don't grant permissions by default
     return {
       currentUserRole: null,
+      organizationId: null,
       teamMembers: [],
       loading: false,
-      canInviteMembers: false,
-      canManageBilling: false,
-      canManageTeam: false,
-      isViewer: false,
-      isMember: false,
-      isAdmin: false,
       isWorkspaceOwner: false,
-      workspaceId: null,
       workspaceOwnerEmail: null,
+      workspaceOwnerId: null,
+      permissions: {
+        manage_team: false,
+        access_settings: false,
+        delete_items: false,
+        create_items: false,
+        view_analytics: false,
+        access_advanced_tools: false,
+      },
+      canManageBilling: false,
       refreshTeam: async () => {},
+      updatePermissions: async () => {},
     };
   }
   return context;

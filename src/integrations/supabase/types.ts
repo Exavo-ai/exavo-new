@@ -659,6 +659,33 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_permissions: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string
+          permissions: Json
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          permissions?: Json
+          role: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          permissions?: Json
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       workspaces: {
         Row: {
           created_at: string

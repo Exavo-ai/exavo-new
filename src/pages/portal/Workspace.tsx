@@ -1,74 +1,62 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useTeam } from "@/contexts/TeamContext";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Users, Crown, Mail, Shield, UserPlus } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
-import { useTeam } from "@/contexts/TeamContext";
-import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { PermissionsManager } from "@/components/portal/PermissionsManager";
+import { 
+  Users, 
+  Crown, 
+  Shield, 
+  Eye, 
+  UserPlus, 
+  Settings as SettingsIcon,
+  LifeBuoy,
+  FolderOpen,
+  Loader2
+} from "lucide-react";
 
 interface WorkspaceData {
   ownerEmail: string;
-  activeMembers: number;
+  teamSize: number;
 }
 
 export default function WorkspacePage() {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const { 
-    currentUserRole, 
-    isWorkspaceOwner, 
-    workspaceOwnerEmail,
+  const {
     teamMembers,
+    currentUserRole,
+    isWorkspaceOwner,
+    workspaceOwnerEmail,
+    permissions,
+    organizationId,
     loading: teamLoading,
-    workspaceId,
-    canManageTeam
   } = useTeam();
 
   const [workspaceData, setWorkspaceData] = useState<WorkspaceData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!teamLoading && workspaceId) {
+    if (!teamLoading && organizationId) {
       loadWorkspaceData();
     }
-  }, [teamLoading, workspaceId]);
+  }, [teamLoading, organizationId]);
 
   const loadWorkspaceData = async () => {
     try {
-      if (!user) return;
-
-      // Fetch owner email if not already available
-      let ownerEmail = workspaceOwnerEmail;
-      
-      if (!ownerEmail && workspaceId) {
-        // Fetch workspace owner info
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('id', workspaceId)
-          .single();
-        
-        ownerEmail = profileData?.email || "Unknown";
-      }
-
       // Count active members
       const activeMembers = teamMembers.filter(m => m.status === 'active').length;
 
       setWorkspaceData({
-        ownerEmail: ownerEmail || user.email || "Unknown",
-        activeMembers
+        ownerEmail: workspaceOwnerEmail || "Unknown",
+        teamSize: activeMembers
       });
     } catch (error) {
       console.error("Error loading workspace data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load workspace data",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
@@ -78,183 +66,308 @@ export default function WorkspacePage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <Loader2 className="w-16 h-16 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading workspace...</p>
         </div>
       </div>
     );
   }
 
-  // Display role correctly based on whether user is owner or team member
-  const displayRole = isWorkspaceOwner && currentUserRole === "Admin"
-    ? "Admin (Owner)" 
-    : currentUserRole || "Member";
+  const displayRole = isWorkspaceOwner 
+    ? "Workspace Owner" 
+    : currentUserRole === "admin" ? "Admin"
+    : currentUserRole === "member" ? "Member"
+    : currentUserRole === "viewer" ? "Viewer"
+    : "Unknown";
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Workspace</h1>
-        <p className="text-muted-foreground">Manage your workspace and team members</p>
+        <p className="text-muted-foreground mt-2">
+          Manage your workspace team and settings
+        </p>
       </div>
 
-      {/* Workspace Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Workspace Owner</CardTitle>
-              <Crown className="w-5 h-5 text-yellow-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Mail className="w-4 h-4 text-muted-foreground" />
-              <p className="text-sm font-medium truncate">
-                {workspaceData?.ownerEmail || workspaceOwnerEmail || "Loading..."}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      <Separator />
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Your Role</CardTitle>
-              <Shield className="w-5 h-5 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Badge variant={isWorkspaceOwner ? "default" : "secondary"}>
-              {displayRole}
-            </Badge>
-          </CardContent>
-        </Card>
+      {isWorkspaceOwner ? (
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="permissions">Permissions</TabsTrigger>
+          </TabsList>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Team Size</CardTitle>
-              <Users className="w-5 h-5 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {workspaceData?.activeMembers || 0}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Active members</p>
-          </CardContent>
-        </Card>
-      </div>
+          <TabsContent value="overview" className="space-y-6">
+            {/* Workspace Overview */}
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Workspace Owner</CardTitle>
+                  <Crown className="h-4 w-4 text-yellow-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{workspaceData?.ownerEmail || "Loading..."}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Subscription holder
+                  </p>
+                </CardContent>
+              </Card>
 
-      {/* Team Members */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-xl">Team Members</CardTitle>
-              <CardDescription>View and manage your workspace members</CardDescription>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Your Role</CardTitle>
+                  <Crown className="h-4 w-4 text-yellow-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{displayRole}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Full access
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Team Size</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{workspaceData?.teamSize || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Active members
+                  </p>
+                </CardContent>
+              </Card>
             </div>
-            {canManageTeam && (
-              <Button onClick={() => navigate("/client/team")}>
-                <UserPlus className="w-4 h-4 mr-2" />
-                Manage Team
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {teamMembers.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No team members yet</p>
-              {canManageTeam && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Invite members to collaborate on your workspace
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {teamMembers.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Users className="w-5 h-5 text-primary" />
+
+            {/* Team Members */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Team Members</CardTitle>
+                  <CardDescription>
+                    {teamMembers.length} member{teamMembers.length !== 1 ? "s" : ""} in your workspace
+                  </CardDescription>
+                </div>
+                <Button onClick={() => navigate("/client/team")}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Manage Team
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {teamMembers.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{member.full_name || member.email}</p>
+                          <Badge variant={
+                            member.role === "admin" ? "default" :
+                            member.role === "member" ? "secondary" :
+                            "outline"
+                          }>
+                            {member.role}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                      </div>
+                      <Badge variant={member.status === "active" ? "default" : "secondary"}>
+                        {member.status}
+                      </Badge>
                     </div>
-                    <div>
-                      <p className="font-medium">{member.full_name || member.email}</p>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>
+                  Manage your workspace efficiently
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                  <Button
+                    variant="outline"
+                    className="justify-start"
+                    onClick={() => navigate("/client/team")}
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Manage Team
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="justify-start"
+                    onClick={() => navigate("/client/settings")}
+                  >
+                    <SettingsIcon className="w-4 h-4 mr-2" />
+                    Workspace Settings
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="justify-start"
+                    onClick={() => navigate("/client/tickets")}
+                  >
+                    <LifeBuoy className="w-4 h-4 mr-2" />
+                    Support Tickets
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="justify-start"
+                    onClick={() => navigate("/client/files")}
+                  >
+                    <FolderOpen className="w-4 h-4 mr-2" />
+                    View Files
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="permissions">
+            <PermissionsManager />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="space-y-6">
+          {/* Workspace Overview for Invited Users */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Workspace Owner</CardTitle>
+                <Crown className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{workspaceData?.ownerEmail || "Loading..."}</div>
+                <p className="text-xs text-muted-foreground">
+                  Subscription holder
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Your Role</CardTitle>
+                {displayRole === "Admin" ? (
+                  <Shield className="h-4 w-4 text-primary" />
+                ) : displayRole === "Member" ? (
+                  <Users className="h-4 w-4 text-blue-500" />
+                ) : (
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                )}
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{displayRole}</div>
+                <p className="text-xs text-muted-foreground">
+                  Team member
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Team Size</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{workspaceData?.teamSize || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  Active members
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Team Members */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Team Members</CardTitle>
+                <CardDescription>
+                  {teamMembers.length} member{teamMembers.length !== 1 ? "s" : ""} in your workspace
+                </CardDescription>
+              </div>
+              {permissions.manage_team && (
+                <Button onClick={() => navigate("/client/team")}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Manage Team
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {teamMembers.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{member.full_name || member.email}</p>
+                        <Badge variant={
+                          member.role === "admin" ? "default" :
+                          member.role === "member" ? "secondary" :
+                          "outline"
+                        }>
+                          {member.role}
+                        </Badge>
+                      </div>
                       <p className="text-sm text-muted-foreground">{member.email}</p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant={member.status === 'active' ? 'default' : 'secondary'}>
+                    <Badge variant={member.status === "active" ? "default" : "secondary"}>
                       {member.status}
                     </Badge>
-                    <Badge variant="outline">{member.role}</Badge>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Quick Actions */}
-      {!canManageTeam && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Need Help?</CardTitle>
-            <CardDescription>
-              Contact your workspace owner to manage team settings or invite new members
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" onClick={() => navigate("/client/tickets")}>
-              <Mail className="w-4 h-4 mr-2" />
-              Contact Support
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Workspace Permissions - Owner/Admin Only */}
-      {canManageTeam && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Workspace Permissions</CardTitle>
-            <CardDescription>
-              Configure what each role can access in your workspace
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-semibold">Admin</h3>
-                  <p className="text-sm text-muted-foreground">Full access to workspace management, team, and billing</p>
+          {/* Workspace Permissions for Invited Users */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Workspace Permissions</CardTitle>
+              <CardDescription>
+                What you can do in this workspace
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <div className={`w-2 h-2 rounded-full ${permissions.manage_team ? "bg-green-500" : "bg-gray-400"}`} />
+                  <span className="text-sm">Manage Team</span>
                 </div>
-                <Badge>Full Access</Badge>
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-semibold">Member</h3>
-                  <p className="text-sm text-muted-foreground">Can access services, create tickets, upload files</p>
+                <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <div className={`w-2 h-2 rounded-full ${permissions.access_settings ? "bg-green-500" : "bg-gray-400"}`} />
+                  <span className="text-sm">Access Settings</span>
                 </div>
-                <Badge variant="secondary">Standard Access</Badge>
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-semibold">Viewer</h3>
-                  <p className="text-sm text-muted-foreground">Read-only access to workspace content</p>
+                <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <div className={`w-2 h-2 rounded-full ${permissions.delete_items ? "bg-green-500" : "bg-gray-400"}`} />
+                  <span className="text-sm">Delete Items</span>
                 </div>
-                <Badge variant="outline">View Only</Badge>
+                <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <div className={`w-2 h-2 rounded-full ${permissions.create_items ? "bg-green-500" : "bg-gray-400"}`} />
+                  <span className="text-sm">Create Items</span>
+                </div>
+                <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <div className={`w-2 h-2 rounded-full ${permissions.view_analytics ? "bg-green-500" : "bg-gray-400"}`} />
+                  <span className="text-sm">View Analytics</span>
+                </div>
+                <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <div className={`w-2 h-2 rounded-full ${permissions.access_advanced_tools ? "bg-green-500" : "bg-gray-400"}`} />
+                  <span className="text-sm">Access Advanced Tools</span>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
