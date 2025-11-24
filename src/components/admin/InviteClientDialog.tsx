@@ -51,7 +51,7 @@ export function InviteClientDialog() {
 
     try {
       // Call the send-welcome-email edge function
-      const { error } = await supabase.functions.invoke('send-welcome-email', {
+      const { data, error } = await supabase.functions.invoke('send-welcome-email', {
         body: {
           email: formData.email,
           full_name: formData.full_name,
@@ -60,10 +60,13 @@ export function InviteClientDialog() {
 
       if (error) throw error;
 
-      // Show success message
+      // Show success message based on whether user was new or existing
+      const isExistingUser = data?.existing_user;
       toast({
         title: "Success!",
-        description: `Invitation sent to ${formData.email}`,
+        description: isExistingUser 
+          ? `Password reset link sent to ${formData.email}`
+          : `Invitation sent to ${formData.email}`,
       });
 
       // Reset form and close dialog
