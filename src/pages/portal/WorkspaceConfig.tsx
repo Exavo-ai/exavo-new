@@ -4,8 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Key, CreditCard, Palette } from "lucide-react";
+import { useTeam } from "@/contexts/TeamContext";
 
 export default function WorkspaceConfigPage() {
+  const { isWorkspaceOwner } = useTeam();
+
   return (
     <div className="space-y-6">
       <div>
@@ -23,10 +26,12 @@ export default function WorkspaceConfigPage() {
             <Key className="w-4 h-4 mr-2" />
             API Keys
           </TabsTrigger>
-          <TabsTrigger value="billing">
-            <CreditCard className="w-4 h-4 mr-2" />
-            Payment Methods
-          </TabsTrigger>
+          {isWorkspaceOwner && (
+            <TabsTrigger value="billing">
+              <CreditCard className="w-4 h-4 mr-2" />
+              Payment Methods
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="branding">
@@ -99,25 +104,32 @@ export default function WorkspaceConfigPage() {
               <CardTitle>Payment Methods</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 rounded-lg border border-border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-8 bg-gradient-hero rounded flex items-center justify-center text-white font-bold">
-                      ****
-                    </div>
-                    <div>
-                      <p className="font-medium">•••• •••• •••• 4242</p>
-                      <p className="text-sm text-muted-foreground">Expires 12/25</p>
+              {isWorkspaceOwner ? (
+                <>
+                  <div className="p-4 rounded-lg border border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-8 bg-gradient-hero rounded flex items-center justify-center text-white font-bold">
+                          ****
+                        </div>
+                        <div>
+                          <p className="font-medium">•••• •••• •••• 4242</p>
+                          <p className="text-sm text-muted-foreground">Expires 12/25</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">Edit</Button>
+                        <Button variant="outline" size="sm" className="text-destructive">Remove</Button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">Edit</Button>
-                    <Button variant="outline" size="sm" className="text-destructive">Remove</Button>
-                  </div>
-                </div>
-              </div>
-
-              <Button>Add Payment Method</Button>
+                  <Button>Add Payment Method</Button>
+                </>
+              ) : (
+                <p className="text-center py-8 text-muted-foreground">
+                  Only workspace owners can manage payment methods.
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

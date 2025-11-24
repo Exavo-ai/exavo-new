@@ -98,7 +98,7 @@ export default function SubscriptionsPage() {
   const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { canManageBilling, currentUserRole, refreshTeam } = useTeam();
+  const { isWorkspaceOwner, currentUserRole, refreshTeam, loading: teamLoading } = useTeam();
 
   useEffect(() => {
     // Check if returning from successful checkout
@@ -188,12 +188,32 @@ export default function SubscriptionsPage() {
     }
   }, []);
 
-  // Show loading while subscriptions are loading
-  if (loading) {
+  // Show loading while subscriptions or team data are loading
+  if (loading || teamLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
         <span className="ml-2 text-muted-foreground">Loading subscriptions...</span>
+      </div>
+    );
+  }
+
+  // Show access denied for non-workspace owners
+  if (!isWorkspaceOwner) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Subscriptions</h1>
+          <p className="text-muted-foreground">Manage your subscriptions</p>
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground mb-2">Access Restricted</p>
+            <p className="text-sm text-muted-foreground">
+              Only the workspace owner can manage subscriptions and billing.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }

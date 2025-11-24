@@ -213,7 +213,7 @@ export default function AcceptInvitation() {
 
       console.log("[ACCEPT-INVITE] ✓ Account created and invitation activated");
       
-      // Now sign in the user
+      // Now sign in the user automatically
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: inviteData.email,
         password,
@@ -221,18 +221,21 @@ export default function AcceptInvitation() {
 
       if (signInError) {
         console.error("[ACCEPT-INVITE] Sign in error:", signInError);
-        toast.error("Account created but failed to sign in. Please try logging in manually.");
-        setSubmitting(false);
+        toast.error("Account created but auto-login failed. Please log in manually.");
+        // Redirect to login with token instead
+        setTimeout(() => navigate(`/login?inviteToken=${token}`), 1500);
         return;
       }
 
+      console.log("[ACCEPT-INVITE] ✓ Auto-login successful");
+
       toast.success(`Welcome! You have joined the workspace as ${inviteData?.role}.`, {
-        description: "Redirecting to your workspace dashboard...",
-        duration: 3000,
+        description: "Redirecting to your workspace...",
+        duration: 2000,
       });
 
-      // Redirect
-      setTimeout(() => navigate("/client/dashboard"), 1500);
+      // Redirect to dashboard
+      setTimeout(() => navigate("/client/dashboard"), 1000);
     } catch (err: any) {
       console.error("[ACCEPT-INVITE] Signup failed:", err);
       toast.error(err.message || "Failed to create account");

@@ -211,7 +211,6 @@ export default function SettingsPage() {
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          {isWorkspaceOwner && <TabsTrigger value="billing">Billing</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="profile">
@@ -408,20 +407,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        {isWorkspaceOwner && (
-          <TabsContent value="billing">
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment Methods</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground">Manage your payment methods for subscriptions and orders</p>
-                <PaymentMethodsDialog />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   );

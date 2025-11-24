@@ -94,11 +94,11 @@ serve(async (req) => {
         }
       );
 
-      // Create user with email already confirmed
+      // Create user with email already confirmed and no verification email
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
         email: member.email,
         password: password,
-        email_confirm: true, // Skip email verification
+        email_confirm: true, // Mark email as confirmed immediately
         user_metadata: {
           full_name: fullName || "",
         },
@@ -106,13 +106,18 @@ serve(async (req) => {
 
       if (userError) {
         console.error("[ACCEPT-INVITE] User creation error:", userError);
-        return new Response(
-          JSON.stringify({ success: false, error: `Failed to create account: ${userError.message}` }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-        );
+        // Handle "User already registered" error gracefully
+        if (userError.message.includes("already registered") || userError.message.includes("already exists")) {
+          console.log("[ACCEPT-INVITE] User already exists, proceeding with activation");
+        } else {
+          return new Response(
+            JSON.stringify({ success: false, error: `Failed to create account: ${userError.message}` }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+          );
+        }
+      } else {
+        console.log("[ACCEPT-INVITE] ✓ User account created:", userData.user?.id);
       }
-
-      console.log("[ACCEPT-INVITE] ✓ User account created:", userData.user?.id);
     }
 
     // Update team member to active

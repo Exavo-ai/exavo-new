@@ -39,24 +39,26 @@ const Login = () => {
 
       if (error) {
         console.error("[LOGIN] Failed to activate invitation:", error);
-        toast.error("Failed to activate invitation");
-        return;
+        toast.error("Failed to activate invitation. Please contact support.");
+        return false;
       }
 
       if (!data?.success) {
         console.error("[LOGIN] Activation failed:", data?.error);
-        toast.error(data?.error || "Failed to activate invitation");
-        return;
+        toast.error(data?.error || "Failed to activate invitation.");
+        return false;
       }
 
       console.log("[LOGIN] ✓ Invitation activated successfully");
       toast.success("Welcome to the team!", {
-        description: "Your invitation has been accepted.",
-        duration: 3000,
+        description: "You've been added to the workspace.",
+        duration: 2000,
       });
+      return true;
     } catch (err: any) {
       console.error("[LOGIN] Invite activation error:", err);
-      toast.error("Failed to process invitation");
+      toast.error("Failed to process invitation. Please try again.");
+      return false;
     }
   };
 
@@ -78,33 +80,23 @@ const Login = () => {
       }
 
       console.log("[LOGIN] ✓ Login successful");
-      toast.success(t('auth.loginSuccess'));
       
-      // If there's an invite token, activate it first
+      // If there's an invite token, activate it first before redirecting
       if (inviteToken) {
         console.log("[LOGIN] Processing invitation after login");
-        await handleInviteActivation();
+        const activated = await handleInviteActivation();
+        if (!activated) {
+          console.error("[LOGIN] Failed to activate invitation");
+          setLoading(false);
+          return;
+        }
+      } else {
+        toast.success(t('auth.loginSuccess'));
       }
       
-      // Fetch user role immediately
-      if (data.user) {
-        console.log("[LOGIN] Fetching user role for:", data.user.email);
-        
-        const { data: roleData } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', data.user.id)
-          .single();
-        
-        const role = roleData?.role || 'client';
-        console.log("[LOGIN] User role:", role);
-        
-        const targetPath = role === 'admin' ? '/admin' : '/client/dashboard';
-        console.log("[LOGIN] Redirecting to:", targetPath);
-        
-        // Force immediate navigation
-        navigate(targetPath, { replace: true });
-      }
+      // Always redirect to client dashboard (team members are always clients)
+      console.log("[LOGIN] Redirecting to client dashboard");
+      navigate('/client/dashboard', { replace: true });
     } catch (error: any) {
       console.error("[LOGIN] Login error:", error);
       toast.error(error.message || t('auth.loginError'));
