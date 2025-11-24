@@ -29,12 +29,14 @@ const TeamContext = createContext<TeamContextType | undefined>(undefined);
 export function TeamProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchUserRole = async () => {
     if (!user) {
       setCurrentUserRole(null);
+      setOrganizationId(null);
       return;
     }
 
@@ -49,6 +51,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
       if (ownedTeams) {
         setCurrentUserRole("Admin"); // Owner is always admin
+        setOrganizationId(user.id); // Owner's workspace is their user ID
         return;
       }
 
@@ -62,18 +65,21 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
       if (memberOf) {
         setCurrentUserRole(memberOf.role);
+        setOrganizationId(memberOf.organization_id); // Use the organization they joined
       } else {
         // User is neither owner nor team member - default to Admin for their own workspace
         setCurrentUserRole("Admin");
+        setOrganizationId(user.id); // Default to their own workspace
       }
     } catch (error) {
       console.error("Error fetching user role:", error);
       setCurrentUserRole("Admin"); // Default to admin on error
+      setOrganizationId(user.id); // Default to own workspace on error
     }
   };
 
   const fetchTeamMembers = async () => {
-    if (!user) {
+    if (!user || !organizationId) {
       setTeamMembers([]);
       return;
     }
@@ -82,7 +88,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("team_members")
         .select("*")
-        .eq("organization_id", user.id)
+        .eq("organization_id", organizationId) // Use the determined organization ID
         .order("created_at", { ascending: false });
 
       if (error) throw error;
