@@ -100,6 +100,32 @@ export default function SubscriptionsPage() {
   const navigate = useNavigate();
   const { canManageBilling, currentUserRole, isAdmin, refreshTeam } = useTeam();
 
+  useEffect(() => {
+    // Redirect non-admin users
+    if (currentUserRole && !canManageBilling) {
+      toast({
+        title: "Access Restricted",
+        description: "Only workspace administrators can manage subscriptions.",
+        variant: "destructive",
+      });
+      navigate("/client/dashboard", { replace: true });
+      return;
+    }
+
+    // Check if returning from successful checkout
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('checkout') === 'success') {
+      toast({
+        title: "Plan updated successfully",
+        description: "Your subscription has been activated.",
+      });
+      // Clean up URL
+      window.history.replaceState({}, '', '/client/subscriptions');
+    }
+    fetchSubscriptions();
+    fetchInvoices();
+  }, [currentUserRole, canManageBilling]);
+
   const fetchSubscriptions = async () => {
     try {
       setLoading(true);

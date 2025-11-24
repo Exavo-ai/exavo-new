@@ -8,6 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Download, Eye, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { useTeam } from "@/contexts/TeamContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Invoice {
   id: string;
@@ -35,10 +38,23 @@ export default function InvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { canManageBilling, currentUserRole } = useTeam();
+  const { user } = useAuth();
 
   useEffect(() => {
+    // Redirect non-admin users
+    if (currentUserRole && !canManageBilling) {
+      toast({
+        title: "Access Restricted",
+        description: "Only workspace administrators can view invoices.",
+        variant: "destructive",
+      });
+      navigate("/client/dashboard", { replace: true });
+      return;
+    }
     fetchInvoices();
-  }, []);
+  }, [currentUserRole, canManageBilling]);
 
   const fetchInvoices = async () => {
     try {

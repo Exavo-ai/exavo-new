@@ -226,10 +226,10 @@ export default function TeamPage() {
         <div>
           <h1 className="text-3xl font-bold">Team Members</h1>
           <p className="text-muted-foreground">
-            Manage your team and permissions {currentUserRole && `(Your role: ${currentUserRole})`}
+            {currentUserRole === "Member" ? "View team members" : "Manage your team and permissions"} {currentUserRole && `(Your role: ${currentUserRole})`}
           </p>
         </div>
-        {canInviteMembers && (
+        {canInviteMembers && isAdmin && (
           <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
             <DialogTrigger asChild>
               <Button disabled={!teamLimits?.canInvite || limitsLoading}>
@@ -362,7 +362,7 @@ export default function TeamPage() {
                       <span className="text-sm font-medium">{member.role}</span>
                     </div>
                     <StatusBadge status={member.status === "active" ? "Active" : "Pending"} />
-                    {canManageTeam && (
+                    {canManageTeam && isAdmin && (
                       <Button
                         variant="ghost"
                         size="sm"

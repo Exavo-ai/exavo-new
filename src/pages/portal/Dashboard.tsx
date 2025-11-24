@@ -3,11 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/portal/StatusBadge";
-import { DollarSign, Bot, Zap, AlertCircle, LifeBuoy, FileText, MessageSquare, Briefcase } from "lucide-react";
+import { DollarSign, Bot, Zap, AlertCircle, LifeBuoy, FileText, MessageSquare, Briefcase, Building2, Crown, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { KPICard } from "@/components/portal/KPICard";
+import { useTeam } from "@/contexts/TeamContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Ticket {
   id: string;
@@ -33,12 +35,49 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
+  const [workspaceOwner, setWorkspaceOwner] = useState<string>("");
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currentUserRole, teamMembers } = useTeam();
+  const { user } = useAuth();
 
   useEffect(() => {
     loadDashboardData();
+    loadWorkspaceInfo();
   }, []);
+
+  const loadWorkspaceInfo = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get organization info from team_members
+      const { data: memberData } = await supabase
+        .from('team_members')
+        .select('organization_id')
+        .eq('email', user.email)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (memberData) {
+        // Fetch owner profile
+        const { data: ownerProfile } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', memberData.organization_id)
+          .single();
+
+        if (ownerProfile) {
+          setWorkspaceOwner(ownerProfile.full_name || ownerProfile.email || "Unknown");
+        }
+      } else {
+        // User is the owner
+        setWorkspaceOwner("You");
+      }
+    } catch (err: any) {
+      console.error("Error loading workspace info:", err);
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -126,74 +165,120 @@ export default function DashboardPage() {
         <p className="text-sm sm:text-base text-muted-foreground">Welcome to your AI workspace overview</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      {/* Workspace Info Section */}
+      {currentUserRole && (
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
-              <Bot className="w-5 h-5 text-primary" />
+            <div className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-primary" />
+              <CardTitle className="text-lg">Workspace</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalTickets}</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {openTickets} open • {resolvedTickets} resolved
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex items-center gap-3">
+                <Crown className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Owner</p>
+                  <p className="text-sm font-medium">{workspaceOwner}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Your Role</p>
+                  <p className="text-sm font-medium">{currentUserRole}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Team Size</p>
+                  <p className="text-sm font-medium">{teamMembers.length} member{teamMembers.length !== 1 ? 's' : ''}</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Service Requests</CardTitle>
-              <Zap className="w-5 h-5 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalAppointments}</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {activeAppointments} active • {completedAppointments} completed
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full justify-start"
-              onClick={() => navigate("/client/tickets")}
-            >
-              <LifeBuoy className="w-4 h-4 mr-2" />
-              Create Ticket
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full justify-start"
-              onClick={() => navigate("/client/services/browse")}
-            >
-              <Briefcase className="w-4 h-4 mr-2" />
-              Service Request
-            </Button>
+      )}
+
+      {/* Only show KPIs and actions for Admin/Member */}
+      {currentUserRole !== "Viewer" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
+                <Bot className="w-5 h-5 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalTickets}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {openTickets} open • {resolvedTickets} resolved
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Service Requests</CardTitle>
+                <Zap className="w-5 h-5 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalAppointments}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {activeAppointments} active • {completedAppointments} completed
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {currentUserRole === "Admin" || currentUserRole === "Member" ? (
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start"
+                    onClick={() => navigate("/client/tickets")}
+                  >
+                    <LifeBuoy className="w-4 h-4 mr-2" />
+                    Create Ticket
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start"
+                    onClick={() => navigate("/client/services/browse")}
+                  >
+                    <Briefcase className="w-4 h-4 mr-2" />
+                    Service Request
+                  </Button>
+                </>
+              ) : null}
           </CardContent>
         </Card>
       </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg sm:text-xl">Recent Tickets</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/client/tickets")}>
-                View All
-              </Button>
-            </div>
-          </CardHeader>
+      {/* Only show recent activity for Admin/Member */}
+      {currentUserRole !== "Viewer" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg sm:text-xl">Recent Tickets</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => navigate("/client/tickets")}>
+                  View All
+                </Button>
+              </div>
+            </CardHeader>
           <CardContent>
             {tickets.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -265,25 +350,32 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Notes</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Textarea
-            placeholder="Write your notes here..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="min-h-[150px] resize-none"
-          />
-          <div className="flex justify-end">
-            <Button size="sm" variant="outline">
-              Save
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Notes section for all users */}
+      {currentUserRole !== "Viewer" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg sm:text-xl">Notes</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Textarea
+              placeholder="Write your notes here..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="min-h-[150px] resize-none"
+              disabled={currentUserRole === "Viewer"}
+            />
+            {currentUserRole !== "Viewer" && (
+              <div className="flex justify-end">
+                <Button size="sm" variant="outline">
+                  Save
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

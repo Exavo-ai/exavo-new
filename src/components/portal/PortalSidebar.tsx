@@ -13,18 +13,19 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTeam } from "@/contexts/TeamContext";
 
-const navigation = [
-  { name: "Dashboard", href: "/client", icon: LayoutDashboard },
-  { name: "Services", href: "/client/services/browse", icon: Briefcase },
-  { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard },
-  { name: "My Orders", href: "/client/orders", icon: ShoppingBag },
-  { name: "Subscriptions", href: "/client/subscriptions", icon: Receipt },
-  { name: "Invoices", href: "/client/invoices", icon: Receipt },
-  { name: "Tickets", href: "/client/tickets", icon: LifeBuoy },
-  { name: "Team", href: "/client/team", icon: UsersRound },
-  { name: "Files", href: "/client/files", icon: FolderOpen },
-  { name: "Settings", href: "/client/settings", icon: Settings },
+const allNavigation = [
+  { name: "Dashboard", href: "/client", icon: LayoutDashboard, roles: ["Admin", "Member", "Viewer"] },
+  { name: "Services", href: "/client/services/browse", icon: Briefcase, roles: ["Admin", "Member"] },
+  { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard, roles: ["Admin"] },
+  { name: "My Orders", href: "/client/orders", icon: ShoppingBag, roles: ["Admin", "Member"] },
+  { name: "Subscriptions", href: "/client/subscriptions", icon: Receipt, roles: ["Admin"] },
+  { name: "Invoices", href: "/client/invoices", icon: Receipt, roles: ["Admin"] },
+  { name: "Tickets", href: "/client/tickets", icon: LifeBuoy, roles: ["Admin", "Member"] },
+  { name: "Team", href: "/client/team", icon: UsersRound, roles: ["Admin", "Member"] },
+  { name: "Files", href: "/client/files", icon: FolderOpen, roles: ["Admin", "Member"] },
+  { name: "Settings", href: "/client/settings", icon: Settings, roles: ["Admin", "Member", "Viewer"] },
 ];
 
 interface PortalSidebarProps {
@@ -35,8 +36,15 @@ interface PortalSidebarProps {
 export function PortalSidebar({ collapsed, onToggle }: PortalSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUserRole } = useTeam();
 
   const isActive = (href: string) => location.pathname === href;
+
+  // Filter navigation based on user role
+  const navigation = allNavigation.filter(item => {
+    if (!currentUserRole) return true; // Show all if role not loaded yet
+    return item.roles.includes(currentUserRole);
+  });
 
   return (
     <div
