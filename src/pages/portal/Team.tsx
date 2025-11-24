@@ -155,12 +155,26 @@ export default function TeamPage() {
       setSubmitting(true);
       const { data: { session } } = await supabase.auth.getSession();
       
-      const { error } = await supabase.functions.invoke("update-team-member", {
+      const { data, error } = await supabase.functions.invoke("update-team-member", {
         body: { memberId: selectedMember.id, role, status },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Function invocation error:", error);
+        throw new Error(error.message || "Failed to update team member");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      // Update local state immediately
+      setMembers(members.map(m => 
+        m.id === selectedMember.id 
+          ? { ...m, role: role || m.role, status: (status as 'active' | 'pending' | 'inactive') || m.status }
+          : m
+      ));
 
       toast({
         title: "Success",
@@ -169,11 +183,11 @@ export default function TeamPage() {
 
       setManageOpen(false);
       setSelectedMember(null);
-      fetchMembers();
     } catch (error: any) {
+      console.error("Error updating member:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to update team member",
         variant: "destructive",
       });
     } finally {
@@ -188,12 +202,22 @@ export default function TeamPage() {
       setSubmitting(true);
       const { data: { session } } = await supabase.auth.getSession();
       
-      const { error } = await supabase.functions.invoke("remove-team-member", {
+      const { data, error } = await supabase.functions.invoke("remove-team-member", {
         body: { memberId: selectedMember.id },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Function invocation error:", error);
+        throw new Error(error.message || "Failed to remove team member");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      // Update local state immediately
+      setMembers(members.filter(m => m.id !== selectedMember.id));
 
       toast({
         title: "Success",
@@ -202,11 +226,11 @@ export default function TeamPage() {
 
       setManageOpen(false);
       setSelectedMember(null);
-      fetchMembers();
     } catch (error: any) {
+      console.error("Error removing member:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to remove team member",
         variant: "destructive",
       });
     } finally {
