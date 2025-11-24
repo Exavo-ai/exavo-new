@@ -16,16 +16,16 @@ import { cn } from "@/lib/utils";
 import { useTeam } from "@/contexts/TeamContext";
 
 const allNavigation = [
-  { name: "Dashboard", href: "/client", icon: LayoutDashboard, roles: ["Admin", "Member", "Viewer"] },
-  { name: "Services", href: "/client/services/browse", icon: Briefcase, roles: ["Admin", "Member"] },
-  { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard, roles: ["Admin"] },
-  { name: "My Orders", href: "/client/orders", icon: ShoppingBag, roles: ["Admin", "Member"] },
-  { name: "Subscriptions", href: "/client/subscriptions", icon: Receipt, roles: ["Admin"] },
-  { name: "Invoices", href: "/client/invoices", icon: Receipt, roles: ["Admin"] },
-  { name: "Tickets", href: "/client/tickets", icon: LifeBuoy, roles: ["Admin", "Member"] },
-  { name: "Team", href: "/client/team", icon: UsersRound, roles: ["Admin", "Member"] },
-  { name: "Files", href: "/client/files", icon: FolderOpen, roles: ["Admin", "Member"] },
-  { name: "Settings", href: "/client/settings", icon: Settings, roles: ["Admin", "Member", "Viewer"] },
+  { name: "Dashboard", href: "/client", icon: LayoutDashboard, roles: ["Admin", "Member", "Viewer"], ownerOnly: false },
+  { name: "Services", href: "/client/services/browse", icon: Briefcase, roles: ["Admin", "Member"], ownerOnly: false },
+  { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard, roles: ["Admin"], ownerOnly: true },
+  { name: "My Orders", href: "/client/orders", icon: ShoppingBag, roles: ["Admin", "Member"], ownerOnly: false },
+  { name: "Subscriptions", href: "/client/subscriptions", icon: Receipt, roles: ["Admin"], ownerOnly: true },
+  { name: "Invoices", href: "/client/invoices", icon: Receipt, roles: ["Admin"], ownerOnly: true },
+  { name: "Tickets", href: "/client/tickets", icon: LifeBuoy, roles: ["Admin", "Member"], ownerOnly: false },
+  { name: "Team", href: "/client/team", icon: UsersRound, roles: ["Admin", "Member"], ownerOnly: false },
+  { name: "Files", href: "/client/files", icon: FolderOpen, roles: ["Admin", "Member"], ownerOnly: false },
+  { name: "Settings", href: "/client/settings", icon: Settings, roles: ["Admin", "Member", "Viewer"], ownerOnly: false },
 ];
 
 interface PortalSidebarProps {
@@ -36,14 +36,21 @@ interface PortalSidebarProps {
 export function PortalSidebar({ collapsed, onToggle }: PortalSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUserRole } = useTeam();
+  const { currentUserRole, isWorkspaceOwner } = useTeam();
 
   const isActive = (href: string) => location.pathname === href;
 
-  // Filter navigation based on user role
+  // Filter navigation based on user role and workspace ownership
   const navigation = allNavigation.filter(item => {
     if (!currentUserRole) return true; // Show all if role not loaded yet
-    return item.roles.includes(currentUserRole);
+    
+    // Check role permission
+    if (!item.roles.includes(currentUserRole)) return false;
+    
+    // Check workspace ownership requirement
+    if (item.ownerOnly && !isWorkspaceOwner) return false;
+    
+    return true;
   });
 
   return (

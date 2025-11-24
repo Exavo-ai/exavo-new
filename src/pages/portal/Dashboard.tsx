@@ -38,46 +38,12 @@ export default function DashboardPage() {
   const [workspaceOwner, setWorkspaceOwner] = useState<string>("");
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { currentUserRole, teamMembers } = useTeam();
+  const { currentUserRole, teamMembers, isWorkspaceOwner, workspaceOwnerEmail } = useTeam();
   const { user } = useAuth();
 
   useEffect(() => {
     loadDashboardData();
-    loadWorkspaceInfo();
   }, []);
-
-  const loadWorkspaceInfo = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Get organization info from team_members
-      const { data: memberData } = await supabase
-        .from('team_members')
-        .select('organization_id')
-        .eq('email', user.email)
-        .eq('status', 'active')
-        .maybeSingle();
-
-      if (memberData) {
-        // Fetch owner profile
-        const { data: ownerProfile } = await supabase
-          .from('profiles')
-          .select('full_name, email')
-          .eq('id', memberData.organization_id)
-          .single();
-
-        if (ownerProfile) {
-          setWorkspaceOwner(ownerProfile.full_name || ownerProfile.email || "Unknown");
-        }
-      } else {
-        // User is the owner
-        setWorkspaceOwner("You");
-      }
-    } catch (err: any) {
-      console.error("Error loading workspace info:", err);
-    }
-  };
 
   const loadDashboardData = async () => {
     try {
@@ -171,7 +137,9 @@ export default function DashboardPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <Building2 className="w-5 h-5 text-primary" />
-              <CardTitle className="text-lg">Workspace</CardTitle>
+              <CardTitle className="text-lg">
+                {isWorkspaceOwner ? "Your Workspace" : "Workspace"}
+              </CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -179,15 +147,20 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3">
                 <Crown className="w-4 h-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Owner</p>
-                  <p className="text-sm font-medium">{workspaceOwner}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isWorkspaceOwner ? "Owner (You)" : "Workspace Owner"}
+                  </p>
+                  <p className="text-sm font-medium">{workspaceOwnerEmail || user?.email || "Unknown"}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Users className="w-4 h-4 text-muted-foreground" />
                 <div>
                   <p className="text-xs text-muted-foreground">Your Role</p>
-                  <p className="text-sm font-medium">{currentUserRole}</p>
+                  <p className="text-sm font-medium">
+                    {currentUserRole}
+                    {isWorkspaceOwner && " (Owner)"}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
