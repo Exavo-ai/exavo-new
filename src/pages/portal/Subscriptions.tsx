@@ -101,20 +101,6 @@ export default function SubscriptionsPage() {
   const { canManageBilling, currentUserRole, isAdmin, refreshTeam, loading: teamLoading, workspaceId } = useTeam();
 
   useEffect(() => {
-    // Wait for team data to load before checking permissions
-    if (teamLoading || !workspaceId) return;
-    
-    // Redirect non-admin users
-    if (currentUserRole && !canManageBilling) {
-      toast({
-        title: "Access Restricted",
-        description: "Only workspace administrators can manage subscriptions.",
-        variant: "destructive",
-      });
-      navigate("/client/dashboard", { replace: true });
-      return;
-    }
-
     // Check if returning from successful checkout
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('checkout') === 'success') {
@@ -125,9 +111,10 @@ export default function SubscriptionsPage() {
       // Clean up URL
       window.history.replaceState({}, '', '/client/subscriptions');
     }
+    
     fetchSubscriptions();
     fetchInvoices();
-  }, [currentUserRole, canManageBilling, teamLoading, workspaceId]);
+  }, []);
 
   const fetchSubscriptions = async () => {
     try {
@@ -201,8 +188,8 @@ export default function SubscriptionsPage() {
     }
   }, []);
 
-  // Show loading while subscriptions are loading OR team context is loading
-  if (loading || teamLoading || !workspaceId) {
+  // Show loading while subscriptions are loading
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />

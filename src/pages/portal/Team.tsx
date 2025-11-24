@@ -244,12 +244,12 @@ export default function TeamPage() {
       (member.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
   );
 
-  // Show loading while team context is initializing
-  if (teamLoading || !workspaceId) {
+  // Show loading while team is initializing
+  if (teamLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <span className="ml-2 text-muted-foreground">Loading workspace...</span>
+        <span className="ml-2 text-muted-foreground">Loading team...</span>
       </div>
     );
   }

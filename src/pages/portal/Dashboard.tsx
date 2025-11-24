@@ -98,15 +98,13 @@ export default function DashboardPage() {
     }
   };
 
-  // Show loading state while data is being fetched
-  const isLoadingData = loading || teamLoading || !workspaceId;
-  
-  if (isLoadingData) {
+  // Show loading state while initial data is being fetched
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading workspace...</p>
+          <p className="text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
     );

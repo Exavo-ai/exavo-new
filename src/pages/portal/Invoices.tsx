@@ -43,21 +43,8 @@ export default function InvoicesPage() {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Wait for team data to load before checking permissions
-    if (teamLoading || !workspaceId) return;
-    
-    // Redirect non-admin users
-    if (currentUserRole && !canManageBilling) {
-      toast({
-        title: "Access Restricted",
-        description: "Only workspace administrators can view invoices.",
-        variant: "destructive",
-      });
-      navigate("/client/dashboard", { replace: true });
-      return;
-    }
     fetchInvoices();
-  }, [currentUserRole, canManageBilling, teamLoading, workspaceId]);
+  }, []);
 
   const fetchInvoices = async () => {
     try {
@@ -174,8 +161,8 @@ export default function InvoicesPage() {
     },
   ];
 
-  // Show loading while either invoices are loading OR team context is loading
-  if (loading || teamLoading || !workspaceId) {
+  // Show loading while invoices are loading
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />

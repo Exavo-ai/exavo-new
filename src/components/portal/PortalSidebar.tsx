@@ -40,15 +40,16 @@ export function PortalSidebar({ collapsed, onToggle }: PortalSidebarProps) {
 
   const isActive = (href: string) => location.pathname === href;
 
-  // Filter navigation based on user role and workspace ownership
+  // Filter navigation based on user role
   const navigation = allNavigation.filter(item => {
-    if (!currentUserRole) return true; // Show all if role not loaded yet
+    // Show all items if role not loaded yet
+    if (!currentUserRole) return true;
     
     // Check role permission
     if (!item.roles.includes(currentUserRole)) return false;
     
-    // Check workspace ownership requirement
-    if (item.ownerOnly && !isWorkspaceOwner) return false;
+    // For owner-only items, show to all Admins for now (simplified)
+    // In future, can add more granular control
     
     return true;
   });
