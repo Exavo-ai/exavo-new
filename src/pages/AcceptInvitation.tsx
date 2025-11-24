@@ -144,8 +144,8 @@ export default function AcceptInvitation() {
 
       console.log("[ACCEPT-INVITE] ✓ Invitation activated successfully");
       
-      toast.success("Welcome to the team!", {
-        description: "Your invitation has been accepted.",
+      toast.success(`Welcome! You have joined the workspace as ${inviteData?.role}.`, {
+        description: "Redirecting to your workspace dashboard...",
         duration: 3000,
       });
 
@@ -226,8 +226,8 @@ export default function AcceptInvitation() {
         return;
       }
 
-      toast.success("Welcome to the team!", {
-        description: "Your account has been created.",
+      toast.success(`Welcome! You have joined the workspace as ${inviteData?.role}.`, {
+        description: "Redirecting to your workspace dashboard...",
         duration: 3000,
       });
 

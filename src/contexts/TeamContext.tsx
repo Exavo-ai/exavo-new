@@ -21,6 +21,9 @@ interface TeamContextType {
   isViewer: boolean;
   isMember: boolean;
   isAdmin: boolean;
+  isWorkspaceOwner: boolean;
+  workspaceId: string | null;
+  workspaceOwnerEmail: string | null;
   refreshTeam: () => Promise<void>;
 }
 
@@ -32,30 +35,20 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isWorkspaceOwner, setIsWorkspaceOwner] = useState(false);
+  const [workspaceOwnerEmail, setWorkspaceOwnerEmail] = useState<string | null>(null);
 
   const fetchUserRole = async () => {
     if (!user) {
       setCurrentUserRole(null);
       setOrganizationId(null);
+      setIsWorkspaceOwner(false);
+      setWorkspaceOwnerEmail(null);
       return;
     }
 
     try {
-      // Check if user is the organization owner
-      const { data: ownedTeams } = await supabase
-        .from("team_members")
-        .select("role, organization_id")
-        .eq("organization_id", user.id)
-        .eq("email", user.email)
-        .maybeSingle();
-
-      if (ownedTeams) {
-        setCurrentUserRole("Admin"); // Owner is always admin
-        setOrganizationId(user.id); // Owner's workspace is their user ID
-        return;
-      }
-
-      // Check if user is a team member of another organization
+      // Check if user is a team member of another organization first
       const { data: memberOf } = await supabase
         .from("team_members")
         .select("role, organization_id")
@@ -64,17 +57,33 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (memberOf) {
+        // User is a team member (not owner)
         setCurrentUserRole(memberOf.role);
-        setOrganizationId(memberOf.organization_id); // Use the organization they joined
+        setOrganizationId(memberOf.organization_id);
+        setIsWorkspaceOwner(false);
+        
+        // Fetch workspace owner email
+        const { data: ownerProfile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", memberOf.organization_id)
+          .maybeSingle();
+        
+        setWorkspaceOwnerEmail(ownerProfile?.email || null);
       } else {
-        // User is neither owner nor team member - default to Admin for their own workspace
+        // User is the workspace owner (not a team member of another workspace)
         setCurrentUserRole("Admin");
-        setOrganizationId(user.id); // Default to their own workspace
+        setOrganizationId(user.id);
+        setIsWorkspaceOwner(true);
+        setWorkspaceOwnerEmail(user.email || null);
       }
     } catch (error) {
       console.error("Error fetching user role:", error);
-      setCurrentUserRole("Admin"); // Default to admin on error
-      setOrganizationId(user.id); // Default to own workspace on error
+      // Default to workspace owner on error
+      setCurrentUserRole("Admin");
+      setOrganizationId(user.id);
+      setIsWorkspaceOwner(true);
+      setWorkspaceOwnerEmail(user.email || null);
     }
   };
 
@@ -115,7 +124,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const canManageTeam = isAdmin;
   const canInviteMembers = isAdmin;
-  const canManageBilling = isAdmin;
+  const canManageBilling = isWorkspaceOwner; // Only workspace owner can manage billing
 
   return (
     <TeamContext.Provider
@@ -129,6 +138,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         isViewer,
         isMember,
         isAdmin,
+        isWorkspaceOwner,
+        workspaceId: organizationId,
+        workspaceOwnerEmail,
         refreshTeam,
       }}
     >
