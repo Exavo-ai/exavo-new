@@ -50,11 +50,22 @@ serve(async (req) => {
 
     const formattedInvoices = invoices.data.map((invoice: Stripe.Invoice) => ({
       id: invoice.id,
-      date: new Date(invoice.created * 1000).toISOString().split("T")[0],
-      service: invoice.lines.data[0]?.description || "Subscription",
-      amount: `$${(invoice.amount_paid / 100).toFixed(2)}`,
-      status: invoice.status === "paid" ? "Paid" : invoice.status === "open" ? "Open" : "Pending",
-      invoiceUrl: invoice.invoice_pdf,
+      number: invoice.number || invoice.id,
+      amount: invoice.amount_paid,
+      currency: invoice.currency || "usd",
+      status: invoice.status || "unknown",
+      created: invoice.created,
+      period_start: invoice.period_start || invoice.created,
+      period_end: invoice.period_end || invoice.created,
+      hosted_invoice_url: invoice.hosted_invoice_url || null,
+      invoice_pdf: invoice.invoice_pdf || null,
+      customer_email: invoice.customer_email || user?.email || "",
+      customer_name: invoice.customer_name || null,
+      lines: invoice.lines.data.map((line: any) => ({
+        description: line.description || "Service",
+        amount: line.amount,
+        quantity: line.quantity || 1,
+      })),
     }));
 
     return new Response(JSON.stringify({ invoices: formattedInvoices }), {

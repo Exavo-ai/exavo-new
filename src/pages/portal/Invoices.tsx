@@ -39,8 +39,11 @@ export default function InvoicesPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { canManageBilling, currentUserRole } = useTeam();
+  const { isAdmin, isWorkspaceOwner, loading: teamLoading } = useTeam();
   const { user } = useAuth();
+
+  // Check permissions - only owners and admins can see invoices
+  const canViewInvoices = isWorkspaceOwner || isAdmin;
 
   useEffect(() => {
     fetchInvoices();
@@ -161,12 +164,32 @@ export default function InvoicesPage() {
     },
   ];
 
-  // Show loading while invoices are loading
-  if (loading) {
+  // Show loading while team or invoices are loading
+  if (teamLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
         <span className="ml-2 text-muted-foreground">Loading invoices...</span>
+      </div>
+    );
+  }
+
+  // Show access denied for non-owners/non-admins
+  if (!canViewInvoices) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Invoices</h1>
+          <p className="text-muted-foreground">View and download your billing invoices</p>
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground mb-2">Access Restricted</p>
+            <p className="text-sm text-muted-foreground">
+              Only workspace owners and admins can view invoices.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }

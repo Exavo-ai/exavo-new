@@ -75,7 +75,7 @@ serve(async (req) => {
       console.log("[ACCEPT-INVITE] Token expired");
       return new Response(
         JSON.stringify({ success: false, error: "This invitation has expired" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
 
@@ -108,7 +108,7 @@ serve(async (req) => {
         console.error("[ACCEPT-INVITE] User creation error:", userError);
         return new Response(
           JSON.stringify({ success: false, error: `Failed to create account: ${userError.message}` }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
         );
       }
 
