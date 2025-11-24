@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useTeam } from "@/contexts/TeamContext";
 import { useAuth } from "@/contexts/AuthContext";
+import exavoLogo from "@/assets/exavo-logo.png";
 
 interface Invoice {
   id: string;
@@ -230,9 +231,9 @@ export default function InvoicesPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <img 
-                    src="/assets/exavo-logo.png" 
+                    src={exavoLogo} 
                     alt="Exavo AI" 
-                    className="h-8 mb-4"
+                    className="h-10 mb-4"
                   />
                   <h3 className="text-lg font-bold">Exavo AI</h3>
                   <p className="text-sm text-muted-foreground">
