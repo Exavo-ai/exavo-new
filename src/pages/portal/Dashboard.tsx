@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/portal/StatusBadge";
-import { DollarSign, Bot, Zap, AlertCircle, LifeBuoy, FileText, MessageSquare, Briefcase } from "lucide-react";
+import { Building2, Crown, Users, Bot, Zap, AlertCircle, LifeBuoy, FileText, MessageSquare, Briefcase } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -32,49 +33,80 @@ interface Appointment {
 export default function DashboardPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [totalTicketsCount, setTotalTicketsCount] = useState(0);
+  const [totalAppointmentsCount, setTotalAppointmentsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { 
+    currentUserRole, 
+    isWorkspaceOwner, 
+    workspaceOwnerEmail,
+    teamMembers,
+    loading: teamLoading,
+    workspaceId 
+  } = useTeam();
 
   useEffect(() => {
-    if (user) {
+    if (user && !teamLoading && workspaceId) {
       loadDashboardData();
     }
-  }, [user]);
+  }, [user, teamLoading, workspaceId]);
 
   const loadDashboardData = async () => {
     try {
       setError(null);
       const { data: { user } } = await supabase.auth.getUser();
       
-      if (!user) {
-        throw new Error("Not authenticated");
+      if (!user || !workspaceId) {
+        throw new Error("Not authenticated or workspace not found");
       }
 
-      // Fetch tickets
+      // For workspace owner, show their data
+      // For team members, show workspace-scoped data
+      const userId = isWorkspaceOwner ? user.id : workspaceId;
+
+      // Fetch all tickets count for this workspace
+      const { count: ticketsCount, error: ticketsCountError } = await supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      if (ticketsCountError) throw ticketsCountError;
+      setTotalTicketsCount(ticketsCount || 0);
+
+      // Fetch recent tickets
       const { data: ticketsData, error: ticketsError } = await supabase
         .from('tickets')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(5);
 
       if (ticketsError) throw ticketsError;
+      setTickets(ticketsData || []);
 
-      // Fetch appointments (service requests)
+      // Fetch all appointments count for this workspace
+      const { count: appointmentsCount, error: appointmentsCountError } = await supabase
+        .from('appointments')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      if (appointmentsCountError) throw appointmentsCountError;
+      setTotalAppointmentsCount(appointmentsCount || 0);
+
+      // Fetch recent appointments (service requests)
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(5);
 
       if (appointmentsError) throw appointmentsError;
-
-      setTickets(ticketsData || []);
       setAppointments(appointmentsData || []);
     } catch (err: any) {
       console.error("Error loading dashboard:", err);
@@ -90,7 +122,7 @@ export default function DashboardPage() {
   };
 
   // Show loading state while initial data is being fetched
-  if (loading) {
+  if (loading || teamLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -116,14 +148,18 @@ export default function DashboardPage() {
     );
   }
 
-  // Calculate stats from real data
-  const totalTickets = tickets.length;
+  // Calculate stats from real data (using full workspace counts)
   const openTickets = tickets.filter(t => t.status === 'open').length;
   const resolvedTickets = tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length;
   
-  const totalAppointments = appointments.length;
   const activeAppointments = appointments.filter(a => a.status === 'confirmed' || a.status === 'pending').length;
   const completedAppointments = appointments.filter(a => a.status === 'completed').length;
+
+  const displayRole = isWorkspaceOwner 
+    ? `${currentUserRole} (Owner)` 
+    : currentUserRole || "Member";
+  
+  const activeTeamMembers = teamMembers.filter(m => m.status === 'active').length;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -131,6 +167,51 @@ export default function DashboardPage() {
         <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
         <p className="text-sm sm:text-base text-muted-foreground">Welcome to your AI workspace overview</p>
       </div>
+
+      {/* Workspace Info Section */}
+      <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="w-5 h-5" />
+            Your Workspace
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Crown className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Workspace Owner</p>
+                <p className="font-medium text-sm truncate">
+                  {workspaceOwnerEmail || user?.email || "Loading..."}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Users className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Your Role</p>
+                <Badge variant={isWorkspaceOwner ? "default" : "secondary"}>
+                  {displayRole}
+                </Badge>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Users className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Team Size</p>
+                <p className="font-bold text-lg">{activeTeamMembers}</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* KPIs and Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -142,7 +223,7 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalTickets}</div>
+              <div className="text-2xl font-bold">{totalTicketsCount}</div>
               <div className="text-xs text-muted-foreground mt-1">
                 {openTickets} open • {resolvedTickets} resolved
               </div>
@@ -157,7 +238,7 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalAppointments}</div>
+              <div className="text-2xl font-bold">{totalAppointmentsCount}</div>
               <div className="text-xs text-muted-foreground mt-1">
                 {activeAppointments} active • {completedAppointments} completed
               </div>

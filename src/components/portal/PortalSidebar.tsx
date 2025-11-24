@@ -17,6 +17,7 @@ import { useTeam } from "@/contexts/TeamContext";
 
 const allNavigation = [
   { name: "Dashboard", href: "/client", icon: LayoutDashboard, roles: ["Admin", "Member", "Viewer"], ownerOnly: false },
+  { name: "Workspace", href: "/client/workspace", icon: UsersRound, roles: ["Admin", "Member", "Viewer"], ownerOnly: false },
   { name: "Services", href: "/client/services/browse", icon: Briefcase, roles: ["Admin", "Member"], ownerOnly: false },
   { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard, roles: ["Admin"], ownerOnly: true },
   { name: "My Orders", href: "/client/orders", icon: ShoppingBag, roles: ["Admin", "Member"], ownerOnly: false },
