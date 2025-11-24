@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useTeam } from "@/contexts/TeamContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -144,7 +145,7 @@ export function PermissionsManager() {
     );
   }
 
-  const renderPermissionsCard = (
+  const renderPermissionsAccordion = (
     role: string,
     icon: React.ReactNode,
     perms: RolePermissions | null,
@@ -153,36 +154,38 @@ export function PermissionsManager() {
     if (!perms) return null;
 
     return (
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
+      <AccordionItem value={role}>
+        <AccordionTrigger className="hover:no-underline">
+          <div className="flex items-center gap-3 text-left">
             {icon}
             <div>
-              <CardTitle className="capitalize">{role} Permissions</CardTitle>
-              <CardDescription>{description}</CardDescription>
+              <div className="text-base font-semibold capitalize">{role} Permissions</div>
+              <p className="text-sm text-muted-foreground font-normal">{description}</p>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {(Object.keys(permissionLabels) as Array<keyof RolePermissions>).map((key) => (
-            <div key={key} className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor={`${role}-${key}`} className="text-sm font-medium">
-                  {permissionLabels[key]}
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  {permissionDescriptions[key]}
-                </p>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="space-y-4 pt-4">
+            {(Object.keys(permissionLabels) as Array<keyof RolePermissions>).map((key) => (
+              <div key={key} className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor={`${role}-${key}`} className="text-sm font-medium">
+                    {permissionLabels[key]}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {permissionDescriptions[key]}
+                  </p>
+                </div>
+                <Switch
+                  id={`${role}-${key}`}
+                  checked={perms[key]}
+                  onCheckedChange={() => handlePermissionToggle(role, key, perms)}
+                />
               </div>
-              <Switch
-                id={`${role}-${key}`}
-                checked={perms[key]}
-                onCheckedChange={() => handlePermissionToggle(role, key, perms)}
-              />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+            ))}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
     );
   };
 
@@ -197,26 +200,30 @@ export function PermissionsManager() {
 
       <Separator />
 
-      <div className="grid gap-6">
-        {renderPermissionsCard(
-          "admin",
-          <Shield className="w-5 h-5 text-primary" />,
-          adminPerms,
-          "High-level access with most permissions enabled"
-        )}
-        {renderPermissionsCard(
-          "member",
-          <Users className="w-5 h-5 text-blue-500" />,
-          memberPerms,
-          "Standard access for team collaboration"
-        )}
-        {renderPermissionsCard(
-          "viewer",
-          <Eye className="w-5 h-5 text-muted-foreground" />,
-          viewerPerms,
-          "Read-only access to workspace content"
-        )}
-      </div>
+      <Card>
+        <CardContent className="pt-6">
+          <Accordion type="single" collapsible className="w-full">
+            {renderPermissionsAccordion(
+              "admin",
+              <Shield className="w-5 h-5 text-primary" />,
+              adminPerms,
+              "High-level access with most permissions enabled"
+            )}
+            {renderPermissionsAccordion(
+              "member",
+              <Users className="w-5 h-5 text-blue-500" />,
+              memberPerms,
+              "Standard access for team collaboration"
+            )}
+            {renderPermissionsAccordion(
+              "viewer",
+              <Eye className="w-5 h-5 text-muted-foreground" />,
+              viewerPerms,
+              "Read-only access to workspace content"
+            )}
+          </Accordion>
+        </CardContent>
+      </Card>
     </div>
   );
 }
