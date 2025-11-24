@@ -16,16 +16,16 @@ import { cn } from "@/lib/utils";
 import { useTeam } from "@/contexts/TeamContext";
 
 const allNavigation = [
-  { name: "Dashboard", href: "/client", icon: LayoutDashboard, permission: null },
-  { name: "Workspace", href: "/client/workspace", icon: UsersRound, permission: null },
-  { name: "Services", href: "/client/services/browse", icon: Briefcase, permission: "create_items" },
+  { name: "Dashboard", href: "/client", icon: LayoutDashboard, permission: "access_dashboard" },
+  { name: "Workspace", href: "/client/workspace", icon: UsersRound, permission: "view_team" },
+  { name: "Services", href: "/client/services/browse", icon: Briefcase },
   { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard, ownerOnly: true },
-  { name: "My Orders", href: "/client/orders", icon: ShoppingBag, permission: "create_items" },
+  { name: "My Orders", href: "/client/orders", icon: ShoppingBag, permission: "manage_orders" },
   { name: "Subscriptions", href: "/client/subscriptions", icon: Receipt, ownerOnly: true },
   { name: "Invoices", href: "/client/invoices", icon: Receipt, ownerOnly: true },
-  { name: "Tickets", href: "/client/tickets", icon: LifeBuoy, permission: "create_items" },
-  { name: "Team", href: "/client/team", icon: UsersRound, permission: "manage_team" },
-  { name: "Files", href: "/client/files", icon: FolderOpen, permission: "create_items" },
+  { name: "Tickets", href: "/client/tickets", icon: LifeBuoy, permission: "create_tickets" },
+  { name: "Team", href: "/client/team", icon: UsersRound, permission: "view_team" },
+  { name: "Files", href: "/client/files", icon: FolderOpen, permission: "access_files" },
   { name: "Settings", href: "/client/settings", icon: Settings, permission: "access_settings" },
 ];
 

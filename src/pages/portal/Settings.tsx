@@ -22,7 +22,7 @@ interface Profile {
 
 export default function SettingsPage() {
   const { user, refreshProfile } = useAuth();
-  const { isWorkspaceOwner } = useTeam();
+  const { isWorkspaceOwner, permissions } = useTeam();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [fullName, setFullName] = useState("");
@@ -70,6 +70,15 @@ export default function SettingsPage() {
 
   const handleSaveProfile = async () => {
     if (!user) return;
+
+    if (!permissions.change_workspace_info) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to update profile information",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSaving(true);
     try {

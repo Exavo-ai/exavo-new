@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -48,6 +49,7 @@ interface FileItem {
 
 export default function FilesPage() {
   const { user } = useAuth();
+  const { permissions } = useTeam();
   const { toast } = useToast();
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -223,10 +225,12 @@ export default function FilesPage() {
           <h1 className="text-3xl font-bold">Files</h1>
           <p className="text-muted-foreground">Manage your documents and media</p>
         </div>
-        <Button onClick={() => setUploadDialogOpen(true)}>
-          <Upload className="w-4 h-4 mr-2" />
-          Upload Files
-        </Button>
+        {permissions.upload_files && (
+          <Button onClick={() => setUploadDialogOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Upload Files
+          </Button>
+        )}
       </div>
 
       {/* Filter Section */}
@@ -307,26 +311,30 @@ export default function FilesPage() {
                         >
                           <Download className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setRenameDialog({ open: true, file });
-                            setNewFileName(file.name);
-                          }}
-                          title="Rename"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(file)}
-                          className="text-destructive hover:text-destructive"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {permissions.upload_files && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setRenameDialog({ open: true, file });
+                              setNewFileName(file.name);
+                            }}
+                            title="Rename"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {permissions.delete_files && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(file)}
+                            className="text-destructive hover:text-destructive"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

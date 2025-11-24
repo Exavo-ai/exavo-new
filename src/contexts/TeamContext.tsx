@@ -12,12 +12,21 @@ interface TeamMember {
 }
 
 interface WorkspacePermissions {
+  access_dashboard: boolean;
+  view_team: boolean;
   manage_team: boolean;
+  invite_members: boolean;
+  remove_members: boolean;
+  access_files: boolean;
+  upload_files: boolean;
+  delete_files: boolean;
+  manage_tickets: boolean;
+  create_tickets: boolean;
+  manage_orders: boolean;
+  view_billing: boolean;
+  manage_billing: boolean;
   access_settings: boolean;
-  delete_items: boolean;
-  create_items: boolean;
-  view_analytics: boolean;
-  access_advanced_tools: boolean;
+  change_workspace_info: boolean;
 }
 
 interface TeamContextType {
@@ -46,12 +55,21 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [workspaceOwnerEmail, setWorkspaceOwnerEmail] = useState<string | null>(null);
   const [workspaceOwnerId, setWorkspaceOwnerId] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<WorkspacePermissions>({
+    access_dashboard: false,
+    view_team: false,
     manage_team: false,
+    invite_members: false,
+    remove_members: false,
+    access_files: false,
+    upload_files: false,
+    delete_files: false,
+    manage_tickets: false,
+    create_tickets: false,
+    manage_orders: false,
+    view_billing: false,
+    manage_billing: false,
     access_settings: false,
-    delete_items: false,
-    create_items: false,
-    view_analytics: false,
-    access_advanced_tools: false,
+    change_workspace_info: false,
   });
 
   const fetchUserRole = async () => {
@@ -62,12 +80,21 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       setWorkspaceOwnerEmail(null);
       setWorkspaceOwnerId(null);
       setPermissions({
+        access_dashboard: false,
+        view_team: false,
         manage_team: false,
+        invite_members: false,
+        remove_members: false,
+        access_files: false,
+        upload_files: false,
+        delete_files: false,
+        manage_tickets: false,
+        create_tickets: false,
+        manage_orders: false,
+        view_billing: false,
+        manage_billing: false,
         access_settings: false,
-        delete_items: false,
-        create_items: false,
-        view_analytics: false,
-        access_advanced_tools: false,
+        change_workspace_info: false,
       });
       return;
     }
@@ -127,12 +154,21 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         setWorkspaceOwnerId(user.id);
         // Workspace owners have all permissions
         setPermissions({
+          access_dashboard: true,
+          view_team: true,
           manage_team: true,
+          invite_members: true,
+          remove_members: true,
+          access_files: true,
+          upload_files: true,
+          delete_files: true,
+          manage_tickets: true,
+          create_tickets: true,
+          manage_orders: true,
+          view_billing: true,
+          manage_billing: true,
           access_settings: true,
-          delete_items: true,
-          create_items: true,
-          view_analytics: true,
-          access_advanced_tools: true,
+          change_workspace_info: true,
         });
       } else {
         // User doesn't own a workspace and isn't a team member
@@ -142,12 +178,21 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         setWorkspaceOwnerEmail(null);
         setWorkspaceOwnerId(null);
         setPermissions({
+          access_dashboard: false,
+          view_team: false,
           manage_team: false,
+          invite_members: false,
+          remove_members: false,
+          access_files: false,
+          upload_files: false,
+          delete_files: false,
+          manage_tickets: false,
+          create_tickets: false,
+          manage_orders: false,
+          view_billing: false,
+          manage_billing: false,
           access_settings: false,
-          delete_items: false,
-          create_items: false,
-          view_analytics: false,
-          access_advanced_tools: false,
+          change_workspace_info: false,
         });
       }
     } catch (error) {
@@ -158,12 +203,21 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       setWorkspaceOwnerEmail(null);
       setWorkspaceOwnerId(null);
       setPermissions({
+        access_dashboard: false,
+        view_team: false,
         manage_team: false,
+        invite_members: false,
+        remove_members: false,
+        access_files: false,
+        upload_files: false,
+        delete_files: false,
+        manage_tickets: false,
+        create_tickets: false,
+        manage_orders: false,
+        view_billing: false,
+        manage_billing: false,
         access_settings: false,
-        delete_items: false,
-        create_items: false,
-        view_analytics: false,
-        access_advanced_tools: false,
+        change_workspace_info: false,
       });
     }
   };
@@ -274,12 +328,21 @@ export function useTeam() {
       workspaceOwnerEmail: null,
       workspaceOwnerId: null,
       permissions: {
+        access_dashboard: false,
+        view_team: false,
         manage_team: false,
+        invite_members: false,
+        remove_members: false,
+        access_files: false,
+        upload_files: false,
+        delete_files: false,
+        manage_tickets: false,
+        create_tickets: false,
+        manage_orders: false,
+        view_billing: false,
+        manage_billing: false,
         access_settings: false,
-        delete_items: false,
-        create_items: false,
-        view_analytics: false,
-        access_advanced_tools: false,
+        change_workspace_info: false,
       },
       canManageBilling: false,
       refreshTeam: async () => {},

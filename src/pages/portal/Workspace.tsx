@@ -349,20 +349,20 @@ export default function WorkspacePage() {
                   <span className="text-sm">Access Settings</span>
                 </div>
                 <div className="flex items-center gap-2 p-3 border rounded-lg">
-                  <div className={`w-2 h-2 rounded-full ${permissions.delete_items ? "bg-green-500" : "bg-gray-400"}`} />
-                  <span className="text-sm">Delete Items</span>
+                  <div className={`w-2 h-2 rounded-full ${permissions.delete_files ? "bg-green-500" : "bg-gray-400"}`} />
+                  <span className="text-sm">Delete Files</span>
                 </div>
                 <div className="flex items-center gap-2 p-3 border rounded-lg">
-                  <div className={`w-2 h-2 rounded-full ${permissions.create_items ? "bg-green-500" : "bg-gray-400"}`} />
-                  <span className="text-sm">Create Items</span>
+                  <div className={`w-2 h-2 rounded-full ${permissions.create_tickets ? "bg-green-500" : "bg-gray-400"}`} />
+                  <span className="text-sm">Create Tickets</span>
                 </div>
                 <div className="flex items-center gap-2 p-3 border rounded-lg">
-                  <div className={`w-2 h-2 rounded-full ${permissions.view_analytics ? "bg-green-500" : "bg-gray-400"}`} />
-                  <span className="text-sm">View Analytics</span>
+                  <div className={`w-2 h-2 rounded-full ${permissions.upload_files ? "bg-green-500" : "bg-gray-400"}`} />
+                  <span className="text-sm">Upload Files</span>
                 </div>
                 <div className="flex items-center gap-2 p-3 border rounded-lg">
-                  <div className={`w-2 h-2 rounded-full ${permissions.access_advanced_tools ? "bg-green-500" : "bg-gray-400"}`} />
-                  <span className="text-sm">Access Advanced Tools</span>
+                  <div className={`w-2 h-2 rounded-full ${permissions.manage_orders ? "bg-green-500" : "bg-gray-400"}`} />
+                  <span className="text-sm">Manage Orders</span>
                 </div>
               </div>
             </CardContent>

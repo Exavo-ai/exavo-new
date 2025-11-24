@@ -33,6 +33,7 @@ import { Search, AlertCircle, MessageSquare, Filter, Trash2, TrendingUp } from "
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { useNavigate } from "react-router-dom";
 
 interface Appointment {
@@ -77,6 +78,7 @@ export default function OrdersPage() {
   });
   const { toast } = useToast();
   const { user } = useAuth();
+  const { permissions } = useTeam();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -337,15 +339,17 @@ export default function OrdersPage() {
                               <MessageSquare className="w-4 h-4 mr-2" />
                               Contact Support
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setDeleteDialog({ open: true, appointment })}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Remove
-                            </Button>
+                            {permissions.manage_orders && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setDeleteDialog({ open: true, appointment })}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Remove
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

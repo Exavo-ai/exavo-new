@@ -9,34 +9,61 @@ import { toast } from "sonner";
 import { Loader2, Shield, Users, Eye } from "lucide-react";
 
 interface RolePermissions {
+  access_dashboard: boolean;
+  view_team: boolean;
   manage_team: boolean;
+  invite_members: boolean;
+  remove_members: boolean;
+  access_files: boolean;
+  upload_files: boolean;
+  delete_files: boolean;
+  manage_tickets: boolean;
+  create_tickets: boolean;
+  manage_orders: boolean;
+  view_billing: boolean;
+  manage_billing: boolean;
   access_settings: boolean;
-  delete_items: boolean;
-  create_items: boolean;
-  view_analytics: boolean;
-  access_advanced_tools: boolean;
+  change_workspace_info: boolean;
 }
 
-const permissionLabels = {
-  manage_team: "Manage Team",
+const permissionLabels: Record<keyof RolePermissions, string> = {
+  access_dashboard: "Access Dashboard",
+  view_team: "View Team",
+  manage_team: "Manage Team Members",
+  invite_members: "Invite Members",
+  remove_members: "Remove Members",
+  access_files: "Access Files",
+  upload_files: "Upload Files",
+  delete_files: "Delete Files",
+  manage_tickets: "Manage Tickets",
+  create_tickets: "Create Service Requests",
+  manage_orders: "Manage Orders",
+  view_billing: "View Billing",
+  manage_billing: "Manage Billing",
   access_settings: "Access Settings",
-  delete_items: "Delete Items",
-  create_items: "Create Items",
-  view_analytics: "View Analytics",
-  access_advanced_tools: "Access Advanced Tools",
+  change_workspace_info: "Change Workspace Info",
 };
 
-const permissionDescriptions = {
-  manage_team: "Can invite, remove, and manage team members",
-  access_settings: "Can view and modify workspace settings",
-  delete_items: "Can delete tickets, files, and other items",
-  create_items: "Can create new tickets, orders, and files",
-  view_analytics: "Can access analytics and reports",
-  access_advanced_tools: "Can use AI tools and advanced features",
+const permissionDescriptions: Record<keyof RolePermissions, string> = {
+  access_dashboard: "Can view the dashboard and metrics",
+  view_team: "Can see team members list",
+  manage_team: "Can manage team member roles and permissions",
+  invite_members: "Can invite new team members",
+  remove_members: "Can remove team members from workspace",
+  access_files: "Can view files in the workspace",
+  upload_files: "Can upload new files",
+  delete_files: "Can delete files from workspace",
+  manage_tickets: "Can edit and manage all tickets",
+  create_tickets: "Can create new support tickets",
+  manage_orders: "Can manage and edit orders",
+  view_billing: "Can view billing information",
+  manage_billing: "Can manage billing and subscriptions",
+  access_settings: "Can access workspace settings",
+  change_workspace_info: "Can modify workspace details",
 };
 
 export function PermissionsManager() {
-  const { organizationId, updatePermissions } = useTeam();
+  const { organizationId, updatePermissions, isWorkspaceOwner } = useTeam();
   const [loading, setLoading] = useState(true);
   const [adminPerms, setAdminPerms] = useState<RolePermissions | null>(null);
   const [memberPerms, setMemberPerms] = useState<RolePermissions | null>(null);
@@ -76,10 +103,15 @@ export function PermissionsManager() {
     permission: keyof RolePermissions,
     currentPerms: RolePermissions
   ) => {
+    if (!isWorkspaceOwner) {
+      toast.error("Only workspace owners can modify permissions");
+      return;
+    }
+
     const newPerms = { ...currentPerms, [permission]: !currentPerms[permission] };
 
     try {
-      await updatePermissions(role, newPerms);
+      await updatePermissions(role, newPerms as any);
       
       // Update local state
       if (role === "admin") setAdminPerms(newPerms);
@@ -98,6 +130,17 @@ export function PermissionsManager() {
       <div className="flex items-center justify-center py-8">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
+    );
+  }
+
+  if (!isWorkspaceOwner) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">Only workspace owners can configure permissions</p>
+        </CardContent>
+      </Card>
     );
   }
 

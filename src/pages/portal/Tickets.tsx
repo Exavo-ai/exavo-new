@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Search, AlertCircle, Loader2 } from "lucide-react";
 import { CreateTicketDialog } from "@/components/portal/CreateTicketDialog";
 import { useToast } from "@/hooks/use-toast";
+import { useTeam } from "@/contexts/TeamContext";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Ticket {
@@ -43,6 +44,7 @@ export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const { permissions } = useTeam();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -204,7 +206,7 @@ export default function TicketsPage() {
           <h1 className="text-3xl font-bold">Support Tickets</h1>
           <p className="text-muted-foreground">Track and manage your support requests</p>
         </div>
-        <CreateTicketDialog onTicketCreated={fetchTickets} />
+        {permissions.create_tickets && <CreateTicketDialog onTicketCreated={fetchTickets} />}
       </div>
 
       <Card>
