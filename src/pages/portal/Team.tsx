@@ -220,12 +220,15 @@ export default function TeamPage() {
         throw new Error(data.error);
       }
 
-      // Update local state immediately
+      // Update local state immediately for instant UI feedback
       setMembers(members.filter(m => m.id !== selectedMember.id));
+
+      // Also refresh from server to ensure consistency
+      await fetchMembers();
 
       toast({
         title: "Success",
-        description: "Team member removed successfully",
+        description: "Team member removed and deleted from system",
       });
 
       setManageOpen(false);
@@ -449,13 +452,15 @@ export default function TeamPage() {
                 </Select>
               </div>
               <div className="flex gap-2 justify-end pt-4 border-t">
-                <Button
-                  variant="destructive"
-                  onClick={handleRemoveMember}
-                  disabled={submitting}
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Remove Member"}
-                </Button>
+                {canManageTeam && (
+                  <Button
+                    variant="destructive"
+                    onClick={handleRemoveMember}
+                    disabled={submitting}
+                  >
+                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Remove Member"}
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => setManageOpen(false)}>
                   Close
                 </Button>

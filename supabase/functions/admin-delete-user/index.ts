@@ -13,6 +13,8 @@ serve(async (req) => {
   }
 
   try {
+    console.log("=== Admin Delete User Request ===");
+    
     // Get JWT from authorization header
     const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
     
@@ -35,6 +37,8 @@ serve(async (req) => {
       });
     }
 
+    console.log("Admin user ID:", currentUserId);
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -47,6 +51,7 @@ serve(async (req) => {
     });
 
     if (!isAdmin) {
+      console.error("User is not admin");
       return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -70,6 +75,15 @@ serve(async (req) => {
     }
 
     const { userId } = validated;
+    console.log("Deleting user ID:", userId);
+
+    // Prevent admin from deleting themselves
+    if (userId === currentUserId) {
+      return new Response(JSON.stringify({ error: 'Cannot delete your own account' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Use service role for deletion
     const supabaseAdmin = createClient(
@@ -77,18 +91,86 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { error } = await supabaseAdmin.from('profiles').delete().eq('id', userId);
+    // Delete related data first (order matters for foreign keys)
+    console.log("Deleting related data...");
 
-    if (error) throw error;
+    // Delete team members where user is a member
+    await supabaseAdmin.from("team_members").delete().eq("email", (await supabaseAdmin.from("profiles").select("email").eq("id", userId).single()).data?.email || "");
+    console.log("- Deleted team member records");
 
-    console.log('Admin performed user deletion operation');
+    // Delete team members where user is the organization owner
+    await supabaseAdmin.from("team_members").delete().eq("organization_id", userId);
+    console.log("- Deleted organization team members");
+
+    // Delete workspace if user owns one
+    await supabaseAdmin.from("workspaces").delete().eq("owner_id", userId);
+    console.log("- Deleted workspace");
+
+    // Delete notifications
+    await supabaseAdmin.from("notifications").delete().eq("user_id", userId);
+    console.log("- Deleted notifications");
+
+    // Delete chat messages
+    await supabaseAdmin.from("chat_messages").delete().eq("user_id", userId);
+    console.log("- Deleted chat messages");
+
+    // Delete activity logs
+    await supabaseAdmin.from("activity_logs").delete().eq("user_id", userId);
+    console.log("- Deleted activity logs");
+
+    // Delete user files
+    await supabaseAdmin.from("user_files").delete().eq("user_id", userId);
+    console.log("- Deleted user files");
+
+    // Delete tickets
+    await supabaseAdmin.from("tickets").delete().eq("user_id", userId);
+    console.log("- Deleted tickets");
+
+    // Delete appointments
+    await supabaseAdmin.from("appointments").delete().eq("user_id", userId);
+    console.log("- Deleted appointments");
+
+    // Delete orders
+    await supabaseAdmin.from("orders").delete().eq("user_id", userId);
+    console.log("- Deleted orders");
+
+    // Delete payments
+    await supabaseAdmin.from("payments").delete().eq("user_id", userId);
+    console.log("- Deleted payments");
+
+    // Delete payment methods
+    await supabaseAdmin.from("payment_methods").delete().eq("user_id", userId);
+    console.log("- Deleted payment methods");
+
+    // Delete projects
+    await supabaseAdmin.from("projects").delete().eq("user_id", userId);
+    console.log("- Deleted projects");
+
+    // Delete user roles
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
+    console.log("- Deleted user roles");
+
+    // Delete profile
+    await supabaseAdmin.from("profiles").delete().eq("id", userId);
+    console.log("- Deleted profile");
+
+    // Finally, delete from Auth (this cascades to any remaining references)
+    const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+    if (deleteAuthError) {
+      console.error("Delete auth user error:", deleteAuthError);
+      throw new Error(`Failed to delete user from auth: ${deleteAuthError.message}`);
+    }
+
+    console.log("✓ User completely deleted from auth system");
+    console.log("✓ Admin user deletion completed successfully");
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error: any) {
-    console.error('Error in admin-delete-user:', error);
+    console.error('ERROR in admin-delete-user:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

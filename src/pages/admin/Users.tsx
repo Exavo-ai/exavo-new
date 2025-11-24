@@ -88,23 +88,39 @@ export default function Users() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) return;
+    if (!confirm("Are you sure you want to delete this user? This action cannot be undone. The user will be completely removed from the system and can register again with the same email.")) return;
 
     try {
+      // Get current session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      
       // Call edge function for admin operation
-      const { error } = await supabase.functions.invoke('admin-delete-user', {
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
         body: { userId },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Function invocation error:", error);
+        throw new Error(error.message || "Failed to delete user");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      // Update local state immediately for instant UI feedback
+      setUsers(users.filter(u => u.id !== userId));
 
       toast({
         title: "Success",
-        description: "User deleted successfully",
+        description: "User completely deleted from system",
       });
 
+      // Also refresh from server to ensure consistency
       loadUsers();
     } catch (error: any) {
+      console.error("Error deleting user:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete user",
