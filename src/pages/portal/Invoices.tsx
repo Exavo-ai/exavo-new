@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Download, Eye, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -305,26 +306,65 @@ export default function InvoicesPage() {
 
               {/* Actions */}
               <div className="flex gap-3 pt-4">
-                {selectedInvoice.hosted_invoice_url && (
-                  <Button 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={() => window.open(selectedInvoice.hosted_invoice_url!, '_blank')}
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    View on Stripe
-                  </Button>
-                )}
-                {selectedInvoice.invoice_pdf && (
-                  <Button 
-                    variant="default" 
-                    className="flex-1"
-                    onClick={() => handleDownloadPDF(selectedInvoice)}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download PDF
-                  </Button>
-                )}
+                <TooltipProvider>
+                  {selectedInvoice.hosted_invoice_url ? (
+                    <Button 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={() => window.open(selectedInvoice.hosted_invoice_url!, '_blank')}
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      View on Stripe
+                    </Button>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex-1">
+                          <Button 
+                            variant="outline" 
+                            className="w-full"
+                            disabled
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            View on Stripe
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Hosted invoice not available</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  
+                  {selectedInvoice.invoice_pdf ? (
+                    <Button 
+                      variant="default" 
+                      className="flex-1"
+                      onClick={() => window.open(selectedInvoice.invoice_pdf!, '_blank')}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download PDF
+                    </Button>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex-1">
+                          <Button 
+                            variant="default" 
+                            className="w-full"
+                            disabled
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download PDF
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>PDF not available</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </TooltipProvider>
               </div>
             </div>
           )}
