@@ -16,16 +16,21 @@ async function sendEmail(to: string[], subject: string, html: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Exavo AI <onboarding@resend.dev>",
+      from: "Exavo AI <info@exavoai.io>",
       to,
       subject,
       html,
+      reply_to: "info@exavoai.io",
     }),
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to send email: ${error}`);
+    const errorText = await response.text();
+    console.error("Resend API error:", {
+      status: response.status,
+      body: errorText
+    });
+    throw new Error(`Failed to send email: ${errorText}`);
   }
 
   return await response.json();
@@ -268,13 +273,19 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error in send-welcome-email:", error);
+    
+    // Return 400 for email sending failures, 500 for other errors
+    const isEmailError = error instanceof Error && error.message.includes("Failed to send email");
+    const statusCode = isEmailError ? 400 : 500;
+    
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+        error: "Failed to send email",
+        details: error instanceof Error ? error.message : 'Unknown error occurred' 
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
+        status: statusCode,
       }
     );
   }
