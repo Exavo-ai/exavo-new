@@ -30,37 +30,37 @@ interface RolePermissions {
 const permissionLabels: Record<keyof RolePermissions, string> = {
   access_dashboard: "Access Dashboard",
   view_team: "View Team",
-  manage_team: "Manage Team Members",
+  manage_team: "Manage Members",
   invite_members: "Invite Members",
   remove_members: "Remove Members",
   access_files: "Access Files",
   upload_files: "Upload Files",
   delete_files: "Delete Files",
   manage_tickets: "Manage Tickets",
-  create_tickets: "Create Service Requests",
+  create_tickets: "Create Requests",
   manage_orders: "Manage Orders",
   view_billing: "View Billing",
   manage_billing: "Manage Billing",
   access_settings: "Access Settings",
-  change_workspace_info: "Change Workspace Info",
+  change_workspace_info: "Edit Workspace",
 };
 
 const permissionDescriptions: Record<keyof RolePermissions, string> = {
-  access_dashboard: "Can view the dashboard and metrics",
-  view_team: "Can see team members list",
-  manage_team: "Can manage team member roles and permissions",
-  invite_members: "Can invite new team members",
-  remove_members: "Can remove team members from workspace",
-  access_files: "Can view files in the workspace",
-  upload_files: "Can upload new files",
-  delete_files: "Can delete files from workspace",
-  manage_tickets: "Can edit and manage all tickets",
-  create_tickets: "Can create new support tickets",
-  manage_orders: "Can manage and edit orders",
-  view_billing: "Can view billing information",
-  manage_billing: "Can manage billing and subscriptions",
-  access_settings: "Can access workspace settings",
-  change_workspace_info: "Can modify workspace details",
+  access_dashboard: "View dashboard and metrics",
+  view_team: "View team members",
+  manage_team: "Edit roles and permissions",
+  invite_members: "Invite new members",
+  remove_members: "Remove members",
+  access_files: "View files",
+  upload_files: "Upload files",
+  delete_files: "Delete files",
+  manage_tickets: "Edit and manage tickets",
+  create_tickets: "Create support tickets",
+  manage_orders: "Manage orders",
+  view_billing: "View billing info",
+  manage_billing: "Manage billing",
+  access_settings: "Access settings",
+  change_workspace_info: "Modify workspace details",
 };
 
 export function PermissionsManager() {
@@ -165,14 +165,14 @@ export function PermissionsManager() {
           </div>
         </AccordionTrigger>
         <AccordionContent>
-          <div className="space-y-4 pt-4">
+          <div className="space-y-3 pt-2 pb-2">
             {(Object.keys(permissionLabels) as Array<keyof RolePermissions>).map((key) => (
-              <div key={key} className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor={`${role}-${key}`} className="text-sm font-medium">
+              <div key={key} className="flex items-center justify-between gap-4 py-2">
+                <div className="flex-1 min-w-0">
+                  <Label htmlFor={`${role}-${key}`} className="text-sm font-medium cursor-pointer">
                     {permissionLabels[key]}
                   </Label>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {permissionDescriptions[key]}
                   </p>
                 </div>
@@ -202,7 +202,7 @@ export function PermissionsManager() {
 
       <Card>
         <CardContent className="pt-6">
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion type="single" collapsible className="w-full" defaultValue="">
             {renderPermissionsAccordion(
               "admin",
               <Shield className="w-5 h-5 text-primary" />,
