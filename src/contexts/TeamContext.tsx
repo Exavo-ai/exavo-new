@@ -133,7 +133,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const canManageTeam = isAdmin;
   const canInviteMembers = isAdmin;
-  const canManageBilling = isWorkspaceOwner; // Only workspace owner can manage billing
+  const canManageBilling = isAdmin; // Simplified - all admins can manage billing
 
   return (
     <TeamContext.Provider

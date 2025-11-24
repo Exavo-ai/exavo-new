@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/portal/StatusBadge";
-import { DollarSign, Bot, Zap, AlertCircle, LifeBuoy, FileText, MessageSquare, Briefcase, Building2, Crown, Users } from "lucide-react";
+import { DollarSign, Bot, Zap, AlertCircle, LifeBuoy, FileText, MessageSquare, Briefcase } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -35,17 +35,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
-  const [workspaceOwner, setWorkspaceOwner] = useState<string>("");
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { 
-    currentUserRole, 
-    teamMembers, 
-    isWorkspaceOwner, 
-    workspaceOwnerEmail, 
-    loading: teamLoading,
-    workspaceId 
-  } = useTeam();
   const { user } = useAuth();
 
   useEffect(() => {
@@ -141,51 +132,8 @@ export default function DashboardPage() {
         <p className="text-sm sm:text-base text-muted-foreground">Welcome to your AI workspace overview</p>
       </div>
 
-      {/* Workspace Info Section */}
-      <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-primary" />
-              <CardTitle className="text-lg">
-                {isWorkspaceOwner ? "Your Workspace" : "Workspace"}
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="flex items-center gap-3">
-                <Crown className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    {isWorkspaceOwner ? "Owner (You)" : "Workspace Owner"}
-                  </p>
-                  <p className="text-sm font-medium">{workspaceOwnerEmail || user?.email || "Unknown"}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Your Role</p>
-                  <p className="text-sm font-medium">
-                    {currentUserRole}
-                    {isWorkspaceOwner && " (Owner)"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Team Size</p>
-                  <p className="text-sm font-medium">{teamMembers.length} member{teamMembers.length !== 1 ? 's' : ''}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-      {/* Only show KPIs and actions for Admin/Member */}
-      {(currentUserRole === "Admin" || currentUserRole === "Member") && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      {/* KPIs and Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -221,36 +169,30 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {currentUserRole === "Admin" || currentUserRole === "Member" ? (
-                <>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-start"
-                    onClick={() => navigate("/client/tickets")}
-                  >
-                    <LifeBuoy className="w-4 h-4 mr-2" />
-                    Create Ticket
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-start"
-                    onClick={() => navigate("/client/services/browse")}
-                  >
-                    <Briefcase className="w-4 h-4 mr-2" />
-                    Service Request
-                  </Button>
-                </>
-              ) : null}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full justify-start"
+                onClick={() => navigate("/client/tickets")}
+              >
+                <LifeBuoy className="w-4 h-4 mr-2" />
+                Create Ticket
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full justify-start"
+                onClick={() => navigate("/client/services/browse")}
+              >
+                <Briefcase className="w-4 h-4 mr-2" />
+                Service Request
+              </Button>
           </CardContent>
         </Card>
       </div>
-      )}
 
-      {/* Only show recent activity for Admin/Member */}
-      {(currentUserRole === "Admin" || currentUserRole === "Member") && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      {/* Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -331,11 +273,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      )}
 
-      {/* Notes section for all users */}
-      {(currentUserRole === "Admin" || currentUserRole === "Member") && (
-        <Card>
+      {/* Notes section */}
+      <Card>
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl">Notes</CardTitle>
           </CardHeader>
@@ -353,7 +293,6 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-      )}
     </div>
   );
 }

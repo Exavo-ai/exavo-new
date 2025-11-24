@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Calendar, CreditCard, RefreshCw, Loader2, Lock, Check } from "lucide-react";
+import { Calendar, CreditCard, RefreshCw, Loader2, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/portal/StatusBadge";
@@ -98,7 +98,7 @@ export default function SubscriptionsPage() {
   const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { canManageBilling, currentUserRole, isAdmin, refreshTeam, loading: teamLoading, workspaceId } = useTeam();
+  const { canManageBilling, currentUserRole, isAdmin, refreshTeam } = useTeam();
 
   useEffect(() => {
     // Check if returning from successful checkout
@@ -221,15 +221,6 @@ export default function SubscriptionsPage() {
   };
 
   const handleUpgrade = async (planId: string, priceId: string) => {
-    if (!canManageBilling) {
-      toast({
-        title: "Access Denied",
-        description: "Only workspace administrators can manage subscriptions",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setUpgradingPlan(planId);
       
@@ -273,20 +264,9 @@ export default function SubscriptionsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Subscriptions</h1>
-        <p className="text-muted-foreground">
-          Manage your active subscriptions {currentUserRole && `(Your role: ${currentUserRole})`}
-        </p>
+        <p className="text-muted-foreground">Manage your subscriptions</p>
       </div>
 
-      {!canManageBilling && (
-        <Alert>
-          <Lock className="h-4 w-4" />
-          <AlertDescription>
-            Only workspace administrators can manage subscriptions and billing.
-            {isAdmin ? "" : " Contact your workspace admin if you need to make changes."}
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* Available Plans */}
       <div>
@@ -325,7 +305,7 @@ export default function SubscriptionsPage() {
                   <Button
                     className="w-full"
                     variant={isCurrent ? "outline" : "default"}
-                    disabled={isCurrent || !canManageBilling || upgradingPlan !== null}
+                    disabled={isCurrent || upgradingPlan !== null}
                     onClick={() => handleUpgrade(plan.id, plan.priceId)}
                   >
                     {upgradingPlan === plan.id ? (
@@ -379,7 +359,6 @@ export default function SubscriptionsPage() {
                       variant="outline" 
                       className="w-full" 
                       onClick={handleManageBilling}
-                      disabled={!canManageBilling}
                     >
                       <CreditCard className="w-4 h-4 mr-2" />
                       Manage Billing

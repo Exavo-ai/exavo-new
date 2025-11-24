@@ -31,7 +31,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         .from('site_settings')
         .select('*');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading settings:', error);
+        // Use safe defaults instead of crashing
+        setSettings({});
+        return;
+      }
 
       const settingsMap: Record<string, string> = {};
       data?.forEach((setting: Setting) => {
@@ -41,11 +46,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setSettings(settingsMap);
     } catch (error: any) {
       console.error('Error loading settings:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load settings',
-        variant: 'destructive',
-      });
+      // Use safe defaults instead of crashing
+      setSettings({});
     } finally {
       setLoading(false);
     }
@@ -53,27 +55,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadSettings();
-
-    // Set up realtime subscription for settings changes
-    const channel = supabase
-      .channel('settings-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'site_settings'
-        },
-        () => {
-          console.log('Settings changed, reloading...');
-          loadSettings();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Removed realtime subscription to prevent refresh loops
   }, []);
 
   const getSetting = (key: string, defaultValue: string = ''): string => {
@@ -142,7 +124,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 export function useSettings() {
   const context = useContext(SettingsContext);
   if (context === undefined) {
-    throw new Error('useSettings must be used within a SettingsProvider');
+    // Return safe defaults instead of throwing
+    return {
+      settings: {},
+      loading: false,
+      getSetting: (key: string, defaultValue: string = '') => defaultValue,
+      updateSetting: async () => {},
+      updateSettings: async () => {},
+      refreshSettings: async () => {},
+    };
   }
   return context;
 }

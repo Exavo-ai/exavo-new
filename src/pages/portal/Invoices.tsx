@@ -39,7 +39,7 @@ export default function InvoicesPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { canManageBilling, currentUserRole, loading: teamLoading, workspaceId } = useTeam();
+  const { canManageBilling, currentUserRole } = useTeam();
   const { user } = useAuth();
 
   useEffect(() => {
