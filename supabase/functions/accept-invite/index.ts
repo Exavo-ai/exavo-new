@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { token, fullName } = await req.json();
+    const { token, fullName, password, createAccount } = await req.json();
 
     if (!token) {
       console.log("[ACCEPT-INVITE] No token provided");
@@ -75,8 +75,44 @@ serve(async (req) => {
       console.log("[ACCEPT-INVITE] Token expired");
       return new Response(
         JSON.stringify({ success: false, error: "This invitation has expired" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
+    }
+
+    // If createAccount flag is set, create the user account
+    if (createAccount && password) {
+      console.log("[ACCEPT-INVITE] Creating user account with email confirmed");
+      
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      );
+
+      // Create user with email already confirmed
+      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
+        email: member.email,
+        password: password,
+        email_confirm: true, // Skip email verification
+        user_metadata: {
+          full_name: fullName || "",
+        },
+      });
+
+      if (userError) {
+        console.error("[ACCEPT-INVITE] User creation error:", userError);
+        return new Response(
+          JSON.stringify({ success: false, error: `Failed to create account: ${userError.message}` }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
+
+      console.log("[ACCEPT-INVITE] ✓ User account created:", userData.user?.id);
     }
 
     // Update team member to active

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { token } = await req.json();
+    const { token, checkUserExists } = await req.json();
 
     if (!token) {
       console.log("[VALIDATE-INVITE] No token provided in request");
@@ -22,7 +22,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("[VALIDATE-INVITE] Validating token:", token);
+    console.log("[VALIDATE-INVITE] Validating token:", token, "checkUserExists:", checkUserExists);
 
     // Create service role client to bypass RLS
     const supabaseServiceClient = createClient(
@@ -89,10 +89,24 @@ serve(async (req) => {
 
     console.log("[VALIDATE-INVITE] ✓ Valid invitation for:", member.email);
     
+    // If checkUserExists flag is set, check if user account exists
+    let userExists = false;
+    if (checkUserExists) {
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+      
+      const { data: users } = await supabaseAdmin.auth.admin.listUsers();
+      userExists = users?.users?.some((u: any) => u.email === member.email) || false;
+      console.log("[VALIDATE-INVITE] User exists check:", userExists);
+    }
+    
     // Return valid invitation data
     return new Response(
       JSON.stringify({
         valid: true,
+        userExists,
         data: {
           id: member.id,
           email: member.email,
