@@ -60,18 +60,7 @@ serve(async (req) => {
       }
     );
 
-    // Check if user already exists
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const userExists = existingUsers?.users?.some(u => u.email === email);
-
-    if (userExists) {
-      return new Response(
-        JSON.stringify({ error: "User with this email already exists" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 }
-      );
-    }
-
-    // Create user with auto-confirmed email
+    // Try to create user with auto-confirmed email
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       email_confirm: true,
@@ -79,6 +68,90 @@ serve(async (req) => {
         full_name: full_name || "",
       },
     });
+
+    // If user already exists, send them a password reset link instead
+    if (createError && createError.message.includes("already been registered")) {
+      console.log(`User ${email} already exists, sending password reset link`);
+      
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: {
+          redirectTo: `${Deno.env.get("SUPABASE_URL")?.replace("/api", "")}/update-password`,
+        },
+      });
+
+      if (linkError) {
+        console.error("Error generating password reset link:", linkError);
+        throw new Error(`Failed to generate password reset link: ${linkError.message}`);
+      }
+
+      const resetLink = linkData.properties.action_link;
+
+      await sendEmail(
+        [email],
+        "🔐 Password Reset - Exavo AI",
+        `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+                .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                .header { background: linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%); color: white; padding: 40px 30px; text-align: center; }
+                .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+                .content { padding: 40px 30px; background: white; }
+                .greeting { font-size: 18px; color: #1a1a1a; margin-bottom: 20px; font-weight: 500; }
+                .message { font-size: 16px; color: #4a4a4a; margin-bottom: 15px; line-height: 1.8; }
+                .cta-container { text-align: center; margin: 35px 0; }
+                .button { display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; }
+                .security-note { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; font-size: 14px; color: #856404; }
+                .footer { text-align: center; padding: 25px; background: #f8f9fa; color: #666; font-size: 13px; border-top: 1px solid #e0e0e0; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>🔐 Reset Your Password</h1>
+                </div>
+                <div class="content">
+                  <p class="greeting">Hello ${full_name || 'there'},</p>
+                  <p class="message">
+                    You already have an account with Exavo AI. Click the button below to reset your password and access your account.
+                  </p>
+                  <div class="cta-container">
+                    <a href="${resetLink}" class="button">Reset Password →</a>
+                  </div>
+                  <div class="security-note">
+                    <strong>🔒 Security Note:</strong> This link will expire in 24 hours. If you didn't request this, you can safely ignore this email.
+                  </div>
+                  <p class="message" style="margin-top: 30px;">
+                    Best regards,<br>
+                    <strong>The Exavo AI Team</strong>
+                  </p>
+                </div>
+                <div class="footer">
+                  <p><strong>Exavo AI</strong> - Empowering Business with Intelligence</p>
+                  <p>© ${new Date().getFullYear()} Exavo AI. All rights reserved.</p>
+                </div>
+              </div>
+            </body>
+          </html>
+        `
+      );
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: `Password reset link sent to ${email} (user already exists)`,
+          existing_user: true
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
+    }
 
     if (createError) {
       console.error("Error creating user:", createError);
