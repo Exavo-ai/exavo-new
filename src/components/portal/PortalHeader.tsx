@@ -43,7 +43,7 @@ export function PortalHeader({ isMobile, onMenuToggle }: PortalHeaderProps) {
         <img src={exavoLogo} alt="Exavo AI" className="h-7 sm:h-8 w-auto shrink-0" />
         <div className="min-w-0">
           <h1 className="text-sm sm:text-base font-semibold truncate">
-            Hello, {firstName}! 👋
+            Hello, Client! 👋
           </h1>
           <p className="text-xs text-muted-foreground hidden sm:block truncate">
             Welcome to your AI workspace

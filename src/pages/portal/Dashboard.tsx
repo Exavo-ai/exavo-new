@@ -186,7 +186,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Workspace Owner</p>
                 <p className="font-medium text-sm truncate">
-                  {workspaceOwnerEmail || user?.email || "Loading..."}
+                  client@gmail.com
                 </p>
               </div>
             </div>

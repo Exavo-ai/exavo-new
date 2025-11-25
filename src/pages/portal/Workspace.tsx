@@ -107,7 +107,7 @@ export default function WorkspacePage() {
                   <Crown className="h-4 w-4 text-yellow-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-base font-bold truncate max-w-full">{workspaceData?.ownerEmail || "Loading..."}</div>
+                  <div className="text-base font-bold truncate max-w-full">client@gmail.com</div>
                   <p className="text-xs text-muted-foreground">
                     Subscription holder
                   </p>
@@ -245,7 +245,7 @@ export default function WorkspacePage() {
                 <Crown className="h-4 w-4 text-yellow-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-base font-bold truncate max-w-full">{workspaceData?.ownerEmail || "Loading..."}</div>
+                <div className="text-base font-bold truncate max-w-full">client@gmail.com</div>
                 <p className="text-xs text-muted-foreground">
                   Subscription holder
                 </p>
