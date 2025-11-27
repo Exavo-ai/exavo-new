@@ -1,113 +1,140 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get JWT from authorization header
-    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
+    const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "No authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new Error('No authorization header');
     }
 
-    // Extract JWT token and decode to get user ID
-    const token = authHeader.replace("Bearer ", "");
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const userId = payload.sub;
-    
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const token = authHeader.replace('Bearer ', '');
+    const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+
+    const { data: { user }, error: userError } = await supabaseAnon.auth.getUser();
+    if (userError || !user) {
+      throw new Error('Unauthorized');
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    );
-
-    // Verify admin role
-    const { data: isAdmin } = await supabaseClient.rpc('has_role', {
-      _user_id: userId,
+    const { data: isAdmin, error: roleError } = await supabaseAnon.rpc('has_role', {
+      _user_id: user.id,
       _role: 'admin'
     });
 
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (roleError || !isAdmin) {
+      throw new Error('User does not have admin role');
     }
 
-    // Validate input
-    const updateServiceSchema = z.object({
-      serviceId: z.string().uuid('Invalid service ID format'),
-      updates: z.object({
-        name: z.string().trim().min(2, 'Name must be at least 2 characters').max(200, 'Name must be less than 200 characters').optional(),
-        name_ar: z.string().trim().min(2, 'Arabic name must be at least 2 characters').max(200, 'Arabic name must be less than 200 characters').optional(),
-        description: z.string().trim().min(10, 'Description must be at least 10 characters').max(2000, 'Description must be less than 2000 characters').optional(),
-        description_ar: z.string().trim().min(10, 'Arabic description must be at least 10 characters').max(2000, 'Arabic description must be less than 2000 characters').optional(),
-        price: z.number().positive('Price must be positive').optional(),
-        currency: z.string().length(3, 'Currency must be 3 characters').optional(),
-        category: z.string().uuid('Invalid category ID').optional(),
-        active: z.boolean().optional(),
-        image_url: z.string().url('Invalid image URL').max(500, 'Image URL must be less than 500 characters').nullable().optional()
-      }).refine(data => Object.keys(data).length > 0, {
-        message: 'At least one field must be provided for update'
-      })
+    const packageSchema = z.object({
+      id: z.string().uuid().optional(),
+      package_name: z.string().min(1),
+      price: z.number().min(0),
+      currency: z.string().default('USD'),
+      features: z.array(z.string()),
+      delivery_time: z.string().optional(),
+      notes: z.string().optional(),
+      package_order: z.number().default(0),
     });
 
-    let validated;
-    try {
-      const input = await req.json();
-      validated = updateServiceSchema.parse(input);
-    } catch (error: any) {
-      return new Response(JSON.stringify({ error: error.errors?.[0]?.message || 'Invalid input data' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const updateServiceSchema = z.object({
+      serviceId: z.string().uuid(),
+      updates: z.object({
+        name: z.string().min(1),
+        name_ar: z.string().min(1),
+        description: z.string().min(1),
+        description_ar: z.string().min(1),
+        price: z.number().min(0),
+        currency: z.string().default('USD'),
+        category: z.string().uuid(),
+        active: z.boolean(),
+        image_url: z.string().nullable().optional(),
+      }),
+      packages: z.array(packageSchema).optional(),
+    });
+
+    const body = await req.json();
+    const validatedData = updateServiceSchema.parse(body);
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+    const { error: serviceError } = await supabaseAdmin
+      .from('services')
+      .update(validatedData.updates)
+      .eq('id', validatedData.serviceId);
+
+    if (serviceError) {
+      console.error('Error updating service:', serviceError);
+      throw serviceError;
     }
 
-    const { serviceId, updates } = validated;
+    if (validatedData.packages) {
+      await supabaseAdmin
+        .from('service_packages')
+        .delete()
+        .eq('service_id', validatedData.serviceId);
 
-    // Use service role for updates
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      if (validatedData.packages.length > 0) {
+        const packagesToInsert = validatedData.packages.map(pkg => ({
+          service_id: validatedData.serviceId,
+          package_name: pkg.package_name,
+          price: pkg.price,
+          currency: pkg.currency,
+          features: pkg.features,
+          delivery_time: pkg.delivery_time,
+          notes: pkg.notes,
+          package_order: pkg.package_order,
+        }));
+
+        const { error: packagesError } = await supabaseAdmin
+          .from('service_packages')
+          .insert(packagesToInsert);
+
+        if (packagesError) {
+          console.error('Error updating packages:', packagesError);
+          throw packagesError;
+        }
+      }
+    }
+
+    console.log('Service updated successfully:', validatedData.serviceId);
+
+    return new Response(
+      JSON.stringify({ success: true }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-    const { error } = await supabaseAdmin
-      .from('services')
-      .update(updates)
-      .eq('id', serviceId);
-
-    if (error) throw error;
-
-    console.log('Admin performed service update operation');
-
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error in admin-update-service:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    
+    if (error instanceof z.ZodError) {
+      return new Response(
+        JSON.stringify({ error: 'Validation error', details: error.errors }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });

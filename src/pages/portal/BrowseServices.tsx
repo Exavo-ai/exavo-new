@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import BookingDialog from "@/components/BookingDialog";
 import { PremiumServiceCard } from "@/components/PremiumServiceCard";
 import { PremiumServiceFilters } from "@/components/PremiumServiceFilters";
+import { ServiceDetailsDialog } from "@/components/ServiceDetailsDialog";
 import { Bot, Workflow, LineChart, Mail, FileText, BarChart3, Brain, Zap, Shield, Target, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +94,7 @@ const BrowseServices = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   
@@ -121,7 +123,19 @@ const BrowseServices = () => {
 
   const handleBookService = (service: Service) => {
     setSelectedService(service);
-    setDialogOpen(true);
+    setDetailsDialogOpen(true);
+  };
+
+  const handleSelectPackage = (serviceId: string, packageId: string) => {
+    const service = services.find(s => s.id === serviceId);
+    if (service) {
+      setSelectedService(service);
+      setDialogOpen(true);
+      toast({
+        title: "Package Selected",
+        description: "Please complete the booking form",
+      });
+    }
   };
 
   const handleCategoryToggle = (category: string) => {
@@ -327,12 +341,21 @@ const BrowseServices = () => {
       </div>
 
       {selectedService && (
-        <BookingDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          serviceId={selectedService.id}
-          serviceName={selectedService.name}
-        />
+        <>
+          <BookingDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            serviceId={selectedService.id}
+            serviceName={selectedService.name}
+          />
+          
+          <ServiceDetailsDialog
+            service={selectedService}
+            open={detailsDialogOpen}
+            onOpenChange={setDetailsDialogOpen}
+            onSelectPackage={handleSelectPackage}
+          />
+        </>
       )}
     </div>
   );

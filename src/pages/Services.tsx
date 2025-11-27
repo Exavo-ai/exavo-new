@@ -6,11 +6,13 @@ import { supabase } from "@/integrations/supabase/client";
 import BookingDialog from "@/components/BookingDialog";
 import { PremiumServiceCard } from "@/components/PremiumServiceCard";
 import { PremiumServiceFilters } from "@/components/PremiumServiceFilters";
+import { ServiceDetailsDialog } from "@/components/ServiceDetailsDialog";
 import { Bot, Workflow, LineChart, Mail, FileText, BarChart3, Brain, Zap, Shield, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SlidersHorizontal } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useToast } from "@/hooks/use-toast";
 
 interface Service {
   id: string;
@@ -50,11 +52,13 @@ const iconMap: Record<string, any> = {
 
 const Services = () => {
   const { language } = useLanguage();
+  const { toast } = useToast();
   const isMobile = useIsMobile();
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   
@@ -90,7 +94,19 @@ const Services = () => {
 
   const handleBookService = (service: Service) => {
     setSelectedService(service);
-    setDialogOpen(true);
+    setDetailsDialogOpen(true);
+  };
+
+  const handleSelectPackage = (serviceId: string, packageId: string) => {
+    const service = services.find(s => s.id === serviceId);
+    if (service) {
+      setSelectedService(service);
+      setDialogOpen(true);
+      toast({
+        title: "Package Selected",
+        description: "Please complete the booking form",
+      });
+    }
   };
 
   const handleCategoryToggle = (categoryId: string) => {
@@ -258,12 +274,21 @@ const Services = () => {
       <Footer />
       
       {selectedService && (
-        <BookingDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          serviceName={language === 'ar' ? selectedService.name_ar : selectedService.name}
-          serviceId={selectedService.id}
-        />
+        <>
+          <BookingDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            serviceName={language === 'ar' ? selectedService.name_ar : selectedService.name}
+            serviceId={selectedService.id}
+          />
+          
+          <ServiceDetailsDialog
+            service={selectedService}
+            open={detailsDialogOpen}
+            onOpenChange={setDetailsDialogOpen}
+            onSelectPackage={handleSelectPackage}
+          />
+        </>
       )}
     </div>
   );
