@@ -57,6 +57,8 @@ const Services = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedPackageId, setSelectedPackageId] = useState<string>('');
+  const [selectedPackageName, setSelectedPackageName] = useState<string>('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
@@ -97,15 +99,13 @@ const Services = () => {
     setDetailsDialogOpen(true);
   };
 
-  const handleSelectPackage = (serviceId: string, packageId: string) => {
+  const handleSelectPackage = (serviceId: string, serviceName: string, packageId: string, packageName: string) => {
     const service = services.find(s => s.id === serviceId);
     if (service) {
       setSelectedService(service);
+      setSelectedPackageId(packageId);
+      setSelectedPackageName(packageName);
       setDialogOpen(true);
-      toast({
-        title: "Package Selected",
-        description: "Please complete the booking form",
-      });
     }
   };
 
@@ -280,6 +280,8 @@ const Services = () => {
             onOpenChange={setDialogOpen}
             serviceName={language === 'ar' ? selectedService.name_ar : selectedService.name}
             serviceId={selectedService.id}
+            packageId={selectedPackageId}
+            packageName={selectedPackageName}
           />
           
           <ServiceDetailsDialog

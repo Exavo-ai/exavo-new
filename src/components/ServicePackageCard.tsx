@@ -6,12 +6,15 @@ import { Badge } from "@/components/ui/badge";
 interface ServicePackage {
   id: string;
   package_name: string;
+  description?: string;
   price: number;
   currency: string;
   features: string[];
   delivery_time?: string;
   notes?: string;
   package_order: number;
+  images?: string[];
+  videos?: string[];
 }
 
 interface ServicePackageCardProps {
@@ -31,7 +34,10 @@ export function ServicePackageCard({ packageData, isPopular, onSelect }: Service
       
       <CardHeader>
         <CardTitle className="text-2xl">{packageData.package_name}</CardTitle>
-        <CardDescription>
+        {packageData.description && (
+          <p className="text-sm text-muted-foreground mt-2">{packageData.description}</p>
+        )}
+        <CardDescription className="mt-3">
           <span className="text-3xl font-bold text-foreground">
             {packageData.currency === 'USD' ? '$' : packageData.currency}
             {packageData.price}

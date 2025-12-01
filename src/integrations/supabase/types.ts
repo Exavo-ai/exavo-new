@@ -48,12 +48,19 @@ export type Database = {
         Row: {
           appointment_date: string
           appointment_time: string
+          budget_range: string | null
+          company: string | null
+          country: string | null
           created_at: string
           email: string
           full_name: string
           id: string
           notes: string | null
+          package_id: string | null
           phone: string
+          preferred_communication: string | null
+          preferred_timeline: string | null
+          project_description: string | null
           project_progress: number | null
           project_status: string | null
           service_id: string | null
@@ -64,12 +71,19 @@ export type Database = {
         Insert: {
           appointment_date: string
           appointment_time: string
+          budget_range?: string | null
+          company?: string | null
+          country?: string | null
           created_at?: string
           email: string
           full_name: string
           id?: string
           notes?: string | null
+          package_id?: string | null
           phone: string
+          preferred_communication?: string | null
+          preferred_timeline?: string | null
+          project_description?: string | null
           project_progress?: number | null
           project_status?: string | null
           service_id?: string | null
@@ -80,12 +94,19 @@ export type Database = {
         Update: {
           appointment_date?: string
           appointment_time?: string
+          budget_range?: string | null
+          company?: string | null
+          country?: string | null
           created_at?: string
           email?: string
           full_name?: string
           id?: string
           notes?: string | null
+          package_id?: string | null
           phone?: string
+          preferred_communication?: string | null
+          preferred_timeline?: string | null
+          project_description?: string | null
           project_progress?: number | null
           project_status?: string | null
           service_id?: string | null
@@ -94,6 +115,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "appointments_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "service_packages"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "appointments_service_id_fkey"
             columns: ["service_id"]
@@ -402,40 +430,49 @@ export type Database = {
           created_at: string
           currency: string
           delivery_time: string | null
+          description: string | null
           features: Json
           id: string
+          images: Json | null
           notes: string | null
           package_name: string
           package_order: number
           price: number
           service_id: string
           updated_at: string
+          videos: Json | null
         }
         Insert: {
           created_at?: string
           currency?: string
           delivery_time?: string | null
+          description?: string | null
           features?: Json
           id?: string
+          images?: Json | null
           notes?: string | null
           package_name: string
           package_order?: number
           price: number
           service_id: string
           updated_at?: string
+          videos?: Json | null
         }
         Update: {
           created_at?: string
           currency?: string
           delivery_time?: string | null
+          description?: string | null
           features?: Json
           id?: string
+          images?: Json | null
           notes?: string | null
           package_name?: string
           package_order?: number
           price?: number
           service_id?: string
           updated_at?: string
+          videos?: Json | null
         }
         Relationships: [
           {

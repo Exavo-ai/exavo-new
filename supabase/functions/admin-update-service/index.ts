@@ -47,12 +47,15 @@ Deno.serve(async (req) => {
     const packageSchema = z.object({
       id: z.string().uuid().optional(),
       package_name: z.string().min(1),
+      description: z.string().optional(),
       price: z.number().min(0),
       currency: z.string().default('USD'),
       features: z.array(z.string()),
       delivery_time: z.string().optional(),
       notes: z.string().optional(),
       package_order: z.number().default(0),
+      images: z.array(z.string()).optional(),
+      videos: z.array(z.string()).optional(),
     });
 
     const updateServiceSchema = z.object({
@@ -96,12 +99,15 @@ Deno.serve(async (req) => {
         const packagesToInsert = validatedData.packages.map(pkg => ({
           service_id: validatedData.serviceId,
           package_name: pkg.package_name,
+          description: pkg.description,
           price: pkg.price,
           currency: pkg.currency,
           features: pkg.features,
           delivery_time: pkg.delivery_time,
           notes: pkg.notes,
           package_order: pkg.package_order,
+          images: pkg.images || [],
+          videos: pkg.videos || [],
         }));
 
         const { error: packagesError } = await supabaseAdmin

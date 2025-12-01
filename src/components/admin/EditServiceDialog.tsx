@@ -34,12 +34,15 @@ interface Service {
 interface Package {
   id?: string;
   package_name: string;
+  description: string;
   price: number;
   currency: string;
   features: string[];
   delivery_time: string;
   notes: string;
   package_order: number;
+  images: string[];
+  videos: string[];
 }
 
 interface EditServiceDialogProps {
@@ -56,8 +59,6 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    price: 0,
-    currency: "USD",
     category: "",
     active: true,
     image_url: "",
@@ -95,14 +96,23 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
     
     if (!error && data) {
       setPackages(data.map(pkg => ({
-        ...pkg,
+        id: pkg.id,
+        package_name: pkg.package_name,
+        description: pkg.description || '',
+        price: pkg.price,
+        currency: pkg.currency,
         features: Array.isArray(pkg.features) 
           ? pkg.features.map(f => String(f)).filter(Boolean)
           : [],
+        delivery_time: pkg.delivery_time || '',
+        notes: pkg.notes || '',
+        package_order: pkg.package_order,
+        images: Array.isArray(pkg.images) ? pkg.images as string[] : [],
+        videos: Array.isArray(pkg.videos) ? pkg.videos as string[] : [],
       })));
     } else {
       setPackages([
-        { package_name: "Basic", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0 },
+        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [] },
       ]);
     }
   };
@@ -112,8 +122,6 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
       setFormData({
         name: service.name || "",
         description: service.description || "",
-        price: service.price || 0,
-        currency: service.currency || "USD",
         category: service.category || "",
         active: service.active ?? true,
         image_url: service.image_url || "",
@@ -124,12 +132,15 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
   const addPackage = () => {
     setPackages([...packages, {
       package_name: "",
+      description: "",
       price: 0,
       currency: "USD",
       features: [""],
       delivery_time: "",
       notes: "",
       package_order: packages.length,
+      images: [],
+      videos: [],
     }]);
   };
 
@@ -170,8 +181,8 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
     const result = serviceSchema.safeParse({
       name: formData.name,
       description: formData.description,
-      price: formData.price,
-      currency: formData.currency,
+      price: 0,
+      currency: "USD",
     });
     
     if (!result.success) {
@@ -197,8 +208,8 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
             name_ar: formData.name,
             description: formData.description,
             description_ar: formData.description,
-            price: formData.price,
-            currency: formData.currency,
+            price: 0,
+            currency: "USD",
             category: formData.category,
             active: formData.active,
             image_url: formData.image_url || null,
@@ -261,31 +272,6 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="price">Base Price</Label>
-              <Input
-                id="price"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                placeholder="0.00"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="currency">Currency</Label>
-              <Input
-                id="currency"
-                value={formData.currency}
-                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                placeholder="USD"
-                required
-              />
-            </div>
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
@@ -342,15 +328,26 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Package Name</Label>
+                    <Input
+                      value={pkg.package_name}
+                      onChange={(e) => updatePackage(pkgIndex, 'package_name', e.target.value)}
+                      placeholder="e.g., Basic, Standard, Premium"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea
+                      value={pkg.description}
+                      onChange={(e) => updatePackage(pkgIndex, 'description', e.target.value)}
+                      placeholder="Brief description of this package"
+                      rows={2}
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Package Name</Label>
-                      <Input
-                        value={pkg.package_name}
-                        onChange={(e) => updatePackage(pkgIndex, 'package_name', e.target.value)}
-                        placeholder="e.g., Basic, Standard, Premium"
-                      />
-                    </div>
                     <div className="space-y-2">
                       <Label>Price</Label>
                       <Input
@@ -359,6 +356,14 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
                         step="0.01"
                         value={pkg.price}
                         onChange={(e) => updatePackage(pkgIndex, 'price', parseFloat(e.target.value))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Currency</Label>
+                      <Input
+                        value={pkg.currency}
+                        onChange={(e) => updatePackage(pkgIndex, 'currency', e.target.value)}
+                        placeholder="USD"
                       />
                     </div>
                   </div>
@@ -403,6 +408,24 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
                         )}
                       </div>
                     ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Image URLs (Optional, comma-separated)</Label>
+                    <Input
+                      value={pkg.images.join(', ')}
+                      onChange={(e) => updatePackage(pkgIndex, 'images', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                      placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Video URLs (Optional, comma-separated)</Label>
+                    <Input
+                      value={pkg.videos.join(', ')}
+                      onChange={(e) => updatePackage(pkgIndex, 'videos', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                      placeholder="https://youtube.com/watch?v=..., https://vimeo.com/..."
+                    />
                   </div>
 
                   <div className="space-y-2">

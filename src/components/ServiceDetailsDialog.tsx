@@ -28,7 +28,7 @@ interface ServiceDetailsDialogProps {
   service: Service | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelectPackage: (serviceId: string, packageId: string) => void;
+  onSelectPackage: (serviceId: string, serviceName: string, packageId: string, packageName: string) => void;
 }
 
 export function ServiceDetailsDialog({
@@ -78,9 +78,9 @@ export function ServiceDetailsDialog({
     }
   };
 
-  const handleSelectPackage = (packageId: string) => {
+  const handleSelectPackage = (packageId: string, packageName: string) => {
     if (service) {
-      onSelectPackage(service.id, packageId);
+      onSelectPackage(service.id, service.name, packageId, packageName);
       onOpenChange(false);
     }
   };
@@ -109,7 +109,7 @@ export function ServiceDetailsDialog({
                   key={pkg.id}
                   packageData={pkg}
                   isPopular={index === 1}
-                  onSelect={() => handleSelectPackage(pkg.id)}
+                  onSelect={() => handleSelectPackage(pkg.id, pkg.package_name)}
                 />
               ))}
             </div>
