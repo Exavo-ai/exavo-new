@@ -30,9 +30,9 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/client`;
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -45,12 +45,22 @@ const Register = () => {
 
       if (error) throw error;
 
-      toast.success("Account created! Please check your email to verify your account.");
+      // Send welcome email via Resend
+      try {
+        await supabase.functions.invoke('send-welcome-email', {
+          body: { email, full_name: fullName }
+        });
+      } catch (emailError) {
+        console.error('Welcome email error:', emailError);
+        // Don't block registration if email fails
+      }
+
+      toast.success("Account created successfully! Welcome to Exavo AI.");
       
-      // Redirect to login instead of auto-login
+      // Redirect to client portal since auto-confirm is enabled
       setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+        navigate('/client');
+      }, 1500);
     } catch (error: any) {
       toast.error(error.message || t('auth.registerError'));
     } finally {
