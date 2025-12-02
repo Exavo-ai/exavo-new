@@ -14,7 +14,11 @@ import { useToast } from "@/hooks/use-toast";
 import { UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-export function InviteClientDialog() {
+interface InviteClientDialogProps {
+  onSuccess?: () => void;
+}
+
+export function InviteClientDialog({ onSuccess }: InviteClientDialogProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,13 +64,10 @@ export function InviteClientDialog() {
 
       if (error) throw error;
 
-      // Show success message based on whether user was new or existing
-      const isExistingUser = data?.existing_user;
+      // Show unified success message
       toast({
         title: "Success!",
-        description: isExistingUser 
-          ? `Password reset link sent to ${formData.email}`
-          : `Invitation sent to ${formData.email}`,
+        description: `Invitation sent to ${formData.email}`,
       });
 
       // Reset form and close dialog
@@ -75,6 +76,13 @@ export function InviteClientDialog() {
         full_name: "",
       });
       setOpen(false);
+      
+      // Refresh the users list after a short delay to allow DB trigger to complete
+      if (onSuccess) {
+        setTimeout(() => {
+          onSuccess();
+        }, 1000);
+      }
     } catch (error) {
       console.error("Invitation error:", error);
       toast({

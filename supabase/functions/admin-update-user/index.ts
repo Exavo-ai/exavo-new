@@ -80,13 +80,19 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Update profile
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .update({ full_name, phone })
-      .eq('id', userId);
+    // Update profile - only include fields that are provided
+    const profileUpdates: Record<string, string | undefined> = {};
+    if (full_name !== undefined) profileUpdates.full_name = full_name;
+    if (phone !== undefined) profileUpdates.phone = phone;
+    
+    if (Object.keys(profileUpdates).length > 0) {
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('id', userId);
 
-    if (profileError) throw profileError;
+      if (profileError) throw profileError;
+    }
 
     // Update role if provided
     if (role) {
@@ -96,6 +102,13 @@ serve(async (req) => {
         .eq('user_id', userId);
 
       if (roleError) throw roleError;
+    }
+
+    // Also update auth user metadata for consistency
+    if (full_name !== undefined) {
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
+        user_metadata: { full_name }
+      });
     }
 
     console.log('Admin performed user update operation');

@@ -160,7 +160,7 @@ export default function Users() {
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Users Management</h2>
           <p className="text-muted-foreground">Manage and monitor all users</p>
         </div>
-        <InviteClientDialog />
+        <InviteClientDialog onSuccess={loadUsers} />
       </div>
 
       <Card>
