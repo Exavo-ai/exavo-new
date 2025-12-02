@@ -87,7 +87,7 @@ export const serviceSchema = z.object({
     .min(10, { message: "Description must be at least 10 characters" })
     .max(500, { message: "Description must be less than 500 characters" }),
   price: z.number()
-    .positive({ message: "Price must be a positive number" })
+    .min(0, { message: "Price cannot be negative" })
     .max(999999, { message: "Price must be less than 999,999" }),
   currency: z.string()
     .length(3, { message: "Currency must be a 3-letter code (e.g., USD, EGP)" }),

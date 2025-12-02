@@ -219,39 +219,57 @@ export type Database = {
         Row: {
           amount: number
           appointment_id: string | null
+          attachments: Json | null
           created_at: string
           currency: string
           id: string
+          links: Json | null
+          long_message: string | null
+          multiselect_options: Json | null
           payment_method_id: string | null
           payment_status: string
           service_id: string | null
+          short_message: string | null
           status: string
+          title: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           amount: number
           appointment_id?: string | null
+          attachments?: Json | null
           created_at?: string
           currency?: string
           id?: string
+          links?: Json | null
+          long_message?: string | null
+          multiselect_options?: Json | null
           payment_method_id?: string | null
           payment_status?: string
           service_id?: string | null
+          short_message?: string | null
           status?: string
+          title?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           amount?: number
           appointment_id?: string | null
+          attachments?: Json | null
           created_at?: string
           currency?: string
           id?: string
+          links?: Json | null
+          long_message?: string | null
+          multiselect_options?: Json | null
           payment_method_id?: string | null
           payment_status?: string
           service_id?: string | null
+          short_message?: string | null
           status?: string
+          title?: string | null
           updated_at?: string
           user_id?: string
         }

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
-import BookingDialog from "@/components/BookingDialog";
+import ClientOrderDialog from "@/components/portal/ClientOrderDialog";
 import { PremiumServiceCard } from "@/components/PremiumServiceCard";
 import { PremiumServiceFilters } from "@/components/PremiumServiceFilters";
 import { ServiceDetailsDialog } from "@/components/ServiceDetailsDialog";
@@ -346,7 +346,7 @@ const BrowseServices = () => {
 
       {selectedService && (
         <>
-          <BookingDialog
+          <ClientOrderDialog
             open={dialogOpen}
             onOpenChange={setDialogOpen}
             serviceId={selectedService.id}
