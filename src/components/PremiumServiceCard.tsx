@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
-import { Calendar, TrendingUp } from "lucide-react";
+
 import type { LucideIcon } from "lucide-react";
 import exavoLogo from "@/assets/exavo-logo.png";
 import fallbackImage from "@/assets/ai-pattern.jpg";
@@ -95,28 +95,6 @@ export const PremiumServiceCard = ({
               {tag}
             </Badge>
           ))}
-        </div>
-
-        {/* Metadata Row */}
-        <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground mb-3 sm:mb-4 pb-3 sm:pb-4 border-t border-border/50 pt-3 sm:pt-4">
-          <span className="font-bold text-foreground text-lg">
-            ${price.toLocaleString()}
-          </span>
-          <span className="text-muted-foreground">/</span>
-          <span className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            <span className="hidden sm:inline">
-              {new Date().toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { 
-                month: 'short', 
-                year: 'numeric' 
-              })}
-            </span>
-          </span>
-          <span className="text-muted-foreground hidden sm:inline">/</span>
-          <span className="flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" />
-            {language === 'ar' ? 'سحابي' : 'Cloud'}
-          </span>
         </div>
 
         {/* Action Buttons */}
