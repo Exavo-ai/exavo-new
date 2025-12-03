@@ -9,12 +9,15 @@ import { Loader2 } from "lucide-react";
 interface ServicePackage {
   id: string;
   package_name: string;
+  description?: string;
   price: number;
   currency: string;
   features: string[];
   delivery_time?: string;
   notes?: string;
   package_order: number;
+  images?: string[];
+  videos?: string[];
 }
 
 interface Service {
@@ -61,10 +64,19 @@ export function ServiceDetailsDialog({
       if (error) throw error;
       
       setPackages(data.map(pkg => ({
-        ...pkg,
+        id: pkg.id,
+        package_name: pkg.package_name,
+        description: pkg.description || undefined,
+        price: pkg.price,
+        currency: pkg.currency,
         features: Array.isArray(pkg.features) 
           ? pkg.features.map(f => String(f)).filter(Boolean)
           : [],
+        delivery_time: pkg.delivery_time || undefined,
+        notes: pkg.notes || undefined,
+        package_order: pkg.package_order,
+        images: Array.isArray(pkg.images) ? pkg.images.map(String) : undefined,
+        videos: Array.isArray(pkg.videos) ? pkg.videos.map(String) : undefined,
       })));
     } catch (error: any) {
       console.error('Error fetching packages:', error);
