@@ -31,8 +31,8 @@ const handler = async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        name: signupData.full_name,
         email: signupData.email,
-        full_name: signupData.full_name,
         phone: signupData.phone || null,
         created_at: signupData.created_at || new Date().toISOString(),
         source: "exavo-platform",
