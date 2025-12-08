@@ -55,6 +55,20 @@ const Register = () => {
         // Don't block registration if email fails
       }
 
+      // Send signup data to webhook
+      try {
+        await supabase.functions.invoke('send-signup-webhook', {
+          body: { 
+            email, 
+            full_name: fullName,
+            created_at: new Date().toISOString()
+          }
+        });
+      } catch (webhookError) {
+        console.error('Signup webhook error:', webhookError);
+        // Don't block registration if webhook fails
+      }
+
       toast.success("Account created successfully! Welcome to Exavo AI.");
       
       // Redirect to client portal since auto-confirm is enabled
