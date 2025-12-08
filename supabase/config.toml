@@ -43,6 +43,8 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.get-invoices]
+verify_jwt = true
+
 [functions.admin-create-service]
 verify_jwt = true
 
@@ -56,4 +58,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.admin-delete-user]
+verify_jwt = true
+
+[functions.send-signup-webhook]
 verify_jwt = true
