@@ -23,7 +23,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("Sending signup data to webhook:", signupData);
 
-    const webhookUrl = "https://hook.eu1.make.com/h4zau5cf1lfy9zjow4znltuni8dbmu7s";
+    const webhookUrl = "https://n8n.exavo.app/webhook-test/Welcome-User";
     
     const webhookResponse = await fetch(webhookUrl, {
       method: "POST",
