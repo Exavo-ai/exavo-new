@@ -6,12 +6,57 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Password validation matching frontend registerSchema requirements
+function validatePassword(password: string): { valid: boolean; error?: string } {
+  if (!password || password.length < 8) {
+    return { valid: false, error: "Password must be at least 8 characters long" };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, error: "Password must contain at least one uppercase letter" };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, error: "Password must contain at least one lowercase letter" };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, error: "Password must contain at least one number" };
+  }
+  return { valid: true };
+}
+
+// Simple in-memory rate limiting (resets on function cold start)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_MAX = 5; // Max attempts per window
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+function checkRateLimit(identifier: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(identifier);
+  
+  if (!entry || now > entry.resetTime) {
+    rateLimitMap.set(identifier, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true };
+  }
+  
+  if (entry.count >= RATE_LIMIT_MAX) {
+    const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+  
+  entry.count++;
+  return { allowed: true };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Get client IP for rate limiting
+    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
+                     req.headers.get("cf-connecting-ip") || 
+                     "unknown";
+    
     const { token, fullName, password, createAccount } = await req.json();
 
     if (!token) {
@@ -22,7 +67,30 @@ serve(async (req) => {
       );
     }
 
-    console.log("[ACCEPT-INVITE] Accepting invitation with token:", token);
+    // Rate limiting check based on IP + token combination
+    const rateLimitKey = `${clientIP}:${token.substring(0, 8)}`;
+    const rateCheck = checkRateLimit(rateLimitKey);
+    
+    if (!rateCheck.allowed) {
+      console.log("[ACCEPT-INVITE] Rate limit exceeded for:", rateLimitKey);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Too many attempts. Please try again later.",
+          retryAfter: rateCheck.retryAfter 
+        }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "Retry-After": String(rateCheck.retryAfter)
+          }, 
+          status: 429 
+        }
+      );
+    }
+
+    console.log("[ACCEPT-INVITE] Accepting invitation with token:", token.substring(0, 8) + "...");
 
     // Create service role client to bypass RLS
     const supabaseServiceClient = createClient(
@@ -40,14 +108,13 @@ serve(async (req) => {
     console.log("[ACCEPT-INVITE] Member lookup result:", {
       found: !!member,
       status: member?.status,
-      email: member?.email,
       error: fetchError?.message,
     });
 
     if (fetchError) {
       console.error("[ACCEPT-INVITE] Database error:", fetchError);
       return new Response(
-        JSON.stringify({ success: false, error: "Database error", details: fetchError.message }),
+        JSON.stringify({ success: false, error: "Database error" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
@@ -63,7 +130,6 @@ serve(async (req) => {
     // Check if already activated
     if (member.status === "active") {
       console.log("[ACCEPT-INVITE] Already activated, returning success");
-      // Return success since the invitation is already accepted (idempotent)
       return new Response(
         JSON.stringify({ success: true, message: "This invitation has already been accepted" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
@@ -81,6 +147,16 @@ serve(async (req) => {
 
     // If createAccount flag is set, create the user account
     if (createAccount && password) {
+      // Validate password strength server-side
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.valid) {
+        console.log("[ACCEPT-INVITE] Password validation failed:", passwordValidation.error);
+        return new Response(
+          JSON.stringify({ success: false, error: passwordValidation.error }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+
       console.log("[ACCEPT-INVITE] Creating user account with email confirmed");
       
       const supabaseAdmin = createClient(
@@ -98,7 +174,7 @@ serve(async (req) => {
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
         email: member.email,
         password: password,
-        email_confirm: true, // Mark email as confirmed immediately
+        email_confirm: true,
         user_metadata: {
           full_name: fullName || "",
         },
@@ -106,12 +182,11 @@ serve(async (req) => {
 
       if (userError) {
         console.error("[ACCEPT-INVITE] User creation error:", userError);
-        // Handle "User already registered" error gracefully
         if (userError.message.includes("already registered") || userError.message.includes("already exists")) {
           console.log("[ACCEPT-INVITE] User already exists, proceeding with activation");
         } else {
           return new Response(
-            JSON.stringify({ success: false, error: `Failed to create account: ${userError.message}` }),
+            JSON.stringify({ success: false, error: "Failed to create account" }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
           );
         }
@@ -121,7 +196,7 @@ serve(async (req) => {
     }
 
     // Update team member to active
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       status: "active",
       activated_at: new Date().toISOString(),
       invite_token: null,
@@ -141,12 +216,12 @@ serve(async (req) => {
     if (updateError) {
       console.error("[ACCEPT-INVITE] Update error:", updateError);
       return new Response(
-        JSON.stringify({ success: false, error: "Failed to activate invitation", details: updateError.message }),
+        JSON.stringify({ success: false, error: "Failed to activate invitation" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
 
-    console.log("[ACCEPT-INVITE] ✓ Invitation activated successfully for:", member.email);
+    console.log("[ACCEPT-INVITE] ✓ Invitation activated successfully");
 
     return new Response(
       JSON.stringify({ 
@@ -165,7 +240,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : "Unknown error" 
+        error: "An error occurred processing your request" 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
