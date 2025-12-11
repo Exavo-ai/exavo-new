@@ -4,6 +4,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "X-XSS-Protection": "1; mode=block",
+  "Referrer-Policy": "no-referrer-when-downgrade",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+  "Pragma": "no-cache",
 };
 
 serve(async (req) => {

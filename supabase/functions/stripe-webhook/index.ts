@@ -2,6 +2,16 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import Stripe from 'https://esm.sh/stripe@18.5.0';
 
+const securityHeaders = {
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "X-XSS-Protection": "1; mode=block",
+  "Referrer-Policy": "no-referrer-when-downgrade",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+  "Pragma": "no-cache",
+};
+
 const PLAN_PRODUCT_MAP: Record<string, string> = {
   'prod_TTapRptmEkLouu': 'starter',
   'prod_TTapq8rgy3dmHT': 'pro', 
@@ -234,14 +244,14 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ received: true }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...securityHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Webhook error:', error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
+      { status: 400, headers: { ...securityHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
