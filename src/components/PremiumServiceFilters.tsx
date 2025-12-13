@@ -24,6 +24,7 @@ interface PremiumServiceFiltersProps {
   onPriceRangeChange: (range: [number, number]) => void;
   maxPrice: number;
   categoryCounts: Record<string, number>;
+  categories: Category[];
   onClearFilters: () => void;
   isOpen: boolean;
   onToggle: () => void;
@@ -38,48 +39,13 @@ export const PremiumServiceFilters = ({
   onPriceRangeChange,
   maxPrice,
   categoryCounts,
+  categories,
   onClearFilters,
   isOpen,
   onToggle,
 }: PremiumServiceFiltersProps) => {
   const { language } = useLanguage();
   const [emailAlert, setEmailAlert] = useState('');
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  useEffect(() => {
-    fetchCategories();
-
-    // Set up real-time subscription for category changes
-    const channel = supabase
-      .channel('categories-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'categories'
-        },
-        () => {
-          fetchCategories();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const fetchCategories = async () => {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('id, name, name_ar, icon')
-      .order('name');
-    
-    if (!error && data) {
-      setCategories(data);
-    }
-  };
 
   const hasActiveFilters = searchQuery || selectedCategories.length > 0 || 
     priceRange[0] !== 0 || priceRange[1] !== maxPrice;

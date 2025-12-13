@@ -22,8 +22,16 @@ interface Service {
   description_ar: string;
   price: number;
   currency: string;
+  category?: string | null;
   active: boolean;
   image_url?: string | null;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  name_ar: string;
+  icon: string | null;
 }
 
 const iconMap: Record<string, any> = {
@@ -40,58 +48,14 @@ const iconMap: Record<string, any> = {
   'Business': Target
 };
 
-const serviceToCategoryMap: Record<string, string> = {
-  'Customer Support': 'ai',
-  'Lead': 'marketing',
-  'Workflow': 'automation',
-  'Analytics': 'analytics',
-  'Predictive': 'analytics',
-  'Marketing': 'marketing',
-  'Bot': 'automation',
-  'HR': 'business',
-  'Fraud': 'ai',
-  'KPI': 'analytics',
-  'Competitor': 'analytics',
-  'Financial': 'analytics',
-  'Email': 'marketing',
-  'Social': 'marketing',
-  'Document': 'business',
-  'Sales': 'business',
-  'Inventory': 'business',
-  'Sentiment': 'analytics',
-  'Voice': 'ai',
-  'Content': 'ai',
-  'Price': 'business',
-  'Quality': 'automation',
-  'Translation': 'ai',
-  'Video': 'ai',
-  'Recruitment': 'business',
-  'Energy': 'analytics',
-  'Supply': 'analytics',
-  'Personalization': 'ai',
-  'Churn': 'analytics',
-  'Legal': 'business',
-  'Healthcare': 'ai',
-  'Real Estate': 'business',
-  'Credit': 'business',
-  'Scheduling': 'business',
-  'Product': 'business',
-  'Network': 'ai'
-};
-
-const getServiceCategory = (serviceName: string): string => {
-  for (const [keyword, category] of Object.entries(serviceToCategoryMap)) {
-    if (serviceName.includes(keyword)) return category;
-  }
-  return 'business';
-};
-
 const BrowseServices = () => {
   const { language } = useLanguage();
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const [services, setServices] = useState<Service[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<string>('');
   const [selectedPackageName, setSelectedPackageName] = useState<string>('');
@@ -100,26 +64,39 @@ const BrowseServices = () => {
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   
-  // Filter states
+  // Filter states - no filters applied by default
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000]);
+  const [priceRange, setPriceRange] = useState<[number, number] | null>(null);
 
   useEffect(() => {
-    fetchServices();
+    fetchData();
   }, []);
 
-  const fetchServices = async () => {
-    const { data } = await supabase
-      .from('services')
-      .select('*')
-      .eq('active', true)
-      .order('name');
-    
-    if (data) {
-      setServices(data);
-      const maxPrice = Math.max(...data.map(s => s.price), 50000);
-      setPriceRange([0, maxPrice]);
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [servicesResult, categoriesResult] = await Promise.all([
+        supabase.from('services').select('*').eq('active', true).order('name'),
+        supabase.from('categories').select('id, name, name_ar, icon').order('name')
+      ]);
+      
+      if (servicesResult.data) {
+        setServices(servicesResult.data);
+        // Initialize price range based on actual data - include 0 priced items
+        const prices = servicesResult.data.map(s => s.price);
+        const minPrice = Math.min(...prices, 0);
+        const maxPrice = Math.max(...prices, 50000);
+        setPriceRange([minPrice, maxPrice]);
+      }
+
+      if (categoriesResult.data) {
+        setCategories(categoriesResult.data);
+      }
+    } catch (error) {
+      console.error('Error fetching services:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -159,21 +136,27 @@ const BrowseServices = () => {
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     services.forEach(service => {
-      const category = getServiceCategory(service.name);
-      counts[category] = (counts[category] || 0) + 1;
+      if (service.category) {
+        counts[service.category] = (counts[service.category] || 0) + 1;
+      }
     });
     return counts;
   }, [services]);
 
   const filteredServices = useMemo(() => {
+    // No filtering until data is loaded
+    if (!priceRange) return services;
+    
     return services.filter(service => {
       const matchesSearch = searchQuery === '' || 
         service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         service.description.toLowerCase().includes(searchQuery.toLowerCase());
       
+      // Show all services if no category is selected
       const matchesCategory = selectedCategories.length === 0 || 
-        selectedCategories.includes(getServiceCategory(service.name));
+        (service.category && selectedCategories.includes(service.category));
       
+      // Include services within price range (inclusive of 0)
       const matchesPrice = service.price >= priceRange[0] && service.price <= priceRange[1];
 
       return matchesSearch && matchesCategory && matchesPrice;
@@ -181,9 +164,10 @@ const BrowseServices = () => {
   }, [services, searchQuery, selectedCategories, priceRange]);
 
   const maxPrice = useMemo(() => Math.max(...services.map(s => s.price), 50000), [services]);
+  const currentPriceRange = priceRange || [0, maxPrice];
 
   const hasActiveFilters = searchQuery || selectedCategories.length > 0 || 
-    priceRange[0] !== 0 || priceRange[1] !== maxPrice;
+    (priceRange && (priceRange[0] !== 0 || priceRange[1] !== maxPrice));
 
   const FiltersComponent = (
     <PremiumServiceFilters
@@ -191,10 +175,11 @@ const BrowseServices = () => {
       onSearchChange={setSearchQuery}
       selectedCategories={selectedCategories}
       onCategoryToggle={handleCategoryToggle}
-      priceRange={priceRange}
+      priceRange={currentPriceRange as [number, number]}
       onPriceRangeChange={setPriceRange}
       maxPrice={maxPrice}
       categoryCounts={categoryCounts}
+      categories={categories}
       onClearFilters={handleClearFilters}
       isOpen={filtersOpen}
       onToggle={() => setFiltersOpen(!filtersOpen)}
@@ -307,7 +292,9 @@ const BrowseServices = () => {
             {/* Services Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
               {filteredServices.map((service) => {
-                const ServiceIcon = iconMap[service.name] || iconMap[getServiceCategory(service.name)] || Bot;
+                const category = categories.find(c => c.id === service.category);
+                const categoryName = category?.name || '';
+                const ServiceIcon = iconMap[service.name] || iconMap[categoryName] || Bot;
                 return (
                   <PremiumServiceCard
                     key={service.id}

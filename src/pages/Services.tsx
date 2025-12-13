@@ -56,41 +56,55 @@ const Services = () => {
   const isMobile = useIsMobile();
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<string>('');
   const [selectedPackageName, setSelectedPackageName] = useState<string>('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   
-  // Filter states
+  // Filter states - no filters applied by default
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000]);
+  const [priceRange, setPriceRange] = useState<[number, number] | null>(null);
 
   useEffect(() => {
     fetchData();
   }, []);
 
   useEffect(() => {
-    setSidebarOpen(!isMobile);
+    // Only update sidebar state after initial mount to prevent hydration issues
+    if (isMobile !== undefined) {
+      setSidebarOpen(!isMobile);
+    }
   }, [isMobile]);
 
   const fetchData = async () => {
-    const [servicesResult, categoriesResult] = await Promise.all([
-      supabase.from('services').select('*').eq('active', true).order('name'),
-      supabase.from('categories').select('id, name, name_ar, icon').order('name')
-    ]);
-    
-    if (servicesResult.data) {
-      setServices(servicesResult.data);
-      const maxPrice = Math.max(...servicesResult.data.map(s => s.price), 50000);
-      setPriceRange([0, maxPrice]);
-    }
+    setIsLoading(true);
+    try {
+      const [servicesResult, categoriesResult] = await Promise.all([
+        supabase.from('services').select('*').eq('active', true).order('name'),
+        supabase.from('categories').select('id, name, name_ar, icon').order('name')
+      ]);
+      
+      if (servicesResult.data) {
+        setServices(servicesResult.data);
+        // Initialize price range based on actual data - include 0 priced items
+        const prices = servicesResult.data.map(s => s.price);
+        const minPrice = Math.min(...prices, 0);
+        const maxPrice = Math.max(...prices, 50000);
+        setPriceRange([minPrice, maxPrice]);
+      }
 
-    if (categoriesResult.data) {
-      setCategories(categoriesResult.data);
+      if (categoriesResult.data) {
+        setCategories(categoriesResult.data);
+      }
+    } catch (error) {
+      console.error('Error fetching services:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -135,14 +149,19 @@ const Services = () => {
   }, [services]);
 
   const filteredServices = useMemo(() => {
+    // No filtering until data is loaded
+    if (!priceRange) return services;
+    
     return services.filter(service => {
       const matchesSearch = searchQuery === '' || 
         service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         service.description.toLowerCase().includes(searchQuery.toLowerCase());
 
+      // Show all services if no category is selected
       const matchesCategory = selectedCategories.length === 0 || 
         (service.category && selectedCategories.includes(service.category));
 
+      // Include services within price range (inclusive of 0)
       const matchesPrice = service.price >= priceRange[0] && service.price <= priceRange[1];
 
       return matchesSearch && matchesCategory && matchesPrice;
@@ -150,6 +169,7 @@ const Services = () => {
   }, [services, searchQuery, selectedCategories, priceRange]);
 
   const maxPrice = Math.max(...services.map(s => s.price), 50000);
+  const currentPriceRange = priceRange || [0, maxPrice];
 
   const FiltersComponent = (
     <PremiumServiceFilters
@@ -157,10 +177,11 @@ const Services = () => {
       onSearchChange={setSearchQuery}
       selectedCategories={selectedCategories}
       onCategoryToggle={handleCategoryToggle}
-      priceRange={priceRange}
+      priceRange={currentPriceRange}
       onPriceRangeChange={setPriceRange}
       maxPrice={maxPrice}
       categoryCounts={categoryCounts}
+      categories={categories}
       onClearFilters={handleClearFilters}
       isOpen={sidebarOpen}
       onToggle={() => setSidebarOpen(!sidebarOpen)}
