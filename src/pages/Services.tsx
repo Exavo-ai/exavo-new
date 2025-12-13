@@ -251,7 +251,13 @@ const Services = () => {
 
             {/* Services Grid */}
             <div className="flex-1 min-w-0">
-              {filteredServices.length > 0 ? (
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="h-80 bg-muted/30 rounded-xl animate-pulse" />
+                  ))}
+                </div>
+              ) : filteredServices.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                   {filteredServices.map((service) => {
                     const category = categories.find(c => c.id === service.category);
