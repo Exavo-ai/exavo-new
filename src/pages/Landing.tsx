@@ -117,22 +117,14 @@ const Landing = () => {
               Unlock the power of artificial intelligence to drive growth, automate processes, and make smarter decisions.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center pt-4 sm:pt-8 px-4">
+            <div className="flex justify-center items-center pt-4 sm:pt-8 px-4">
               <Button 
                 size="lg" 
-                className="text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 w-full sm:w-auto bg-gradient-hero hover:shadow-glow-lg transition-all group"
+                className="text-base sm:text-lg px-8 sm:px-10 py-5 sm:py-6 w-full sm:w-auto bg-gradient-hero hover:shadow-glow-lg transition-all group font-semibold"
                 onClick={() => navigate('/booking')}
               >
-                Book a Demo
+                Request a Demo
                 <ArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 w-full sm:w-auto hover:bg-card transition-all"
-                onClick={() => navigate('/services')}
-              >
-                Explore Solutions
               </Button>
             </div>
 
@@ -254,30 +246,22 @@ const Landing = () => {
         <div className="absolute inset-0 bg-gradient-hero opacity-10" />
         <div className="container mx-auto px-4 relative z-10">
           <Card className="max-w-4xl mx-auto bg-gradient-card border-primary/20">
-            <CardContent className="p-12 text-center space-y-8">
-              <MessageSquare className="w-16 h-16 mx-auto text-primary animate-pulse" />
-              <h2 className="text-4xl md:text-5xl font-bold">
+            <CardContent className="p-8 sm:p-12 text-center space-y-6">
+              <MessageSquare className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-primary animate-pulse" />
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold">
                 Ready to Get Started?
               </h2>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Book a free consultation with our AI experts and discover how we can transform your business.
+              <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
+                See how Exavo can help your business adopt AI — no technical skills required.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+              <div className="pt-4">
                 <Button 
                   size="lg" 
-                  className="text-lg px-8 py-6 bg-gradient-hero hover:shadow-glow-lg transition-all group"
+                  className="text-base sm:text-lg px-10 py-6 bg-gradient-hero hover:shadow-glow-lg transition-all group font-semibold"
                   onClick={() => navigate('/booking')}
                 >
-                  Book Your Demo Now
+                  Request a Demo
                   <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline"
-                  className="text-lg px-8 py-6"
-                  onClick={() => navigate('/contact')}
-                >
-                  Contact Us
                 </Button>
               </div>
             </CardContent>

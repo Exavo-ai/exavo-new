@@ -67,9 +67,9 @@ const Hero = () => {
             size="lg"
             variant="hero"
             className="text-base sm:text-lg px-10 h-14 font-semibold"
-            onClick={() => navigate('/services')}
+            onClick={() => navigate('/booking')}
           >
-            {language === 'ar' ? 'استكشف الأدوات' : 'Explore AI Tools'}
+            {language === 'ar' ? 'اطلب عرضًا توضيحيًا' : 'Request a Demo'}
             <ArrowRight className="w-5 h-5" />
           </Button>
         </div>
