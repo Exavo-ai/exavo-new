@@ -8,8 +8,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { getUtmParams } from '@/hooks/useUtmParams';
 
 interface ServicePackage {
   id: string;
@@ -51,6 +52,7 @@ const BookingDialog = ({
   const { user, userProfile } = useAuth();
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [packages, setPackages] = useState<ServicePackage[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
   
@@ -127,32 +129,50 @@ const BookingDialog = ({
     }
 
     setLoading(true);
+    
     try {
-      // For guests, we'll create the order without user_id or handle differently
-      if (isGuest || !user) {
-        // Send notification for guest order
-        await supabase.functions.invoke('send-booking-notification', {
-          body: {
-            full_name: fullName,
-            email,
-            phone: phone || 'N/A',
-            company: company || 'N/A',
-            country: country || 'N/A',
-            service: serviceName,
-            package: packageName || packages.find(p => p.id === selectedPackageId)?.package_name || 'N/A',
-            project_description: projectDescription,
-            preferred_communication: preferredCommunication || 'Email',
-            preferred_timeline: preferredTimeline || 'Flexible',
-            is_guest: true
-          }
-        });
+      const selectedPackage = packages.find(p => p.id === selectedPackageId);
+      const utmParams = getUtmParams();
+      
+      // Prepare webhook payload
+      const webhookPayload = {
+        package: packageName || selectedPackage?.package_name || 'N/A',
+        package_id: selectedPackageId,
+        service: serviceName,
+        service_id: serviceId || '',
+        full_name: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim() || undefined,
+        company: company.trim() || undefined,
+        country: country || undefined,
+        project_description: projectDescription.trim() || undefined,
+        preferred_communication: preferredCommunication || undefined,
+        preferred_timeline: preferredTimeline || undefined,
+        is_guest: isGuest || !user,
+        user_id: user?.id || null,
+        submitted_at: new Date().toISOString(),
+        source_url: window.location.href,
+        utm: utmParams,
+      };
 
-        toast.success('Booking request submitted successfully! We\'ll contact you soon.');
-      } else {
-        // Create appointment for authenticated users
-        const { error: appointmentError } = await supabase
-          .from('appointments')
-          .insert({
+      // Send to webhook via edge function
+      const { data: webhookResult, error: webhookError } = await supabase.functions.invoke(
+        'submit-booking-webhook',
+        { body: webhookPayload }
+      );
+
+      if (webhookError) {
+        throw new Error(webhookError.message || 'Failed to submit booking');
+      }
+
+      if (!webhookResult?.success) {
+        throw new Error(webhookResult?.error || 'Failed to submit booking');
+      }
+
+      // Also save to database if user is authenticated
+      if (user && !isGuest) {
+        try {
+          await supabase.from('appointments').insert({
             user_id: user.id,
             service_id: serviceId || null,
             package_id: selectedPackageId || null,
@@ -168,36 +188,15 @@ const BookingDialog = ({
             appointment_time: new Date().toTimeString().split(' ')[0],
             status: 'pending'
           });
-
-        if (appointmentError) throw appointmentError;
-
-        // Send notification
-        try {
-          await supabase.functions.invoke('send-booking-notification', {
-            body: {
-              full_name: fullName,
-              email,
-              phone,
-              company,
-              country,
-              service: serviceName,
-              package: packageName || packages.find(p => p.id === selectedPackageId)?.package_name || 'N/A',
-              project_description: projectDescription,
-              preferred_communication: preferredCommunication,
-              preferred_timeline: preferredTimeline
-            }
-          });
-        } catch (notificationError) {
-          console.error('Notification error:', notificationError);
+        } catch (dbError) {
+          console.error('Database save error (non-critical):', dbError);
         }
-
-        toast.success('Booking request submitted successfully! We\'ll contact you soon.');
       }
 
-      onOpenChange(false);
-      resetForm();
+      setSuccess(true);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to submit booking request');
+      console.error('Booking submission error:', error);
+      toast.error(error.message || 'Failed to submit booking request. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -214,9 +213,38 @@ const BookingDialog = ({
     setProjectDescription('');
     setPreferredCommunication('');
     setPreferredTimeline('');
+    setSuccess(false);
+  };
+
+  const handleClose = () => {
+    onOpenChange(false);
+    setTimeout(resetForm, 300);
   };
 
   const selectedPackage = packages.find(p => p.id === selectedPackageId);
+
+  // Success state
+  if (success) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-md">
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
+              <CheckCircle2 className="w-8 h-8 text-green-500" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Request Received!</h2>
+            <p className="text-muted-foreground mb-6">
+              Thank you for your interest in <span className="font-medium text-foreground">{serviceName}</span>. 
+              We'll contact you soon.
+            </p>
+            <Button onClick={handleClose} className="w-full">
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -241,7 +269,7 @@ const BookingDialog = ({
               <Select 
                 value={selectedPackageId} 
                 onValueChange={setSelectedPackageId}
-                disabled={loadingPackages}
+                disabled={loadingPackages || loading}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={loadingPackages ? "Loading packages..." : "Select a package"} />
@@ -269,6 +297,7 @@ const BookingDialog = ({
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="John Doe"
                   required
+                  disabled={loading}
                 />
               </div>
 
@@ -281,6 +310,7 @@ const BookingDialog = ({
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="john@example.com"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -294,6 +324,7 @@ const BookingDialog = ({
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+1 (555) 123-4567"
+                  disabled={loading}
                 />
               </div>
 
@@ -304,13 +335,14 @@ const BookingDialog = ({
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   placeholder="Acme Inc."
+                  disabled={loading}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="country">Country</Label>
-              <Select value={country} onValueChange={setCountry}>
+              <Select value={country} onValueChange={setCountry} disabled={loading}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select your country" />
                 </SelectTrigger>
@@ -337,13 +369,18 @@ const BookingDialog = ({
                 onChange={(e) => setProjectDescription(e.target.value)}
                 placeholder="Describe your project, goals, and requirements..."
                 rows={5}
+                disabled={loading}
               />
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="communication">Preferred Communication</Label>
-                <Select value={preferredCommunication} onValueChange={setPreferredCommunication}>
+                <Select 
+                  value={preferredCommunication} 
+                  onValueChange={setPreferredCommunication}
+                  disabled={loading}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="How should we contact you?" />
                   </SelectTrigger>
@@ -359,7 +396,11 @@ const BookingDialog = ({
 
               <div className="space-y-2">
                 <Label htmlFor="timeline">Preferred Timeline</Label>
-                <Select value={preferredTimeline} onValueChange={setPreferredTimeline}>
+                <Select 
+                  value={preferredTimeline} 
+                  onValueChange={setPreferredTimeline}
+                  disabled={loading}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="When do you need this?" />
                   </SelectTrigger>
@@ -387,7 +428,12 @@ const BookingDialog = ({
                 'Submit Booking Request'
               )}
             </Button>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
               Cancel
             </Button>
           </div>
