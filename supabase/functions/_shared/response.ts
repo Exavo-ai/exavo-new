@@ -33,6 +33,25 @@ export function successResponse<T>(data: T, status = 200): Response {
   });
 }
 
+// For REST compliance: 201 Created response
+export function createdResponse<T>(data: T): Response {
+  return successResponse(data, 201);
+}
+
+// For REST compliance: 200 OK with data for updates
+export function updatedResponse<T>(data: T): Response {
+  return successResponse(data, 200);
+}
+
+// For REST compliance: 200 OK with confirmation for deletes
+export function deletedResponse(id?: string): Response {
+  return successResponse({ 
+    deleted: true, 
+    ...(id && { id }),
+    message: "Resource deleted successfully" 
+  }, 200);
+}
+
 export function errorResponse(
   code: string,
   message: string,

@@ -1,20 +1,21 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { corsHeaders, successResponse, errors, handleCors } from "../_shared/response.ts";
+import { z, validateBody, formatZodError } from "../_shared/validation.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "X-Frame-Options": "DENY",
-  "X-Content-Type-Options": "nosniff",
-  "X-XSS-Protection": "1; mode=block",
-  "Referrer-Policy": "no-referrer-when-downgrade",
-  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-  "Pragma": "no-cache",
-};
+// Request validation schema
+const paymentConfirmationSchema = z.object({
+  paymentId: z.string().uuid("Invalid payment ID format"),
+  appointmentId: z.string().uuid("Invalid appointment ID format").optional(),
+  userId: z.string().uuid("Invalid user ID format"),
+});
 
 async function sendEmail(to: string[], subject: string, html: string) {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  
+  if (!RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY not configured");
+  }
   
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -23,7 +24,7 @@ async function sendEmail(to: string[], subject: string, html: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "ExavoAI <onboarding@resend.dev>",
+      from: "ExavoAI <info@exavoai.io>",
       to,
       subject,
       html,
@@ -39,12 +40,28 @@ async function sendEmail(to: string[], subject: string, html: string) {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  // Only allow POST
+  if (req.method !== "POST") {
+    console.log("[PAYMENT-CONFIRMATION] Invalid method:", req.method);
+    return errors.badRequest(`Method ${req.method} not allowed. Use POST.`);
   }
 
   try {
-    const { paymentId, appointmentId, userId } = await req.json();
+    // Validate request body
+    const { data: body, error: validationError } = await validateBody(req, paymentConfirmationSchema);
+    if (validationError) {
+      console.log("[PAYMENT-CONFIRMATION] Validation error:", validationError.errors);
+      const formatted = formatZodError(validationError);
+      return errors.validationError(formatted.message, formatted.details);
+    }
+
+    const { paymentId, userId } = body;
+
+    console.log("[PAYMENT-CONFIRMATION] Processing payment confirmation:", paymentId);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -52,18 +69,24 @@ serve(async (req) => {
     );
 
     // Get payment and appointment details
-    const { data: payment } = await supabase
+    const { data: payment, error: paymentError } = await supabase
       .from('payments')
       .select('*, appointments(*, services(name, name_ar)), profiles(email, full_name)')
       .eq('id', paymentId)
       .single();
 
-    if (!payment) {
-      throw new Error('Payment not found');
+    if (paymentError || !payment) {
+      console.error("[PAYMENT-CONFIRMATION] Payment not found:", paymentError);
+      return errors.notFound("Payment");
     }
 
     const appointment = payment.appointments;
     const profile = payment.profiles;
+
+    if (!profile?.email) {
+      console.error("[PAYMENT-CONFIRMATION] No email found for user");
+      return errors.badRequest("User email not found");
+    }
 
     // Send email to client
     await sendEmail(
@@ -81,12 +104,14 @@ serve(async (req) => {
           <li><strong>Date:</strong> ${new Date(payment.created_at).toLocaleDateString()}</li>
         </ul>
 
+        ${appointment ? `
         <h2>Appointment Details:</h2>
         <ul>
-          <li><strong>Service:</strong> ${appointment.services?.name}</li>
+          <li><strong>Service:</strong> ${appointment.services?.name || 'N/A'}</li>
           <li><strong>Date:</strong> ${appointment.appointment_date}</li>
           <li><strong>Time:</strong> ${appointment.appointment_time}</li>
         </ul>
+        ` : ''}
 
         <p>We look forward to serving you!</p>
         <p>Best regards,<br>The ExavoAI Team</p>
@@ -109,29 +134,30 @@ serve(async (req) => {
 
         <h2>Client Details:</h2>
         <ul>
-          <li><strong>Name:</strong> ${profile.full_name}</li>
+          <li><strong>Name:</strong> ${profile.full_name || 'N/A'}</li>
           <li><strong>Email:</strong> ${profile.email}</li>
         </ul>
 
+        ${appointment ? `
         <h2>Appointment Details:</h2>
         <ul>
-          <li><strong>Service:</strong> ${appointment.services?.name}</li>
+          <li><strong>Service:</strong> ${appointment.services?.name || 'N/A'}</li>
           <li><strong>Date:</strong> ${appointment.appointment_date}</li>
           <li><strong>Time:</strong> ${appointment.appointment_time}</li>
         </ul>
+        ` : ''}
       `
     );
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.log("[PAYMENT-CONFIRMATION] ✓ Confirmation emails sent successfully");
+
+    return successResponse({ 
+      message: "Payment confirmation sent",
+      paymentId: payment.id 
+    });
 
   } catch (error) {
-    console.error('Error sending payment confirmation:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('[PAYMENT-CONFIRMATION] Error:', error);
+    return errors.internal(error instanceof Error ? error.message : 'Unknown error');
   }
 });

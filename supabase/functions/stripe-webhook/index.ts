@@ -1,16 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import Stripe from 'https://esm.sh/stripe@18.5.0';
-
-const securityHeaders = {
-  "X-Frame-Options": "DENY",
-  "X-Content-Type-Options": "nosniff",
-  "X-XSS-Protection": "1; mode=block",
-  "Referrer-Policy": "no-referrer-when-downgrade",
-  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-  "Pragma": "no-cache",
-};
+import { corsHeaders, successResponse, errors } from "../_shared/response.ts";
 
 const PLAN_PRODUCT_MAP: Record<string, string> = {
   'prod_TTapRptmEkLouu': 'starter',
@@ -18,21 +9,35 @@ const PLAN_PRODUCT_MAP: Record<string, string> = {
   'prod_TTapwaC6qD21xi': 'enterprise'
 };
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2025-08-27.basil',
-});
-
 serve(async (req) => {
+  // Only allow POST for webhooks
+  if (req.method !== "POST") {
+    console.log("[STRIPE-WEBHOOK] Invalid method:", req.method);
+    return errors.badRequest(`Method ${req.method} not allowed. Use POST.`);
+  }
+
   const signature = req.headers.get('stripe-signature');
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 
-  if (!signature || !webhookSecret) {
-    return new Response('Webhook signature missing', { status: 400 });
+  if (!signature) {
+    console.log("[STRIPE-WEBHOOK] Missing stripe-signature header");
+    return errors.badRequest("Missing stripe-signature header");
   }
+
+  if (!webhookSecret) {
+    console.error("[STRIPE-WEBHOOK] STRIPE_WEBHOOK_SECRET not configured");
+    return errors.internal("Webhook not configured");
+  }
+
+  const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+    apiVersion: '2025-08-27.basil',
+  });
 
   try {
     const body = await req.text();
     const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+
+    console.log(`[STRIPE-WEBHOOK] Received event: ${event.type}, id: ${event.id}`);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -47,7 +52,6 @@ serve(async (req) => {
         if (session.mode === 'subscription' && session.subscription) {
           console.log(`[STRIPE-WEBHOOK] Processing subscription checkout`);
           
-          // Fetch subscription to get product details
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
           const productId = typeof subscription.items.data[0].price.product === 'string'
             ? subscription.items.data[0].price.product
@@ -56,7 +60,6 @@ serve(async (req) => {
           
           console.log(`[STRIPE-WEBHOOK] Product ID: ${productId}, Plan: ${planName}`);
           
-          // Find user by customer email
           const customerEmail = session.customer_email || session.customer_details?.email;
           if (customerEmail) {
             const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
@@ -65,7 +68,6 @@ serve(async (req) => {
             if (user) {
               console.log(`[STRIPE-WEBHOOK] Found user: ${user.id}, updating workspace`);
               
-              // Update or create workspace
               const { error: upsertError } = await supabase
                 .from('workspaces')
                 .upsert({
@@ -91,8 +93,7 @@ serve(async (req) => {
           break;
         }
         
-        // Handle payment checkout completion (existing logic)
-        // Update payment status
+        // Handle payment checkout completion
         const { data: payment } = await supabase
           .from('payments')
           .update({
@@ -105,13 +106,11 @@ serve(async (req) => {
           .single();
 
         if (payment) {
-          // Update appointment status
           await supabase
             .from('appointments')
             .update({ status: 'confirmed' })
             .eq('id', payment.appointment_id);
 
-          // Send confirmation email
           await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-payment-confirmation`, {
             method: 'POST',
             headers: {
@@ -135,7 +134,6 @@ serve(async (req) => {
         
         console.log(`[STRIPE-WEBHOOK] Subscription ${event.type}: ${subscription.id}, status: ${subscription.status}`);
         
-        // Get customer email
         const customer = await stripe.customers.retrieve(customerId);
         const customerEmail = 'email' in customer ? customer.email : null;
         
@@ -151,7 +149,6 @@ serve(async (req) => {
         
         console.log(`[STRIPE-WEBHOOK] Email: ${customerEmail}, Product: ${productId}, Plan: ${planName}`);
         
-        // Find user by email
         const { data: userData } = await supabase.auth.admin.listUsers();
         const user = userData?.users.find(u => u.email === customerEmail);
         
@@ -160,14 +157,12 @@ serve(async (req) => {
           break;
         }
         
-        // Get existing workspace to check for old subscription
         const { data: existingWorkspace } = await supabase
           .from('workspaces')
           .select('stripe_subscription_id')
           .eq('owner_id', user.id)
           .single();
         
-        // If there's a different subscription ID, cancel the old one
         if (existingWorkspace?.stripe_subscription_id && 
             existingWorkspace.stripe_subscription_id !== subscription.id) {
           console.log(`[STRIPE-WEBHOOK] Canceling old subscription: ${existingWorkspace.stripe_subscription_id}`);
@@ -179,7 +174,6 @@ serve(async (req) => {
           }
         }
         
-        // Update workspace with new subscription
         const { error: updateError } = await supabase
           .from('workspaces')
           .upsert({
@@ -212,7 +206,6 @@ serve(async (req) => {
         
         console.log(`[STRIPE-WEBHOOK] Subscription canceled for ${customerEmail}, reverting to free plan`);
         
-        // Revert to free plan
         const { error: updateError } = await supabase
           .from('workspaces')
           .update({
@@ -241,17 +234,18 @@ serve(async (req) => {
           .eq('stripe_session_id', session.id);
         break;
       }
+
+      default:
+        console.log(`[STRIPE-WEBHOOK] Unhandled event type: ${event.type}`);
     }
 
-    return new Response(JSON.stringify({ received: true }), {
-      headers: { ...securityHeaders, 'Content-Type': 'application/json' },
-    });
+    return successResponse({ received: true, eventType: event.type });
 
   } catch (error) {
-    console.error('Webhook error:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 400, headers: { ...securityHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('[STRIPE-WEBHOOK] Error:', error);
+    if (error instanceof Stripe.errors.StripeSignatureVerificationError) {
+      return errors.badRequest("Invalid webhook signature");
+    }
+    return errors.badRequest(error instanceof Error ? error.message : 'Unknown error');
   }
 });

@@ -1,61 +1,65 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import { corsHeaders, successResponse, errors, handleCors } from "../_shared/response.ts";
+import { z, validateBody, formatZodError } from "../_shared/validation.ts";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+// Request validation schema
+const ticketReplySchema = z.object({
+  ticketId: z.string().uuid("Invalid ticket ID format"),
+  replyMessage: z.string().trim().min(1, "Reply message is required").max(10000, "Message too long"),
+  adminUserId: z.string().uuid("Invalid admin user ID format"),
+});
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "X-Frame-Options": "DENY",
-  "X-Content-Type-Options": "nosniff",
-  "X-XSS-Protection": "1; mode=block",
-  "Referrer-Policy": "no-referrer-when-downgrade",
-  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-  "Pragma": "no-cache",
-};
+serve(async (req) => {
+  // Handle CORS
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
-interface TicketReplyRequest {
-  ticketId: string;
-  replyMessage: string;
-  adminUserId: string;
-}
-
-const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // Only allow POST
+  if (req.method !== "POST") {
+    console.log("[TICKET-REPLY] Invalid method:", req.method);
+    return errors.badRequest(`Method ${req.method} not allowed. Use POST.`);
   }
 
   try {
-    const { ticketId, replyMessage, adminUserId }: TicketReplyRequest = await req.json();
+    // Validate request body
+    const { data: body, error: validationError } = await validateBody(req, ticketReplySchema);
+    if (validationError) {
+      console.log("[TICKET-REPLY] Validation error:", validationError.errors);
+      const formatted = formatZodError(validationError);
+      return errors.validationError(formatted.message, formatted.details);
+    }
 
-    console.log("Processing ticket reply notification for ticket:", ticketId);
+    const { ticketId, replyMessage, adminUserId } = body;
 
-    // Initialize Supabase client
+    console.log("[TICKET-REPLY] Processing notification for ticket:", ticketId);
+
+    // Initialize clients
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendKey) {
+      console.error("[TICKET-REPLY] RESEND_API_KEY not configured");
+      return errors.internal("Email service not configured");
+    }
+    
+    const resend = new Resend(resendKey);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch ticket details and user email
+    // Fetch ticket details
     const { data: ticket, error: ticketError } = await supabase
       .from("tickets")
-      .select(`
-        id,
-        subject,
-        user_id,
-        status
-      `)
+      .select("id, subject, user_id, status")
       .eq("id", ticketId)
       .single();
 
     if (ticketError || !ticket) {
-      console.error("Error fetching ticket:", ticketError);
-      throw new Error("Ticket not found");
+      console.error("[TICKET-REPLY] Ticket not found:", ticketError);
+      return errors.notFound("Ticket");
     }
 
-    console.log("Ticket found:", ticket);
+    console.log("[TICKET-REPLY] Ticket found:", ticket.id);
 
     // Fetch user profile to get email
     const { data: profile, error: profileError } = await supabase
@@ -65,15 +69,15 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (profileError || !profile) {
-      console.error("Error fetching user profile:", profileError);
-      throw new Error("User profile not found");
+      console.error("[TICKET-REPLY] User profile not found:", profileError);
+      return errors.notFound("User profile");
     }
 
-    console.log("Sending email to:", profile.email);
+    console.log("[TICKET-REPLY] Sending email to:", profile.email);
 
-    // Send email notification using Resend
+    // Send email notification
     const emailResponse = await resend.emails.send({
-      from: "Exavo Support <onboarding@resend.dev>",
+      from: "Exavo Support <info@exavoai.io>",
       to: [profile.email],
       subject: `New Reply to Your Support Ticket: ${ticket.subject}`,
       html: `
@@ -105,37 +109,14 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("[TICKET-REPLY] ✓ Email sent successfully:", emailResponse.data?.id);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        emailId: emailResponse.data?.id,
-      }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
-      }
-    );
-  } catch (error: any) {
-    console.error("Error in send-ticket-reply-notification function:", error);
-    return new Response(
-      JSON.stringify({
-        error: error.message,
-        details: error.toString(),
-      }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
-      }
-    );
+    return successResponse({
+      message: "Notification sent successfully",
+      emailId: emailResponse.data?.id,
+    });
+  } catch (error) {
+    console.error("[TICKET-REPLY] Error:", error);
+    return errors.internal(error instanceof Error ? error.message : 'Unknown error');
   }
-};
-
-serve(handler);
+});
