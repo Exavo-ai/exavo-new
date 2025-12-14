@@ -28,26 +28,18 @@ const CTA = () => {
           </h2>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {language === 'ar'
-              ? 'انضم إلى آلاف الشركات التي تستخدم Exavo لاتخاذ قرارات مدعومة بالبيانات'
-              : 'Join thousands of businesses using Exavo to make data-driven decisions'}
+              ? 'احجز عرضًا توضيحيًا مجانيًا واكتشف كيف يمكننا مساعدتك'
+              : 'Book a free demo and discover how we can help your business grow with AI'}
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <Button 
               variant="hero" 
               size="lg"
-              className="text-base sm:text-lg px-8 h-12 sm:h-14"
-              onClick={() => navigate('/login')}
+              className="text-base sm:text-lg px-10 h-14 font-semibold"
+              onClick={() => navigate('/booking')}
             >
-              {language === 'ar' ? 'ابدأ الآن' : 'Get Started Now'}
+              {language === 'ar' ? 'اطلب عرضًا توضيحيًا' : 'Request a Demo'}
               <ArrowRight className="w-5 h-5" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="lg"
-              className="text-base sm:text-lg px-8 h-12 sm:h-14"
-              onClick={() => navigate('/services')}
-            >
-              {language === 'ar' ? 'استكشف الخدمات' : 'Explore Services'}
             </Button>
           </div>
         </div>
