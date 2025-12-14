@@ -54,24 +54,6 @@ serve(async (req) => {
       return errorResponse("RATE_LIMIT_EXCEEDED", "Too many requests. Please try again later.", 429);
     }
 
-    // Check authorization
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return errorResponse("UNAUTHORIZED", "Authorization header is required", 401);
-    }
-
-    // Authenticate user
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      return errorResponse("UNAUTHORIZED", "Invalid or expired authentication token", 401);
-    }
-
     // Parse and validate request body
     let body;
     try {
@@ -94,32 +76,77 @@ serve(async (req) => {
       return errorResponse("INTERNAL_ERROR", "AI service not configured", 500);
     }
 
-    // Store user message
+    // Fetch available services and packages for context
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-    
-    const lastMessage = messages[messages.length - 1];
-    await supabase.from('chat_messages').insert({
-      user_id: user.id,
-      session_id: sessionId,
-      role: 'user',
-      content: lastMessage.content
-    });
 
-    // System prompt
-    const systemPrompt = `You are a helpful AI assistant for ExavoAI, a professional AI consulting and services company.
+    const { data: servicesData } = await supabase
+      .from('services')
+      .select(`
+        id,
+        name,
+        description,
+        category,
+        service_packages (
+          id,
+          package_name,
+          price,
+          currency,
+          description,
+          delivery_time
+        )
+      `)
+      .eq('active', true);
 
-Your role is to:
-1. Help clients navigate the website and find information
-2. Answer questions about our services (AI consulting, custom AI solutions, automation, etc.)
-3. Recommend appropriate services based on client needs
-4. Assist with the booking process
-5. Provide information about pricing and service details
+    const servicesContext = servicesData?.map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      packages: s.service_packages?.map((p: any) => ({
+        id: p.id,
+        name: p.package_name,
+        price: `${p.price} ${p.currency}`,
+        description: p.description,
+        delivery: p.delivery_time
+      }))
+    })) || [];
 
-Be professional, helpful, and concise. If a client wants to book a service, guide them to use the booking form.
-Always respond in the same language the user is speaking (English or Arabic).`;
+    // Concierge system prompt
+    const systemPrompt = `You are an AI Concierge for Exavo AI, a one-stop AI marketplace helping small and mid-sized businesses adopt AI easily and affordably.
+
+## YOUR ROLE
+You are a friendly, consultative guide — NOT a Q&A bot. Your job is to understand the visitor's business goal and recommend the right service package.
+
+## CONVERSATION FLOW
+1. **Opening**: Start with a warm, brief greeting and ask ONE question: "What are you hoping to achieve with AI?" or similar.
+2. **Discovery**: Ask at most 2-3 short follow-up questions to understand:
+   - Their industry/business type
+   - The specific outcome they want (save time, increase leads, automate tasks, etc.)
+   - Their timeline (urgent vs. exploring)
+3. **Recommendation**: Based on their answers, recommend ONE specific service and package from the catalog below. Explain briefly why it fits their needs.
+4. **Call to Action**: Encourage them to book by saying something like "Ready to get started? I can open the booking form with this package selected for you." Include this exact format when recommending: [RECOMMEND:service_id:package_id]
+
+## AVAILABLE SERVICES & PACKAGES
+${JSON.stringify(servicesContext, null, 2)}
+
+## ABOUT EXAVO AI (Use as source of truth)
+- Exavo AI removes AI complexity for non-technical founders
+- We provide ready-to-use AI solutions and expert-led projects
+- Target audience: Small businesses, SMEs, non-technical founders, agencies, startups
+- What we offer: AI automation systems, AI-powered websites, Custom CRM development, Pre-built AI projects, Expert AI workflows and consulting
+- Delivery: 3 to 14 days depending on the package
+- Exavo is NOT a freelancer marketplace — we provide curated, managed AI solutions
+- Contact: info@exavoai.com or https://exavo.ai
+
+## RULES
+- Be conversational, warm, and concise (1-3 short sentences per message)
+- Never invent services, prices, or features not in the catalog
+- If you're unsure what to recommend, suggest they "Book a Free Demo Call" so our team can help
+- Always respond in the same language the user speaks (English or Arabic)
+- If asked about something outside our services, politely redirect to what we can help with
+- Don't ask all questions at once — have a natural back-and-forth conversation`;
 
     // Call AI API
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -138,6 +165,7 @@ Always respond in the same language the user is speaking (English or Arabic).`;
     });
 
     if (!response.ok) {
+      console.error("[AI-CHAT] API error:", response.status);
       if (response.status === 429) {
         return errorResponse("RATE_LIMIT_EXCEEDED", "Rate limit exceeded. Please try again later.", 429);
       }
@@ -149,14 +177,6 @@ Always respond in the same language the user is speaking (English or Arabic).`;
 
     const data = await response.json();
     const assistantMessage = data.choices[0].message.content;
-
-    // Store assistant message
-    await supabase.from('chat_messages').insert({
-      user_id: user.id,
-      session_id: sessionId,
-      role: 'assistant',
-      content: assistantMessage
-    });
 
     return successResponse({ message: assistantMessage });
 
