@@ -1,5 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
-import { corsHeaders, successResponse, errors, handleCors } from "../_shared/response.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { corsHeaders, createdResponse, errors, handleCors } from "../_shared/response.ts";
 import { z, validateBody, formatZodError, uuidSchema } from "../_shared/validation.ts";
 
 const packageSchema = z.object({
@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
 
     console.log(`[ADMIN-CREATE-SERVICE] Service created: ${service.id}`);
 
-    return successResponse({ service }, 201);
+    return createdResponse({ service });
   } catch (error) {
     console.error("[ADMIN-CREATE-SERVICE] Unexpected error:", error);
     return errors.internal("An unexpected error occurred");
