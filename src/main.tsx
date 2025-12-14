@@ -9,16 +9,16 @@ import { SettingsProvider } from "./contexts/SettingsContext";
 import { TeamProvider } from "./contexts/TeamContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
-// Initialize theme on load
+// Initialize theme on load - default to light, only dark if explicitly saved
 const initTheme = () => {
-  const savedTheme = localStorage.getItem('theme') || 'light';
+  const savedTheme = localStorage.getItem('theme');
   const root = document.documentElement;
   
-  if (savedTheme === 'system') {
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    root.classList.add(systemTheme);
+  // Only use dark if explicitly set, otherwise default to light
+  if (savedTheme === 'dark') {
+    root.classList.add('dark');
   } else {
-    root.classList.add(savedTheme);
+    root.classList.add('light');
   }
 };
 
