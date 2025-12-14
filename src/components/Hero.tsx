@@ -1,24 +1,29 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Zap, DollarSign, Package } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import dashboardHero from "@/assets/hero-dashboard.jpg";
 
 const Hero = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const benefits = [
-    language === 'ar' ? 'تقليل وقت التنفيذ بنسبة 70%' : 'Reduce implementation time by 70%',
-    language === 'ar' ? 'زيادة العائد على الاستثمار بالذكاء الاصطناعي' : 'Maximize ROI with AI insights',
-    language === 'ar' ? 'لا حاجة لخبرة تقنية' : 'No technical expertise required',
-    language === 'ar' ? 'فريق دعم خبراء 24/7' : '24/7 Expert support team'
+    {
+      icon: Package,
+      text: language === 'ar' ? 'أدوات ذكاء اصطناعي جاهزة للاستخدام' : 'Ready-to-use AI tools'
+    },
+    {
+      icon: Zap,
+      text: language === 'ar' ? 'لا تحتاج خبرة تقنية' : 'No technical skills needed'
+    },
+    {
+      icon: DollarSign,
+      text: language === 'ar' ? 'أسعار مناسبة للشركات الصغيرة' : 'Affordable for small businesses'
+    }
   ];
 
   return (
-    <section className="relative overflow-hidden pt-20 sm:pt-32 pb-12 lg:pt-40 lg:pb-16">
+    <section className="relative overflow-hidden pt-24 sm:pt-32 pb-16 lg:pt-40 lg:pb-24">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5"></div>
       
@@ -26,92 +31,47 @@ const Hero = () => {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border))_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-20"></div>
       
       {/* Ambient glow */}
-      <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] animate-pulse"></div>
-      <div className="absolute bottom-1/3 left-1/4 w-80 h-80 bg-secondary/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+      <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] animate-pulse"></div>
       
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Centered Content */}
-        <div className="max-w-5xl mx-auto text-center animate-fade-in">
-          <div className="space-y-4 sm:space-y-6 mb-10">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight">
-              {language === 'ar' 
-                ? 'تحليلات مدعومة بالذكاء الاصطناعي لأعمالك'
-                : 'AI-Powered Analytics for Your Business'}
-            </h1>
-            
-            <p className="text-base sm:text-lg md:text-xl text-muted-foreground leading-relaxed max-w-3xl mx-auto">
-              {language === 'ar'
-                ? 'حوّل بياناتك إلى رؤى قابلة للتنفيذ مع تحليلات الذكاء الاصطناعي فائقة السرعة. اتخذ قرارات أذكى وحقق النمو دون تعقيد تقني.'
-                : 'Transform your data into actionable insights with lightning-fast AI analytics. Make smarter decisions and drive growth without technical complexity.'}
-            </p>
-          </div>
+        <div className="max-w-4xl mx-auto text-center animate-fade-in">
+          {/* Main Headline */}
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
+            {language === 'ar' 
+              ? 'سوقك الشامل للذكاء الاصطناعي'
+              : 'Your One-Stop AI Marketplace'}
+          </h1>
+          
+          {/* Clear Value Proposition */}
+          <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto mb-8">
+            {language === 'ar'
+              ? 'نساعد الشركات الصغيرة والمتوسطة على تبني الذكاء الاصطناعي بسهولة — بدون تعقيدات تقنية أو تكاليف باهظة.'
+              : 'Helping small and mid-sized businesses adopt AI easily — no technical complexity, no big budgets required.'}
+          </p>
 
-          {/* Dashboard Preview */}
-          <div className="relative animate-fade-in-up mb-10 max-w-4xl mx-auto" style={{ animationDelay: '0.1s' }}>
-            <div className="relative rounded-2xl overflow-hidden shadow-card border border-border/50 bg-card">
-              <img 
-                src={dashboardHero} 
-                alt="Dashboard preview showing AI-powered analytics interface"
-                className="w-full h-auto"
-              />
-              
-              {/* Floating stat badges */}
-              <div className="absolute top-4 sm:top-6 right-4 sm:right-6 backdrop-blur-md bg-card/80 rounded-xl p-3 sm:p-4 shadow-glow border border-border/50 animate-float">
-                <div className="text-xl sm:text-2xl font-bold text-primary">+43%</div>
-                <div className="text-xs text-muted-foreground">
-                  {language === 'ar' ? 'نمو الإيرادات' : 'Revenue Growth'}
-                </div>
-              </div>
-              
-              <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 backdrop-blur-md bg-card/80 rounded-xl p-3 sm:p-4 shadow-glow border border-border/50 animate-float" style={{ animationDelay: '1s' }}>
-                <div className="text-xl sm:text-2xl font-bold text-secondary">99.9%</div>
-                <div className="text-xs text-muted-foreground">
-                  {language === 'ar' ? 'دقة البيانات' : 'Data Accuracy'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <Button 
-              size="lg"
-              variant="hero"
-              className="text-base sm:text-lg px-8 h-12 sm:h-14"
-              onClick={() => navigate(user ? '/booking' : '/login')}
-            >
-              {language === 'ar' ? 'احصل على استشارة مجانية' : 'Get Started'}
-              <ArrowRight className="w-5 h-5" />
-            </Button>
-            <Button 
-              size="lg"
-              variant="outline"
-              className="text-base sm:text-lg px-8 h-12 sm:h-14"
-              onClick={() => {
-                const servicesSection = document.getElementById('services');
-                if (servicesSection) {
-                  servicesSection.scrollIntoView({ behavior: 'smooth' });
-                } else {
-                  navigate('/services');
-                }
-              }}
-            >
-              {language === 'ar' ? 'تعرف على المزيد' : 'Learn More'}
-            </Button>
-          </div>
-
-          {/* Benefits List - Horizontal */}
-          <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          {/* Benefits */}
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mb-10">
             {benefits.map((benefit, index) => (
               <div 
                 key={index}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 bg-card/50 backdrop-blur-sm border border-border/50 rounded-full px-4 py-2"
               >
-                <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
-                <span className="text-sm text-muted-foreground">{benefit}</span>
+                <benefit.icon className="w-4 h-4 text-primary flex-shrink-0" />
+                <span className="text-sm font-medium text-foreground">{benefit.text}</span>
               </div>
             ))}
           </div>
+
+          {/* Single Primary CTA */}
+          <Button 
+            size="lg"
+            variant="hero"
+            className="text-base sm:text-lg px-10 h-14 font-semibold"
+            onClick={() => navigate('/services')}
+          >
+            {language === 'ar' ? 'استكشف الأدوات' : 'Explore AI Tools'}
+            <ArrowRight className="w-5 h-5" />
+          </Button>
         </div>
       </div>
     </section>
