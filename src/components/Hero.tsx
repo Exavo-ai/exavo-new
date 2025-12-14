@@ -1,12 +1,12 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Zap, DollarSign, Package } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useNavigate } from "react-router-dom";
+import DemoRequestDialog from "@/components/DemoRequestDialog";
 
 const Hero = () => {
   const { language } = useLanguage();
-  const navigate = useNavigate();
-
+  const [demoDialogOpen, setDemoDialogOpen] = useState(false);
   const benefits = [
     {
       icon: Package,
@@ -67,13 +67,15 @@ const Hero = () => {
             size="lg"
             variant="hero"
             className="text-base sm:text-lg px-10 h-14 font-semibold"
-            onClick={() => navigate('/booking')}
+            onClick={() => setDemoDialogOpen(true)}
           >
             {language === 'ar' ? 'اطلب عرضًا توضيحيًا' : 'Request a Demo'}
             <ArrowRight className="w-5 h-5" />
           </Button>
         </div>
       </div>
+
+      <DemoRequestDialog open={demoDialogOpen} onOpenChange={setDemoDialogOpen} />
     </section>
   );
 };
