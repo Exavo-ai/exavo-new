@@ -1,89 +1,94 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1'
-import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
+import { corsHeaders, successResponse, errors, handleCors } from "../_shared/response.ts";
+import { z, validateBody, formatZodError, uuidSchema } from "../_shared/validation.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'X-Frame-Options': 'DENY',
-  'X-Content-Type-Options': 'nosniff',
-  'X-XSS-Protection': '1; mode=block',
-  'Referrer-Policy': 'no-referrer-when-downgrade',
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
-  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-  'Pragma': 'no-cache',
-}
+const packageSchema = z.object({
+  package_name: z.string().trim().min(1, "Package name is required").max(100, "Package name too long"),
+  description: z.string().trim().max(2000, "Description too long").optional(),
+  price: z.number().min(0, "Price must be non-negative").max(1000000, "Price exceeds maximum"),
+  currency: z.string().length(3, "Currency must be 3 characters").default("USD"),
+  features: z.array(z.string().trim().max(500, "Feature text too long")).max(50, "Too many features"),
+  delivery_time: z.string().trim().max(100, "Delivery time too long").optional(),
+  notes: z.string().trim().max(2000, "Notes too long").optional(),
+  package_order: z.number().int().min(0).max(100).default(0),
+  images: z.array(z.string().url("Invalid image URL")).max(20, "Too many images").optional(),
+  videos: z.array(z.string().url("Invalid video URL")).max(10, "Too many videos").optional(),
+});
+
+const createServiceSchema = z.object({
+  name: z.string().trim().min(1, "Service name is required").max(200, "Service name too long"),
+  name_ar: z.string().trim().min(1, "Arabic name is required").max(200, "Arabic name too long"),
+  description: z.string().trim().min(1, "Description is required").max(5000, "Description too long"),
+  description_ar: z.string().trim().min(1, "Arabic description is required").max(5000, "Arabic description too long"),
+  price: z.number().min(0, "Price must be non-negative").max(1000000, "Price exceeds maximum"),
+  currency: z.string().length(3, "Currency must be 3 characters").default("USD"),
+  category: uuidSchema,
+  active: z.boolean().default(true),
+  image_url: z.string().url("Invalid image URL").nullable().optional(),
+  packages: z.array(packageSchema).max(10, "Too many packages").optional(),
+});
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
-      throw new Error('Missing Supabase environment variables');
+      console.error("[ADMIN-CREATE-SERVICE] Missing environment variables");
+      return errors.internal("Server configuration error");
     }
 
-    const authHeader = req.headers.get('Authorization');
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      throw new Error('No authorization header');
+      return errors.unauthorized("No authorization header");
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.replace("Bearer ", "");
     const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
 
     const { data: { user }, error: userError } = await supabaseAnon.auth.getUser();
     if (userError || !user) {
-      throw new Error('Unauthorized');
+      console.error("[ADMIN-CREATE-SERVICE] Auth error:", userError?.message);
+      return errors.unauthorized("Invalid or expired token");
     }
 
-    const { data: isAdmin, error: roleError } = await supabaseAnon.rpc('has_role', {
+    const { data: isAdmin, error: roleError } = await supabaseAnon.rpc("has_role", {
       _user_id: user.id,
-      _role: 'admin'
+      _role: "admin",
     });
 
     if (roleError || !isAdmin) {
-      throw new Error('User does not have admin role');
+      console.error("[ADMIN-CREATE-SERVICE] Role check failed:", roleError?.message);
+      return errors.forbidden("Admin access required");
     }
 
-    const packageSchema = z.object({
-      package_name: z.string().min(1),
-      description: z.string().optional(),
-      price: z.number().min(0),
-      currency: z.string().default('USD'),
-      features: z.array(z.string()),
-      delivery_time: z.string().optional(),
-      notes: z.string().optional(),
-      package_order: z.number().default(0),
-      images: z.array(z.string()).optional(),
-      videos: z.array(z.string()).optional(),
-    });
-
-    const createServiceSchema = z.object({
-      name: z.string().min(1),
-      name_ar: z.string().min(1),
-      description: z.string().min(1),
-      description_ar: z.string().min(1),
-      price: z.number().min(0),
-      currency: z.string().default('USD'),
-      category: z.string().uuid(),
-      active: z.boolean().default(true),
-      image_url: z.string().nullable().optional(),
-      packages: z.array(packageSchema).optional(),
-    });
-
-    const body = await req.json();
-    const validatedData = createServiceSchema.parse(body);
+    const { data: validatedData, error: validationError } = await validateBody(req, createServiceSchema);
+    if (validationError) {
+      const formatted = formatZodError(validationError);
+      return errors.validationError(formatted.message, formatted.details);
+    }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+    // Check for duplicate service name
+    const { data: existingService } = await supabaseAdmin
+      .from("services")
+      .select("id")
+      .eq("name", validatedData.name)
+      .maybeSingle();
+
+    if (existingService) {
+      return errors.conflict("A service with this name already exists");
+    }
+
     const { data: service, error: serviceError } = await supabaseAdmin
-      .from('services')
+      .from("services")
       .insert({
         name: validatedData.name,
         name_ar: validatedData.name_ar,
@@ -99,12 +104,12 @@ Deno.serve(async (req) => {
       .single();
 
     if (serviceError) {
-      console.error('Error creating service:', serviceError);
-      throw serviceError;
+      console.error("[ADMIN-CREATE-SERVICE] Insert error:", serviceError);
+      return errors.internal("Failed to create service");
     }
 
     if (validatedData.packages && validatedData.packages.length > 0) {
-      const packagesToInsert = validatedData.packages.map(pkg => ({
+      const packagesToInsert = validatedData.packages.map((pkg) => ({
         service_id: service.id,
         package_name: pkg.package_name,
         description: pkg.description,
@@ -119,36 +124,22 @@ Deno.serve(async (req) => {
       }));
 
       const { error: packagesError } = await supabaseAdmin
-        .from('service_packages')
+        .from("service_packages")
         .insert(packagesToInsert);
 
       if (packagesError) {
-        console.error('Error creating packages:', packagesError);
-        await supabaseAdmin.from('services').delete().eq('id', service.id);
-        throw packagesError;
+        console.error("[ADMIN-CREATE-SERVICE] Packages error:", packagesError);
+        // Rollback service creation
+        await supabaseAdmin.from("services").delete().eq("id", service.id);
+        return errors.internal("Failed to create service packages");
       }
     }
 
-    console.log('Service created successfully:', service.id);
+    console.log(`[ADMIN-CREATE-SERVICE] Service created: ${service.id}`);
 
-    return new Response(
-      JSON.stringify({ success: true, service }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
+    return successResponse({ service }, 201);
   } catch (error) {
-    console.error('Error in admin-create-service:', error);
-    
-    if (error instanceof z.ZodError) {
-      return new Response(
-        JSON.stringify({ error: 'Validation error', details: error.errors }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error("[ADMIN-CREATE-SERVICE] Unexpected error:", error);
+    return errors.internal("An unexpected error occurred");
   }
 });

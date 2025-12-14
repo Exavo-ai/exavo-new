@@ -1,104 +1,86 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { corsHeaders, successResponse, errors, handleCors } from "../_shared/response.ts";
+import { z, validateBody, formatZodError, uuidSchema } from "../_shared/validation.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'X-Frame-Options': 'DENY',
-  'X-Content-Type-Options': 'nosniff',
-  'X-XSS-Protection': '1; mode=block',
-  'Referrer-Policy': 'no-referrer-when-downgrade',
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
-  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-  'Pragma': 'no-cache',
-};
+const deleteServiceSchema = z.object({
+  serviceId: uuidSchema,
+});
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+Deno.serve(async (req) => {
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
-    // Get JWT from authorization header
-    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-    
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+      console.error("[ADMIN-DELETE-SERVICE] Missing environment variables");
+      return errors.internal("Server configuration error");
+    }
+
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "No authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return errors.unauthorized("No authorization header");
     }
 
-    // Extract JWT token and decode to get user ID
     const token = authHeader.replace("Bearer ", "");
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const userId = payload.sub;
-    
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+
+    const { data: { user }, error: userError } = await supabaseAnon.auth.getUser();
+    if (userError || !user) {
+      console.error("[ADMIN-DELETE-SERVICE] Auth error:", userError?.message);
+      return errors.unauthorized("Invalid or expired token");
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    );
-
-    // Verify admin role
-    const { data: isAdmin } = await supabaseClient.rpc('has_role', {
-      _user_id: userId,
-      _role: 'admin'
+    const { data: isAdmin, error: roleError } = await supabaseAnon.rpc("has_role", {
+      _user_id: user.id,
+      _role: "admin",
     });
 
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (roleError || !isAdmin) {
+      console.error("[ADMIN-DELETE-SERVICE] Role check failed:", roleError?.message);
+      return errors.forbidden("Admin access required");
     }
 
-    // Validate input
-    const deleteServiceSchema = z.object({
-      serviceId: z.string().uuid('Invalid service ID format')
-    });
-
-    let validated;
-    try {
-      const input = await req.json();
-      validated = deleteServiceSchema.parse(input);
-    } catch (error: any) {
-      return new Response(JSON.stringify({ error: error.errors?.[0]?.message || 'Invalid input data' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const { data: validatedData, error: validationError } = await validateBody(req, deleteServiceSchema);
+    if (validationError) {
+      const formatted = formatZodError(validationError);
+      return errors.validationError(formatted.message, formatted.details);
     }
 
-    const { serviceId } = validated;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    // Use service role for deletion
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Check if service exists
+    const { data: existingService, error: fetchError } = await supabaseAdmin
+      .from("services")
+      .select("id, name")
+      .eq("id", validatedData.serviceId)
+      .maybeSingle();
 
-    const { error } = await supabaseAdmin.from('services').delete().eq('id', serviceId);
+    if (fetchError || !existingService) {
+      return errors.notFound("Service");
+    }
 
-    if (error) throw error;
+    // Delete service (packages will be cascade deleted via foreign key)
+    const { error: deleteError } = await supabaseAdmin
+      .from("services")
+      .delete()
+      .eq("id", validatedData.serviceId);
 
-    console.log('Admin performed service deletion operation');
+    if (deleteError) {
+      console.error("[ADMIN-DELETE-SERVICE] Delete error:", deleteError);
+      return errors.internal("Failed to delete service");
+    }
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (error: any) {
-    console.error('Error in admin-delete-service:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.log(`[ADMIN-DELETE-SERVICE] Service deleted: ${validatedData.serviceId} (${existingService.name})`);
+
+    return successResponse({ message: "Service deleted successfully" });
+  } catch (error) {
+    console.error("[ADMIN-DELETE-SERVICE] Unexpected error:", error);
+    return errors.internal("An unexpected error occurred");
   }
 });
