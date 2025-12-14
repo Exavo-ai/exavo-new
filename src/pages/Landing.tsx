@@ -13,43 +13,43 @@ const Landing = () => {
   const steps = [
     {
       number: "1",
-      title: "Request a Demo",
-      description: "Tell us about your business needs in a quick call."
+      title: "Book a Call",
+      description: "Tell us what takes up your time. We listen."
     },
     {
       number: "2",
-      title: "Get Your AI Plan",
-      description: "We recommend the right AI tools for your goals."
+      title: "Pick Your Tools",
+      description: "We show you which AI tools fit your needs and budget."
     },
     {
       number: "3",
-      title: "Start Growing",
-      description: "Launch your AI tools and see results fast."
+      title: "We Set It Up",
+      description: "We install everything. You start saving time."
     }
   ];
 
   const benefits = [
     {
       icon: Package,
-      title: "Ready-to-Use AI Tools",
-      description: "No building from scratch. Pick from our library of proven AI solutions."
+      title: "Tools That Work Out of the Box",
+      description: "Chatbots, content writers, data dashboards — ready to use, not projects to build."
     },
     {
       icon: Zap,
-      title: "No Technical Skills Needed",
-      description: "We handle the tech. You focus on running your business."
+      title: "You Don't Need to Be Technical",
+      description: "We handle setup and training. You just use it."
     },
     {
       icon: DollarSign,
-      title: "Affordable for SMEs",
-      description: "Enterprise-grade AI at prices small businesses can afford."
+      title: "Prices That Make Sense",
+      description: "Start small. Pay for what you use. No enterprise contracts."
     }
   ];
 
   const testimonials = [
-    { name: "Sarah J.", role: "Retail Owner", quote: "Saved 20 hours a week on customer support." },
-    { name: "Ahmed H.", role: "Agency Director", quote: "Our team productivity doubled in 2 months." },
-    { name: "Maria G.", role: "E-commerce Founder", quote: "Best investment we made this year." }
+    { name: "Sarah J.", role: "Retail Owner", quote: "Cut my customer email time from 3 hours to 30 minutes a day." },
+    { name: "Ahmed H.", role: "Agency Director", quote: "We stopped hiring for data entry. The AI does it now." },
+    { name: "Maria G.", role: "E-commerce Founder", quote: "Finally understood my sales data without a spreadsheet degree." }
   ];
 
   return (
@@ -64,12 +64,11 @@ const Landing = () => {
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center space-y-6 animate-fade-in">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-              Your One-Stop{' '}
-              <span className="bg-gradient-hero bg-clip-text text-transparent">AI Marketplace</span>
+              AI Tools for Small Businesses
             </h1>
             
             <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Helping small and mid-sized businesses adopt AI easily — no technical complexity, no big budgets required.
+              Automate the repetitive work. Answer customers faster. Understand your data. We set it up for you.
             </p>
 
             <div className="pt-4">
@@ -78,7 +77,7 @@ const Landing = () => {
                 className="text-base sm:text-lg px-10 py-6 bg-gradient-hero hover:shadow-glow-lg transition-all group font-semibold"
                 onClick={() => setDemoDialogOpen(true)}
               >
-                Request a Demo
+                Book a Free Call
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </div>
@@ -90,8 +89,7 @@ const Landing = () => {
       <section className="py-16 sm:py-20 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <Badge className="mb-3">Simple Process</Badge>
-            <h2 className="text-3xl sm:text-4xl font-bold">How It Works</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold">Here's How It Works</h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
@@ -116,8 +114,7 @@ const Landing = () => {
       <section className="py-16 sm:py-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <Badge className="mb-3">Why Exavo</Badge>
-            <h2 className="text-3xl sm:text-4xl font-bold">Built for Businesses Like Yours</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold">What You Actually Get</h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
@@ -144,7 +141,7 @@ const Landing = () => {
       <section className="py-16 sm:py-20 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-10">
-            <h2 className="text-2xl sm:text-3xl font-bold">Trusted by Growing Businesses</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold">What Our Clients Say</h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
@@ -171,19 +168,18 @@ const Landing = () => {
         <div className="container mx-auto px-4">
           <Card className="max-w-2xl mx-auto bg-gradient-to-br from-primary/5 via-background to-secondary/5 border-primary/20">
             <CardContent className="p-8 sm:p-10 text-center space-y-5">
-              <MessageSquare className="w-10 h-10 mx-auto text-primary" />
               <h2 className="text-2xl sm:text-3xl font-bold">
-                Ready to Get Started?
+                Not Sure Where to Start?
               </h2>
               <p className="text-muted-foreground max-w-md mx-auto">
-                See how Exavo can help your business adopt AI — no technical skills required.
+                Book a free 15-minute call. We'll ask about your business, show you what's possible, and give you honest advice — even if we're not the right fit.
               </p>
               <Button 
                 size="lg" 
                 className="text-base px-10 py-6 bg-gradient-hero hover:shadow-glow-lg transition-all group font-semibold"
                 onClick={() => setDemoDialogOpen(true)}
               >
-                Request a Demo
+                Book a Free Call
                 <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </CardContent>

@@ -90,9 +90,9 @@ const DemoRequestDialog = ({ open, onOpenChange }: DemoRequestDialogProps) => {
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">Request a Demo</DialogTitle>
+              <DialogTitle className="text-2xl font-bold">Book a Free Call</DialogTitle>
               <p className="text-sm text-muted-foreground mt-2">
-                See how Exavo can help your business adopt AI. We'll reach out within 24 hours.
+                15 minutes. No sales pitch. Just honest advice about what AI can do for your business.
               </p>
             </DialogHeader>
 
@@ -134,12 +134,12 @@ const DemoRequestDialog = ({ open, onOpenChange }: DemoRequestDialogProps) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="message">What are you looking for? (Optional)</Label>
+                <Label htmlFor="message">What's taking up most of your time? (Optional)</Label>
                 <Textarea
                   id="message"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Tell us about your business needs..."
+                  placeholder="e.g., Answering the same customer questions, updating spreadsheets, writing content..."
                   rows={3}
                   disabled={loading}
                 />
@@ -152,7 +152,7 @@ const DemoRequestDialog = ({ open, onOpenChange }: DemoRequestDialogProps) => {
                     Submitting...
                   </>
                 ) : (
-                  'Request a Demo'
+                  'Book My Free Call'
                 )}
               </Button>
             </form>
