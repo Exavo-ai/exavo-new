@@ -1,31 +1,61 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, X, Send, Loader2, Sparkles } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { MessageCircle, X, Sparkles, ArrowRight } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useNavigate } from "react-router-dom";
 
-interface Message {
-  role: 'user' | 'assistant';
+type ConversationStep = 'greeting' | 'goal' | 'followup' | 'recommendation';
+
+interface ChatMessage {
+  role: 'assistant' | 'user';
   content: string;
+  buttons?: Array<{
+    label: string;
+    value: string;
+  }>;
+  cta?: {
+    label: string;
+    serviceSlug: string;
+  };
 }
 
 interface ChatWidgetProps {
   onSelectPackage?: (serviceId: string, packageId: string) => void;
 }
 
+// Service mapping based on user goals
+const SERVICE_MAP: Record<string, { slug: string; name: string; description: string }> = {
+  'automate': {
+    slug: 'ai-automation-systems',
+    name: 'AI Automation Systems',
+    description: 'Automate repetitive tasks and workflows to save time and reduce errors.'
+  },
+  'website': {
+    slug: 'ai-powered-website-development',
+    name: 'AI-Powered Website Development',
+    description: 'Get a modern, fast website built with AI-enhanced development for better results.'
+  },
+  'crm': {
+    slug: 'custom-crm-development',
+    name: 'Custom CRM Development',
+    description: 'A tailored system to manage your clients, leads, and internal operations efficiently.'
+  },
+  'unsure': {
+    slug: 'book-demo',
+    name: 'Book a Demo',
+    description: "Let's discuss your needs and find the right solution together."
+  }
+};
+
 const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasGreeted, setHasGreeted] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [step, setStep] = useState<ConversationStep>('greeting');
+  const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const sessionId = useRef(crypto.randomUUID());
-  const { toast } = useToast();
   const { language } = useLanguage();
+  const navigate = useNavigate();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -35,110 +65,138 @@ const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
     scrollToBottom();
   }, [messages]);
 
-  // Send initial greeting when chat opens for the first time
+  // Initialize conversation when chat opens
   useEffect(() => {
-    if (isOpen && !hasGreeted && messages.length === 0) {
-      setHasGreeted(true);
-      const greeting: Message = {
-        role: 'assistant',
-        content: language === 'ar' 
-          ? 'مرحبًا! 👋 أنا مساعدك في Exavo AI. ما الذي تأمل في تحقيقه مع الذكاء الاصطناعي لعملك؟'
-          : "Hi there! 👋 I'm your Exavo AI concierge. What are you hoping to achieve with AI for your business?"
-      };
-      setMessages([greeting]);
+    if (isOpen && messages.length === 0) {
+      startConversation();
     }
-  }, [isOpen, hasGreeted, messages.length, language]);
+  }, [isOpen]);
 
-  const parseRecommendation = (content: string): { cleanContent: string; serviceId?: string; packageId?: string } => {
-    const match = content.match(/\[RECOMMEND:([^:]+):([^\]]+)\]/);
-    if (match) {
-      return {
-        cleanContent: content.replace(/\[RECOMMEND:[^\]]+\]/g, '').trim(),
-        serviceId: match[1],
-        packageId: match[2]
-      };
-    }
-    return { cleanContent: content };
+  const startConversation = () => {
+    const greeting: ChatMessage = {
+      role: 'assistant',
+      content: language === 'ar' 
+        ? 'مرحبًا! 👋 أنا هنا لمساعدتك في العثور على الحل المناسب. ما الذي تتطلع لتحقيقه؟'
+        : "Hi there! 👋 I'm here to help you find the right solution. What are you looking to achieve?",
+      buttons: [
+        { label: language === 'ar' ? 'أتمتة عملية تجارية' : 'Automate a business process', value: 'automate' },
+        { label: language === 'ar' ? 'بناء أو تحسين موقع ويب' : 'Build or improve a website', value: 'website' },
+        { label: language === 'ar' ? 'بناء نظام CRM مخصص' : 'Build a custom CRM or system', value: 'crm' },
+        { label: language === 'ar' ? 'غير متأكد / أريد نصيحة' : 'Not sure / want advice', value: 'unsure' }
+      ]
+    };
+    setMessages([greeting]);
+    setStep('goal');
   };
 
-  const handleBookingClick = useCallback((serviceId: string, packageId: string) => {
-    if (onSelectPackage) {
-      onSelectPackage(serviceId, packageId);
-    } else {
-      // Navigate to services page with package selection
-      window.location.href = `/services?service=${serviceId}&package=${packageId}`;
-    }
-  }, [onSelectPackage]);
-
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = { role: 'user', content: input };
+  const handleButtonClick = (value: string, label: string) => {
+    // Add user's selection as a message
+    const userMessage: ChatMessage = { role: 'user', content: label };
     setMessages(prev => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
 
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-chat', {
-        body: {
-          messages: [...messages, userMessage].map(m => ({
-            role: m.role,
-            content: m.content
-          })),
-          sessionId: sessionId.current
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.data?.message) {
-        const { cleanContent, serviceId, packageId } = parseRecommendation(data.data.message);
-        
-        const assistantMessage: Message = { 
-          role: 'assistant', 
-          content: cleanContent 
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-
-        // If there's a recommendation, store it for the booking button
-        if (serviceId && packageId) {
-          setMessages(prev => {
-            const updated = [...prev];
-            const lastMsg = updated[updated.length - 1];
-            if (lastMsg.role === 'assistant') {
-              (lastMsg as any).recommendation = { serviceId, packageId };
-            }
-            return updated;
-          });
-        }
+    if (step === 'goal') {
+      setSelectedGoal(value);
+      
+      if (value === 'unsure') {
+        // Skip follow-up for unsure, go straight to demo recommendation
+        showRecommendation('unsure');
+      } else {
+        // Show follow-up question
+        showFollowUp(value);
       }
-    } catch (error: any) {
-      console.error('Chat error:', error);
-      toast({
-        title: language === 'ar' ? 'خطأ' : 'Error',
-        description: error.message || (language === 'ar' ? 'فشل إرسال الرسالة' : 'Failed to send message'),
-        variant: 'destructive'
-      });
-    } finally {
-      setIsLoading(false);
+    } else if (step === 'followup') {
+      // After follow-up, show recommendation
+      showRecommendation(selectedGoal || 'unsure');
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+  const showFollowUp = (goal: string) => {
+    const followUpQuestions: Record<string, ChatMessage> = {
+      'automate': {
+        role: 'assistant',
+        content: language === 'ar'
+          ? 'رائع! ما هو الجدول الزمني المثالي لتنفيذ هذا؟'
+          : 'Great choice! What\'s your ideal timeline for implementing this?',
+        buttons: [
+          { label: language === 'ar' ? 'في أقرب وقت ممكن' : 'As soon as possible', value: 'asap' },
+          { label: language === 'ar' ? 'خلال شهر' : 'Within a month', value: 'month' },
+          { label: language === 'ar' ? 'أنا فقط أستكشف' : 'Just exploring', value: 'exploring' }
+        ]
+      },
+      'website': {
+        role: 'assistant',
+        content: language === 'ar'
+          ? 'ممتاز! هل لديك موقع حالي أم تبدأ من الصفر؟'
+          : 'Excellent! Do you have an existing website or are you starting fresh?',
+        buttons: [
+          { label: language === 'ar' ? 'موقع موجود يحتاج تحسين' : 'Existing site needs improvement', value: 'existing' },
+          { label: language === 'ar' ? 'البدء من جديد' : 'Starting fresh', value: 'new' },
+          { label: language === 'ar' ? 'غير متأكد بعد' : 'Not sure yet', value: 'unsure' }
+        ]
+      },
+      'crm': {
+        role: 'assistant',
+        content: language === 'ar'
+          ? 'فهمت! ما حجم فريقك الذي سيستخدم هذا النظام؟'
+          : 'Got it! How big is the team that will use this system?',
+        buttons: [
+          { label: language === 'ar' ? 'فقط أنا' : 'Just me', value: 'solo' },
+          { label: language === 'ar' ? '2-10 أشخاص' : '2-10 people', value: 'small' },
+          { label: language === 'ar' ? 'أكثر من 10' : 'More than 10', value: 'large' }
+        ]
+      }
+    };
+
+    const followUp = followUpQuestions[goal];
+    if (followUp) {
+      setMessages(prev => [...prev, followUp]);
+      setStep('followup');
+    } else {
+      showRecommendation(goal);
     }
   };
 
-  const renderMessage = (message: Message & { recommendation?: { serviceId: string; packageId: string } }, index: number) => {
+  const showRecommendation = (goal: string) => {
+    const service = SERVICE_MAP[goal] || SERVICE_MAP['unsure'];
+    
+    const recommendation: ChatMessage = {
+      role: 'assistant',
+      content: language === 'ar'
+        ? `بناءً على ما شاركته، أوصي بـ **${service.name}**.\n\n${service.description}`
+        : `Based on what you've shared, I recommend **${service.name}**.\n\n${service.description}`,
+      cta: {
+        label: goal === 'unsure' 
+          ? (language === 'ar' ? 'احجز عرضًا تجريبيًا' : 'Book a Demo')
+          : (language === 'ar' ? 'اختر باقة' : 'Select Package'),
+        serviceSlug: service.slug
+      }
+    };
+
+    setMessages(prev => [...prev, recommendation]);
+    setStep('recommendation');
+  };
+
+  const handleCtaClick = (serviceSlug: string) => {
+    if (serviceSlug === 'book-demo') {
+      navigate('/contact');
+    } else {
+      navigate(`/services?highlight=${serviceSlug}`);
+    }
+    setIsOpen(false);
+  };
+
+  const handleReset = () => {
+    setMessages([]);
+    setStep('greeting');
+    setSelectedGoal(null);
+    startConversation();
+  };
+
+  const renderMessage = (message: ChatMessage, index: number) => {
     const isUser = message.role === 'user';
     
     return (
-      <div
-        key={index}
-        className={`mb-4 ${isUser ? 'text-right' : 'text-left'}`}
-      >
+      <div key={index} className={`mb-4 ${isUser ? 'text-right' : 'text-left'}`}>
         <div
           className={`inline-block p-3 rounded-lg max-w-[85%] ${
             isUser
@@ -148,16 +206,36 @@ const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
         >
           <p className="whitespace-pre-wrap text-sm">{message.content}</p>
         </div>
-        {message.recommendation && (
-          <div className="mt-2">
+        
+        {/* Render option buttons */}
+        {message.buttons && index === messages.length - 1 && (
+          <div className="mt-3 flex flex-col gap-2">
+            {message.buttons.map((btn, btnIndex) => (
+              <Button
+                key={btnIndex}
+                variant="outline"
+                size="sm"
+                className="justify-start text-left h-auto py-2 px-3 whitespace-normal"
+                onClick={() => handleButtonClick(btn.value, btn.label)}
+              >
+                {btn.label}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {/* Render CTA button */}
+        {message.cta && (
+          <div className="mt-3">
             <Button
-              size="sm"
               variant="hero"
-              className="text-xs"
-              onClick={() => handleBookingClick(message.recommendation!.serviceId, message.recommendation!.packageId)}
+              size="sm"
+              className="gap-2"
+              onClick={() => handleCtaClick(message.cta!.serviceSlug)}
             >
-              <Sparkles className="h-3 w-3 mr-1" />
-              {language === 'ar' ? 'احجز هذه الباقة' : 'Book This Package'}
+              <Sparkles className="h-4 w-4" />
+              {message.cta.label}
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         )}
@@ -180,56 +258,45 @@ const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
       {isOpen && (
         <div className="fixed bottom-24 right-6 w-[360px] max-w-[calc(100vw-3rem)] h-[480px] bg-background border border-border rounded-xl shadow-elegant z-50 flex flex-col overflow-hidden animate-fade-in">
           {/* Header */}
-          <div className="bg-gradient-hero p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
+          <div className="bg-gradient-hero p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-primary-foreground">
+                  {language === 'ar' ? 'مساعد Exavo' : 'Exavo Assistant'}
+                </h3>
+                <p className="text-xs text-primary-foreground/80">
+                  {language === 'ar' ? 'دعنا نجد الحل المناسب لك' : 'Let\'s find the right solution for you'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-semibold text-primary-foreground">
-                {language === 'ar' ? 'مستشار Exavo AI' : 'Exavo AI Concierge'}
-              </h3>
-              <p className="text-xs text-primary-foreground/80">
-                {language === 'ar' ? 'هنا لمساعدتك في العثور على الحل المناسب' : 'Here to help you find the right solution'}
-              </p>
-            </div>
+            {step === 'recommendation' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10 text-xs"
+                onClick={handleReset}
+              >
+                {language === 'ar' ? 'ابدأ من جديد' : 'Start over'}
+              </Button>
+            )}
           </div>
 
           {/* Messages */}
           <ScrollArea className="flex-1 p-4">
-            {messages.map((message, index) => renderMessage(message as any, index))}
-            {isLoading && (
-              <div className="text-left mb-4">
-                <div className="inline-flex items-center gap-2 p-3 rounded-lg bg-muted text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">
-                    {language === 'ar' ? 'جاري الكتابة...' : 'Typing...'}
-                  </span>
-                </div>
-              </div>
-            )}
+            {messages.map((message, index) => renderMessage(message, index))}
             <div ref={messagesEndRef} />
           </ScrollArea>
 
-          {/* Input */}
-          <div className="p-3 border-t border-border bg-background">
-            <div className="flex gap-2">
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder={language === 'ar' ? 'اكتب رسالتك...' : 'Type your message...'}
-                disabled={isLoading}
-                className="flex-1 text-sm"
-              />
-              <Button
-                onClick={handleSend}
-                disabled={isLoading || !input.trim()}
-                size="icon"
-                variant="hero"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
+          {/* Footer hint */}
+          <div className="p-3 border-t border-border bg-muted/30 text-center">
+            <p className="text-xs text-muted-foreground">
+              {language === 'ar' 
+                ? 'اختر من الخيارات أعلاه للمتابعة'
+                : 'Choose from the options above to continue'}
+            </p>
           </div>
         </div>
       )}
