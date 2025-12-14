@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,121 +14,110 @@ const corsHeaders = {
   "Pragma": "no-cache",
 };
 
+const validateSchema = z.object({
+  token: z.string().min(1, "Token is required").uuid("Invalid token format"),
+  checkUserExists: z.boolean().optional().default(false),
+});
+
+function successResponse(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify({ success: true, data }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function errorResponse(code: string, message: string, status: number, details?: unknown): Response {
+  const errorObj: { code: string; message: string; details?: unknown } = { code, message };
+  if (details !== undefined) errorObj.details = details;
+  return new Response(JSON.stringify({ success: false, error: errorObj }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { token, checkUserExists } = await req.json();
-
-    if (!token) {
-      console.log("[VALIDATE-INVITE] No token provided in request");
-      return new Response(
-        JSON.stringify({ valid: false, error: "Token is required" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
+    // Parse and validate request body
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return errorResponse("BAD_REQUEST", "Invalid JSON in request body", 400);
     }
 
-    console.log("[VALIDATE-INVITE] Validating token:", token, "checkUserExists:", checkUserExists);
+    const validation = validateSchema.safeParse(body);
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      return errorResponse("VALIDATION_ERROR", firstError?.message || "Validation failed", 422);
+    }
 
-    // Create service role client to bypass RLS
+    const { token, checkUserExists } = validation.data;
+    console.log("[VALIDATE-INVITE] Validating token:", token.substring(0, 8) + "...");
+
+    // Create service role client
     const supabaseServiceClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Look up the invitation by token
+    // Look up the invitation
     const { data: member, error: fetchError } = await supabaseServiceClient
       .from("team_members")
       .select("id, email, role, organization_id, status, token_expires_at, invite_token")
       .eq("invite_token", token)
       .maybeSingle();
 
-    console.log("[VALIDATE-INVITE] Database query result:", {
-      found: !!member,
-      error: fetchError?.message,
-      status: member?.status,
-      expires: member?.token_expires_at,
-    });
-
     if (fetchError) {
       console.error("[VALIDATE-INVITE] Database error:", fetchError);
-      return new Response(
-        JSON.stringify({ valid: false, error: "Database error", details: fetchError.message }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
+      return errorResponse("INTERNAL_ERROR", "Database error", 500);
     }
 
     if (!member) {
-      console.log("[VALIDATE-INVITE] No invitation found for token");
-      return new Response(
-        JSON.stringify({ valid: false, error: "Invalid or expired invitation link." }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
+      return errorResponse("NOT_FOUND", "Invalid or expired invitation link", 404);
     }
 
-    // Check if token is expired
+    // Check if expired
     if (member.token_expires_at && new Date(member.token_expires_at) < new Date()) {
-      console.log("[VALIDATE-INVITE] Token expired:", member.token_expires_at);
-      return new Response(
-        JSON.stringify({ valid: false, error: "This invitation link has expired. Please request a new invitation." }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
+      return errorResponse("GONE", "This invitation link has expired. Please request a new invitation.", 410);
     }
 
     // Check if already activated
     if (member.status === "active") {
-      console.log("[VALIDATE-INVITE] Already activated");
-      return new Response(
-        JSON.stringify({ valid: false, error: "This invitation has already been accepted." }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
+      return errorResponse("CONFLICT", "This invitation has already been accepted", 409);
     }
 
-    // Check if status is pending
+    // Check if pending
     if (member.status !== "pending") {
-      console.log("[VALIDATE-INVITE] Invalid status:", member.status);
-      return new Response(
-        JSON.stringify({ valid: false, error: "This invitation is no longer valid." }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
+      return errorResponse("GONE", "This invitation is no longer valid", 410);
     }
 
     console.log("[VALIDATE-INVITE] ✓ Valid invitation for:", member.email);
     
-    // If checkUserExists flag is set, check if user account exists
+    // Check if user exists
     let userExists = false;
     if (checkUserExists) {
-      const supabaseAdmin = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
-      
-      const { data: users } = await supabaseAdmin.auth.admin.listUsers();
-      userExists = users?.users?.some((u: any) => u.email === member.email) || false;
-      console.log("[VALIDATE-INVITE] User exists check:", userExists);
+      const { data: users } = await supabaseServiceClient.auth.admin.listUsers();
+      userExists = users?.users?.some((u: { email?: string }) => u.email === member.email) || false;
+      console.log("[VALIDATE-INVITE] User exists:", userExists);
     }
     
-    // Return valid invitation data
-    return new Response(
-      JSON.stringify({
-        valid: true,
-        userExists,
-        data: {
-          id: member.id,
-          email: member.email,
-          role: member.role,
-          organization_id: member.organization_id,
-        },
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-    );
+    return successResponse({
+      valid: true,
+      userExists,
+      invitation: {
+        id: member.id,
+        email: member.email,
+        role: member.role,
+        organization_id: member.organization_id,
+      },
+    });
+
   } catch (error) {
-    console.error("[VALIDATE-INVITE] Error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    );
+    console.error("[VALIDATE-INVITE] Unexpected error:", error);
+    return errorResponse("INTERNAL_ERROR", "An unexpected error occurred", 500);
   }
 });
