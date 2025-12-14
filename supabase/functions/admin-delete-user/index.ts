@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { corsHeaders, successResponse, errors, handleCors } from "../_shared/response.ts";
 import { z, validateBody, formatZodError, uuidSchema } from "../_shared/validation.ts";
+import { checkRateLimit, createRateLimitKey, RateLimitPresets } from "../_shared/rate-limit.ts";
 
 const deleteUserSchema = z.object({
   userId: uuidSchema,
@@ -11,6 +12,14 @@ Deno.serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
+    // Rate limiting check
+    const rateLimitKey = createRateLimitKey(req, "admin-delete");
+    const rateCheck = checkRateLimit(rateLimitKey, RateLimitPresets.ADMIN);
+    
+    if (!rateCheck.allowed) {
+      console.log("[ADMIN-DELETE-USER] Rate limit exceeded for:", rateLimitKey);
+      return errors.tooManyRequests(rateCheck.retryAfter);
+    }
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");

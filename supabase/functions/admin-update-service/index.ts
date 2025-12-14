@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { corsHeaders, successResponse, errors, handleCors } from "../_shared/response.ts";
 import { z, validateBody, formatZodError, uuidSchema } from "../_shared/validation.ts";
+import { checkRateLimit, createRateLimitKey, RateLimitPresets } from "../_shared/rate-limit.ts";
 
 const packageSchema = z.object({
   id: uuidSchema.optional(),
@@ -37,6 +38,14 @@ Deno.serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
+    // Rate limiting check
+    const rateLimitKey = createRateLimitKey(req, "admin-service");
+    const rateCheck = checkRateLimit(rateLimitKey, RateLimitPresets.ADMIN);
+    
+    if (!rateCheck.allowed) {
+      console.log("[ADMIN-UPDATE-SERVICE] Rate limit exceeded for:", rateLimitKey);
+      return errors.tooManyRequests(rateCheck.retryAfter);
+    }
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");

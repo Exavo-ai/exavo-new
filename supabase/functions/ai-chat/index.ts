@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { checkRateLimit, createRateLimitKey, RateLimitPresets } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,6 +45,15 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limiting check - 20 requests per minute for AI
+    const rateLimitKey = createRateLimitKey(req, "ai-chat");
+    const rateCheck = checkRateLimit(rateLimitKey, RateLimitPresets.AI);
+    
+    if (!rateCheck.allowed) {
+      console.log("[AI-CHAT] Rate limit exceeded for:", rateLimitKey);
+      return errorResponse("RATE_LIMIT_EXCEEDED", "Too many requests. Please try again later.", 429);
+    }
+
     // Check authorization
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {

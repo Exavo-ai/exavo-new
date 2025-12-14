@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { checkRateLimit, createRateLimitKey, RateLimitPresets } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -127,6 +128,32 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limiting check - 5 invitations per 15 minutes
+    const rateLimitKey = createRateLimitKey(req, "invite");
+    const rateCheck = checkRateLimit(rateLimitKey, RateLimitPresets.SENSITIVE);
+    
+    if (!rateCheck.allowed) {
+      console.log("[INVITE] Rate limit exceeded for:", rateLimitKey);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: "RATE_LIMIT_EXCEEDED",
+            message: "Too many invitation requests. Please try again later.",
+            retryAfter: rateCheck.retryAfter,
+          },
+        }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            ...(rateCheck.retryAfter && { "Retry-After": String(rateCheck.retryAfter) })
+          } 
+        }
+      );
+    }
+
     console.log("[INVITE] Processing invitation request");
     
     // Check authorization header
