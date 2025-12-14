@@ -14,30 +14,26 @@ const corsHeaders = {
   "Pragma": "no-cache",
 };
 
-// Plan limits configuration
-const PLAN_LIMITS = {
-  "prod_TTapRptmEkLouu": {
-    name: "Starter",
-    maxTeamMembers: 5,
-    teamEnabled: true,
-  },
-  "prod_TTapq8rgy3dmHT": {
-    name: "Pro",
-    maxTeamMembers: 10,
-    teamEnabled: true,
-  },
-  "prod_TTapwaC6qD21xi": {
-    name: "Enterprise",
-    maxTeamMembers: 20,
-    teamEnabled: true,
-  },
-  // Default for users without subscription
-  "default": {
-    name: "Free",
-    maxTeamMembers: 1,
-    teamEnabled: false,
-  },
+const PLAN_LIMITS: Record<string, { name: string; maxTeamMembers: number; teamEnabled: boolean }> = {
+  "prod_TTapRptmEkLouu": { name: "Starter", maxTeamMembers: 5, teamEnabled: true },
+  "prod_TTapq8rgy3dmHT": { name: "Pro", maxTeamMembers: 10, teamEnabled: true },
+  "prod_TTapwaC6qD21xi": { name: "Enterprise", maxTeamMembers: 20, teamEnabled: true },
+  "default": { name: "Free", maxTeamMembers: 1, teamEnabled: false },
 };
+
+function successResponse(data: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify({ success: true, ...data }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function errorResponse(code: string, message: string, status: number): Response {
+  return new Response(JSON.stringify({ success: false, error: { code, message } }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -45,21 +41,26 @@ serve(async (req) => {
   }
 
   try {
-    // Create client for auth verification
+    // Check authorization
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return errorResponse("UNAUTHORIZED", "Authorization header is required", 401);
+    }
+
+    // Authenticate user
     const supabaseAuth = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
-    const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(token);
 
     if (userError || !user) {
-      throw new Error("Unauthorized");
+      return errorResponse("UNAUTHORIZED", "Invalid or expired authentication token", 401);
     }
 
-    // Create client with service role for database operations
+    // Create service client
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -67,8 +68,8 @@ serve(async (req) => {
 
     console.log(`Checking team limits for user: ${user.email}`);
 
-    // First check workspace table for cached plan info
-    const { data: workspace, error: workspaceError } = await supabaseClient
+    // Get workspace
+    const { data: workspace } = await supabaseClient
       .from('workspaces')
       .select('current_plan_product_id, subscription_status, stripe_customer_id')
       .eq('owner_id', user.id)
@@ -77,7 +78,7 @@ serve(async (req) => {
     let productId = workspace?.current_plan_product_id || "default";
     console.log(`Workspace data:`, workspace);
 
-    // If no workspace or default plan, check Stripe for active subscription
+    // Check Stripe if needed
     if (!workspace || productId === "default") {
       console.log("No workspace or default plan, checking Stripe...");
       
@@ -102,9 +103,9 @@ serve(async (req) => {
           productId = typeof subscription.items.data[0].price.product === 'string'
             ? subscription.items.data[0].price.product
             : subscription.items.data[0].price.product.id;
-          console.log(`Active subscription found from Stripe, product: ${productId}`);
+          
+          console.log(`Active subscription found, product: ${productId}`);
 
-          // Update workspace with Stripe data
           await supabaseClient
             .from('workspaces')
             .upsert({
@@ -114,10 +115,7 @@ serve(async (req) => {
               stripe_customer_id: customerId,
               stripe_subscription_id: subscription.id,
               updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'owner_id'
-            });
-          console.log("Workspace synced with Stripe data");
+            }, { onConflict: 'owner_id' });
         } else {
           console.log("No active subscription found in Stripe");
         }
@@ -126,11 +124,10 @@ serve(async (req) => {
       }
     }
 
-    // Get plan limits based on product ID
-    let planLimits = PLAN_LIMITS[productId as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.default;
+    const planLimits = PLAN_LIMITS[productId] || PLAN_LIMITS.default;
     console.log(`Final plan: ${planLimits.name}, Product ID: ${productId}`);
 
-    // Get current team member count
+    // Get team member count
     const { data: teamMembers, error: countError } = await supabaseClient
       .from("team_members")
       .select("id", { count: "exact" })
@@ -138,7 +135,7 @@ serve(async (req) => {
 
     if (countError) {
       console.error("Error counting team members:", countError);
-      throw new Error(`Failed to count team members: ${countError.message}`);
+      return errorResponse("INTERNAL_ERROR", "Failed to count team members", 500);
     }
 
     const currentCount = teamMembers?.length || 0;
@@ -147,28 +144,18 @@ serve(async (req) => {
     const canInvite = planLimits.teamEnabled && currentCount < planLimits.maxTeamMembers;
     const limitReached = currentCount >= planLimits.maxTeamMembers;
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        currentCount,
-        maxTeamMembers: planLimits.maxTeamMembers,
-        teamEnabled: planLimits.teamEnabled,
-        canInvite,
-        limitReached,
-        planName: planLimits.name,
-        productId,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
-  } catch (error: any) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error in check-team-limits:", errorMessage);
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400,
+    return successResponse({
+      currentCount,
+      maxTeamMembers: planLimits.maxTeamMembers,
+      teamEnabled: planLimits.teamEnabled,
+      canInvite,
+      limitReached,
+      planName: planLimits.name,
+      productId,
     });
+
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    return errorResponse("INTERNAL_ERROR", "An unexpected error occurred", 500);
   }
 });
