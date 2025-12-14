@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.send-ticket-reply-notification]
 verify_jwt = true
+
+[functions.appointments-api]
+verify_jwt = true
