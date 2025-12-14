@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, X, Sparkles, ArrowRight } from "lucide-react";
+import { MessageCircle, X, Sparkles, ArrowRight, Send } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
-
-type ConversationStep = 'greeting' | 'goal' | 'followup' | 'recommendation';
 
 interface ChatMessage {
   role: 'assistant' | 'user';
@@ -13,47 +12,151 @@ interface ChatMessage {
   buttons?: Array<{
     label: string;
     value: string;
+    action?: 'navigate' | 'intent';
+    url?: string;
   }>;
-  cta?: {
-    label: string;
-    serviceSlug: string;
-  };
 }
 
 interface ChatWidgetProps {
   onSelectPackage?: (serviceId: string, packageId: string) => void;
 }
 
-// Service mapping based on user goals
-const SERVICE_MAP: Record<string, { slug: string; name: string; description: string }> = {
-  'automate': {
-    slug: 'ai-automation-systems',
-    name: 'AI Automation Systems',
-    description: 'Automate repetitive tasks and workflows to save time and reduce errors.'
+// Intent definitions with keywords and responses based on Project Knowledge
+const INTENTS: Record<string, {
+  keywords: string[];
+  response: string;
+  responseAr: string;
+  buttons: Array<{ label: string; labelAr: string; action: 'navigate' | 'intent'; url?: string; value?: string }>;
+}> = {
+  about: {
+    keywords: ['about', 'what is exavo', 'who are you', 'exavo', 'company', 'tell me', 'what do you do', 'what does exavo', 'mission', 'help'],
+    response: "Exavo AI is a one-stop AI marketplace that helps small and mid-sized businesses adopt AI easily and affordably. We provide ready-to-use AI systems, expert-led projects, and managed delivery — no technical skills required.",
+    responseAr: "Exavo AI هو سوق شامل للذكاء الاصطناعي يساعد الشركات الصغيرة والمتوسطة على تبني الذكاء الاصطناعي بسهولة وبأسعار معقولة. نقدم أنظمة ذكاء اصطناعي جاهزة للاستخدام ومشاريع يقودها خبراء وتسليم مُدار — دون الحاجة إلى مهارات تقنية.",
+    buttons: [
+      { label: 'View Services', labelAr: 'عرض الخدمات', action: 'navigate', url: '/services' },
+      { label: 'Book a Demo', labelAr: 'احجز عرضًا', action: 'navigate', url: '/contact' }
+    ]
   },
-  'website': {
-    slug: 'ai-powered-website-development',
-    name: 'AI-Powered Website Development',
-    description: 'Get a modern, fast website built with AI-enhanced development for better results.'
+  target: {
+    keywords: ['who is it for', 'target', 'audience', 'customers', 'clients', 'for whom', 'who can use', 'businesses', 'sme', 'small business', 'startup', 'founder', 'agency'],
+    response: "Exavo is designed for small businesses, SMEs, non-technical founders, agencies, and startups. If you want AI results without hiring an in-house AI team, Exavo is for you.",
+    responseAr: "تم تصميم Exavo للشركات الصغيرة والمتوسطة والمؤسسين غير التقنيين والوكالات والشركات الناشئة. إذا كنت تريد نتائج الذكاء الاصطناعي دون توظيف فريق داخلي، فإن Exavo مناسب لك.",
+    buttons: [
+      { label: 'View Services', labelAr: 'عرض الخدمات', action: 'navigate', url: '/services' },
+      { label: 'Book a Demo', labelAr: 'احجز عرضًا', action: 'navigate', url: '/contact' }
+    ]
   },
-  'crm': {
-    slug: 'custom-crm-development',
-    name: 'Custom CRM Development',
-    description: 'A tailored system to manage your clients, leads, and internal operations efficiently.'
+  services: {
+    keywords: ['services', 'what do you offer', 'solutions', 'products', 'offerings', 'automation', 'website', 'crm', 'workflow', 'system', 'build', 'create', 'develop'],
+    response: "We offer: AI Automation Systems (business workflows), AI-Powered Website Development, Custom CRM & Internal Systems, Pre-built AI Projects, and Custom AI Workflows. Each comes with packages for fast deployment.",
+    responseAr: "نقدم: أنظمة أتمتة الذكاء الاصطناعي، تطوير مواقع ويب بالذكاء الاصطناعي، أنظمة CRM مخصصة، مشاريع ذكاء اصطناعي جاهزة، وسير عمل ذكاء اصطناعي مخصص. كل خدمة تأتي مع باقات للنشر السريع.",
+    buttons: [
+      { label: 'View Services', labelAr: 'عرض الخدمات', action: 'navigate', url: '/services' },
+      { label: 'See Packages', labelAr: 'عرض الباقات', action: 'navigate', url: '/services' }
+    ]
   },
-  'unsure': {
-    slug: 'book-demo',
-    name: 'Book a Demo',
-    description: "Let's discuss your needs and find the right solution together."
+  howItWorks: {
+    keywords: ['how it works', 'how does it work', 'process', 'steps', 'start', 'get started', 'begin', 'order', 'request', 'booking', 'book'],
+    response: "It's simple: 1) Browse our services and packages. 2) Select what fits your needs. 3) Submit a booking request. 4) We review and contact you. 5) Your AI solution is delivered in days.",
+    responseAr: "الأمر بسيط: 1) تصفح خدماتنا وباقاتنا. 2) اختر ما يناسب احتياجاتك. 3) أرسل طلب حجز. 4) نراجع ونتواصل معك. 5) يتم تسليم حل الذكاء الاصطناعي في أيام.",
+    buttons: [
+      { label: 'Browse Services', labelAr: 'تصفح الخدمات', action: 'navigate', url: '/services' },
+      { label: 'Book a Demo', labelAr: 'احجز عرضًا', action: 'navigate', url: '/contact' }
+    ]
+  },
+  pricing: {
+    keywords: ['price', 'pricing', 'cost', 'how much', 'budget', 'money', 'payment', 'pay', 'expensive', 'cheap', 'affordable', 'fee', 'charge', 'rate'],
+    response: "Pricing is package-based and clearly shown per service. Each package has a fixed price depending on scope. Custom pricing is available for complex or enterprise projects. Check our packages for details.",
+    responseAr: "التسعير يعتمد على الباقات ويظهر بوضوح لكل خدمة. كل باقة لها سعر ثابت حسب النطاق. تسعير مخصص متاح للمشاريع المعقدة أو المؤسسية. تحقق من باقاتنا للتفاصيل.",
+    buttons: [
+      { label: 'View Packages', labelAr: 'عرض الباقات', action: 'navigate', url: '/services' },
+      { label: 'Request Quote', labelAr: 'طلب عرض سعر', action: 'navigate', url: '/contact' }
+    ]
+  },
+  timeline: {
+    keywords: ['time', 'timeline', 'delivery', 'how long', 'duration', 'when', 'days', 'weeks', 'fast', 'quick', 'speed', 'turnaround'],
+    response: "Typical delivery ranges from 3 to 14 days depending on the service and package. Simple automations can be faster, while complex custom systems take longer. We'll confirm the timeline during booking.",
+    responseAr: "يتراوح وقت التسليم النموذجي من 3 إلى 14 يومًا حسب الخدمة والباقة. يمكن أن تكون الأتمتة البسيطة أسرع، بينما تستغرق الأنظمة المخصصة المعقدة وقتًا أطول. سنؤكد الجدول الزمني أثناء الحجز.",
+    buttons: [
+      { label: 'View Services', labelAr: 'عرض الخدمات', action: 'navigate', url: '/services' },
+      { label: 'Book a Demo', labelAr: 'احجز عرضًا', action: 'navigate', url: '/contact' }
+    ]
+  },
+  vsFreelancers: {
+    keywords: ['freelancer', 'fiverr', 'upwork', 'difference', 'compare', 'vs', 'versus', 'better', 'why exavo', 'why you', 'advantage'],
+    response: "Unlike freelancer marketplaces, Exavo delivers managed AI solutions end-to-end. We're faster, more reliable, and more structured. You get curated experts and guaranteed delivery — not trial-and-error with random freelancers.",
+    responseAr: "على عكس أسواق المستقلين، يقدم Exavo حلول ذكاء اصطناعي مُدارة من البداية إلى النهاية. نحن أسرع وأكثر موثوقية وأكثر تنظيمًا. تحصل على خبراء مختارين وتسليم مضمون — وليس تجربة وخطأ مع مستقلين عشوائيين.",
+    buttons: [
+      { label: 'View Services', labelAr: 'عرض الخدمات', action: 'navigate', url: '/services' },
+      { label: 'Book a Demo', labelAr: 'احجز عرضًا', action: 'navigate', url: '/contact' }
+    ]
+  },
+  contact: {
+    keywords: ['contact', 'support', 'email', 'reach', 'talk', 'speak', 'call', 'demo', 'meeting', 'schedule', 'consultation', 'help me'],
+    response: "You can reach us at info@exavoai.com or book a free demo call. We're happy to discuss your project and recommend the best approach.",
+    responseAr: "يمكنك التواصل معنا على info@exavoai.com أو حجز مكالمة عرض مجانية. يسعدنا مناقشة مشروعك والتوصية بأفضل نهج.",
+    buttons: [
+      { label: 'Book a Demo', labelAr: 'احجز عرضًا', action: 'navigate', url: '/contact' },
+      { label: 'View Services', labelAr: 'عرض الخدمات', action: 'navigate', url: '/services' }
+    ]
+  },
+  automate: {
+    keywords: ['automate', 'automation', 'automate business', 'workflow automation', 'repetitive', 'tasks'],
+    response: "Our AI Automation Systems help you automate repetitive business processes — from customer emails to data entry. Save time and reduce errors with workflows that run 24/7.",
+    responseAr: "تساعدك أنظمة أتمتة الذكاء الاصطناعي لدينا على أتمتة العمليات التجارية المتكررة — من رسائل البريد الإلكتروني للعملاء إلى إدخال البيانات. وفر الوقت وقلل الأخطاء مع سير العمل الذي يعمل على مدار الساعة.",
+    buttons: [
+      { label: 'Select Package', labelAr: 'اختر باقة', action: 'navigate', url: '/services?highlight=ai-automation-systems' },
+      { label: 'Book a Demo', labelAr: 'احجز عرضًا', action: 'navigate', url: '/contact' }
+    ]
+  },
+  website: {
+    keywords: ['website', 'web', 'site', 'landing page', 'online presence', 'web development'],
+    response: "Our AI-Powered Website Development service builds modern, fast websites with AI-enhanced development. Perfect for businesses that need a professional online presence quickly.",
+    responseAr: "خدمة تطوير المواقع بالذكاء الاصطناعي تبني مواقع حديثة وسريعة مع تطوير معزز بالذكاء الاصطناعي. مثالية للشركات التي تحتاج إلى حضور احترافي عبر الإنترنت بسرعة.",
+    buttons: [
+      { label: 'Select Package', labelAr: 'اختر باقة', action: 'navigate', url: '/services?highlight=ai-powered-website-development' },
+      { label: 'Book a Demo', labelAr: 'احجز عرضًا', action: 'navigate', url: '/contact' }
+    ]
+  },
+  crm: {
+    keywords: ['crm', 'customer relationship', 'internal system', 'manage clients', 'leads', 'operations'],
+    response: "Our Custom CRM Development creates tailored systems to manage your clients, leads, and internal operations efficiently. Built to fit your specific workflow, not a generic template.",
+    responseAr: "تطوير CRM المخصص ينشئ أنظمة مصممة لإدارة عملائك والعملاء المحتملين والعمليات الداخلية بكفاءة. مبني ليناسب سير عملك المحدد، وليس قالبًا عامًا.",
+    buttons: [
+      { label: 'Select Package', labelAr: 'اختر باقة', action: 'navigate', url: '/services?highlight=custom-crm-development' },
+      { label: 'Book a Demo', labelAr: 'احجز عرضًا', action: 'navigate', url: '/contact' }
+    ]
   }
 };
+
+// Fallback response when no intent matches
+const FALLBACK = {
+  response: "I can help with Exavo, our services, pricing, and timelines. What are you most interested in?",
+  responseAr: "يمكنني المساعدة في Exavo وخدماتنا والأسعار والجداول الزمنية. ما الذي يهمك أكثر؟",
+  buttons: [
+    { label: 'About Exavo', labelAr: 'عن Exavo', action: 'intent' as const, value: 'about' },
+    { label: 'Services', labelAr: 'الخدمات', action: 'intent' as const, value: 'services' },
+    { label: 'Pricing', labelAr: 'الأسعار', action: 'intent' as const, value: 'pricing' },
+    { label: 'Timelines', labelAr: 'الجداول الزمنية', action: 'intent' as const, value: 'timeline' },
+    { label: 'Book a Demo', labelAr: 'احجز عرضًا', action: 'navigate' as const, url: '/contact' }
+  ]
+};
+
+// Quick start buttons
+const QUICK_START_BUTTONS = [
+  { label: 'Automate a process', labelAr: 'أتمتة عملية', action: 'intent' as const, value: 'automate' },
+  { label: 'Build a website', labelAr: 'بناء موقع', action: 'intent' as const, value: 'website' },
+  { label: 'Build a CRM/system', labelAr: 'بناء نظام CRM', action: 'intent' as const, value: 'crm' },
+  { label: 'Not sure / advice', labelAr: 'غير متأكد / نصيحة', action: 'navigate' as const, url: '/contact' }
+];
 
 const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [step, setStep] = useState<ConversationStep>('greeting');
-  const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { language } = useLanguage();
   const navigate = useNavigate();
 
@@ -65,10 +168,12 @@ const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
     scrollToBottom();
   }, [messages]);
 
-  // Initialize conversation when chat opens
   useEffect(() => {
     if (isOpen && messages.length === 0) {
       startConversation();
+    }
+    if (isOpen) {
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
 
@@ -76,124 +181,113 @@ const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
     const greeting: ChatMessage = {
       role: 'assistant',
       content: language === 'ar' 
-        ? 'مرحبًا! 👋 أنا هنا لمساعدتك في العثور على الحل المناسب. ما الذي تتطلع لتحقيقه؟'
-        : "Hi there! 👋 I'm here to help you find the right solution. What are you looking to achieve?",
-      buttons: [
-        { label: language === 'ar' ? 'أتمتة عملية تجارية' : 'Automate a business process', value: 'automate' },
-        { label: language === 'ar' ? 'بناء أو تحسين موقع ويب' : 'Build or improve a website', value: 'website' },
-        { label: language === 'ar' ? 'بناء نظام CRM مخصص' : 'Build a custom CRM or system', value: 'crm' },
-        { label: language === 'ar' ? 'غير متأكد / أريد نصيحة' : 'Not sure / want advice', value: 'unsure' }
-      ]
+        ? 'مرحبًا! 👋 أنا مساعد Exavo. اسألني عن خدماتنا أو الأسعار أو كيف نعمل. أو اختر موضوعًا للبدء:'
+        : "Hi there! 👋 I'm the Exavo Assistant. Ask me about our services, pricing, or how we work. Or pick a topic to get started:",
+      buttons: QUICK_START_BUTTONS.map(btn => ({
+        label: language === 'ar' ? btn.labelAr : btn.label,
+        value: btn.value || '',
+        action: btn.action,
+        url: btn.url
+      }))
     };
     setMessages([greeting]);
-    setStep('goal');
   };
 
-  const handleButtonClick = (value: string, label: string) => {
-    // Add user's selection as a message
-    const userMessage: ChatMessage = { role: 'user', content: label };
-    setMessages(prev => [...prev, userMessage]);
-
-    if (step === 'goal') {
-      setSelectedGoal(value);
-      
-      if (value === 'unsure') {
-        // Skip follow-up for unsure, go straight to demo recommendation
-        showRecommendation('unsure');
-      } else {
-        // Show follow-up question
-        showFollowUp(value);
-      }
-    } else if (step === 'followup') {
-      // After follow-up, show recommendation
-      showRecommendation(selectedGoal || 'unsure');
-    }
-  };
-
-  const showFollowUp = (goal: string) => {
-    const followUpQuestions: Record<string, ChatMessage> = {
-      'automate': {
-        role: 'assistant',
-        content: language === 'ar'
-          ? 'رائع! ما هو الجدول الزمني المثالي لتنفيذ هذا؟'
-          : 'Great choice! What\'s your ideal timeline for implementing this?',
-        buttons: [
-          { label: language === 'ar' ? 'في أقرب وقت ممكن' : 'As soon as possible', value: 'asap' },
-          { label: language === 'ar' ? 'خلال شهر' : 'Within a month', value: 'month' },
-          { label: language === 'ar' ? 'أنا فقط أستكشف' : 'Just exploring', value: 'exploring' }
-        ]
-      },
-      'website': {
-        role: 'assistant',
-        content: language === 'ar'
-          ? 'ممتاز! هل لديك موقع حالي أم تبدأ من الصفر؟'
-          : 'Excellent! Do you have an existing website or are you starting fresh?',
-        buttons: [
-          { label: language === 'ar' ? 'موقع موجود يحتاج تحسين' : 'Existing site needs improvement', value: 'existing' },
-          { label: language === 'ar' ? 'البدء من جديد' : 'Starting fresh', value: 'new' },
-          { label: language === 'ar' ? 'غير متأكد بعد' : 'Not sure yet', value: 'unsure' }
-        ]
-      },
-      'crm': {
-        role: 'assistant',
-        content: language === 'ar'
-          ? 'فهمت! ما حجم فريقك الذي سيستخدم هذا النظام؟'
-          : 'Got it! How big is the team that will use this system?',
-        buttons: [
-          { label: language === 'ar' ? 'فقط أنا' : 'Just me', value: 'solo' },
-          { label: language === 'ar' ? '2-10 أشخاص' : '2-10 people', value: 'small' },
-          { label: language === 'ar' ? 'أكثر من 10' : 'More than 10', value: 'large' }
-        ]
-      }
-    };
-
-    const followUp = followUpQuestions[goal];
-    if (followUp) {
-      setMessages(prev => [...prev, followUp]);
-      setStep('followup');
-    } else {
-      showRecommendation(goal);
-    }
-  };
-
-  const showRecommendation = (goal: string) => {
-    const service = SERVICE_MAP[goal] || SERVICE_MAP['unsure'];
+  // Intent detection using keyword matching
+  const detectIntent = (text: string): string | null => {
+    const normalizedText = text.toLowerCase().trim();
     
-    const recommendation: ChatMessage = {
-      role: 'assistant',
-      content: language === 'ar'
-        ? `بناءً على ما شاركته، أوصي بـ **${service.name}**.\n\n${service.description}`
-        : `Based on what you've shared, I recommend **${service.name}**.\n\n${service.description}`,
-      cta: {
-        label: goal === 'unsure' 
-          ? (language === 'ar' ? 'احجز عرضًا تجريبيًا' : 'Book a Demo')
-          : (language === 'ar' ? 'اختر باقة' : 'Select Package'),
-        serviceSlug: service.slug
+    // Check each intent's keywords
+    for (const [intentKey, intent] of Object.entries(INTENTS)) {
+      for (const keyword of intent.keywords) {
+        if (normalizedText.includes(keyword.toLowerCase())) {
+          return intentKey;
+        }
       }
-    };
-
-    setMessages(prev => [...prev, recommendation]);
-    setStep('recommendation');
+    }
+    
+    return null;
   };
 
-  const handleCtaClick = (serviceSlug: string) => {
-    if (serviceSlug === 'book-demo') {
-      navigate('/contact');
-    } else {
-      navigate(`/services?highlight=${serviceSlug}`);
+  const getResponseForIntent = (intentKey: string): ChatMessage => {
+    const intent = INTENTS[intentKey];
+    return {
+      role: 'assistant',
+      content: language === 'ar' ? intent.responseAr : intent.response,
+      buttons: intent.buttons.map(btn => ({
+        label: language === 'ar' ? btn.labelAr : btn.label,
+        value: btn.value || '',
+        action: btn.action,
+        url: btn.url
+      }))
+    };
+  };
+
+  const getFallbackResponse = (): ChatMessage => {
+    return {
+      role: 'assistant',
+      content: language === 'ar' ? FALLBACK.responseAr : FALLBACK.response,
+      buttons: FALLBACK.buttons.map(btn => ({
+        label: language === 'ar' ? btn.labelAr : btn.label,
+        value: btn.value || '',
+        action: btn.action,
+        url: btn.url
+      }))
+    };
+  };
+
+  const handleSend = () => {
+    const text = inputValue.trim();
+    if (!text) return;
+
+    // Add user message
+    const userMessage: ChatMessage = { role: 'user', content: text };
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+    setIsTyping(true);
+
+    // Simulate brief typing delay for natural feel
+    setTimeout(() => {
+      const intent = detectIntent(text);
+      const response = intent ? getResponseForIntent(intent) : getFallbackResponse();
+      setMessages(prev => [...prev, response]);
+      setIsTyping(false);
+    }, 500);
+  };
+
+  const handleButtonClick = (button: ChatMessage['buttons'][0]) => {
+    if (button.action === 'navigate' && button.url) {
+      navigate(button.url);
+      setIsOpen(false);
+    } else if (button.action === 'intent' && button.value) {
+      // Add user selection as message
+      const userMessage: ChatMessage = { role: 'user', content: button.label };
+      setMessages(prev => [...prev, userMessage]);
+      
+      setIsTyping(true);
+      setTimeout(() => {
+        const response = getResponseForIntent(button.value!);
+        setMessages(prev => [...prev, response]);
+        setIsTyping(false);
+      }, 400);
     }
-    setIsOpen(false);
   };
 
   const handleReset = () => {
     setMessages([]);
-    setStep('greeting');
-    setSelectedGoal(null);
     startConversation();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   const renderMessage = (message: ChatMessage, index: number) => {
     const isUser = message.role === 'user';
+    const isLastMessage = index === messages.length - 1;
     
     return (
       <div key={index} className={`mb-4 ${isUser ? 'text-right' : 'text-left'}`}>
@@ -207,36 +301,20 @@ const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
           <p className="whitespace-pre-wrap text-sm">{message.content}</p>
         </div>
         
-        {/* Render option buttons */}
-        {message.buttons && index === messages.length - 1 && (
-          <div className="mt-3 flex flex-col gap-2">
+        {/* Render buttons for last assistant message only */}
+        {!isUser && message.buttons && isLastMessage && !isTyping && (
+          <div className="mt-3 flex flex-wrap gap-2">
             {message.buttons.map((btn, btnIndex) => (
               <Button
                 key={btnIndex}
                 variant="outline"
                 size="sm"
-                className="justify-start text-left h-auto py-2 px-3 whitespace-normal"
-                onClick={() => handleButtonClick(btn.value, btn.label)}
+                className="text-xs h-auto py-1.5 px-3"
+                onClick={() => handleButtonClick(btn)}
               >
                 {btn.label}
               </Button>
             ))}
-          </div>
-        )}
-
-        {/* Render CTA button */}
-        {message.cta && (
-          <div className="mt-3">
-            <Button
-              variant="hero"
-              size="sm"
-              className="gap-2"
-              onClick={() => handleCtaClick(message.cta!.serviceSlug)}
-            >
-              <Sparkles className="h-4 w-4" />
-              {message.cta.label}
-              <ArrowRight className="h-4 w-4" />
-            </Button>
           </div>
         )}
       </div>
@@ -256,9 +334,9 @@ const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-[360px] max-w-[calc(100vw-3rem)] h-[480px] bg-background border border-border rounded-xl shadow-elegant z-50 flex flex-col overflow-hidden animate-fade-in">
+        <div className="fixed bottom-24 right-6 w-[360px] max-w-[calc(100vw-3rem)] h-[520px] bg-background border border-border rounded-xl shadow-elegant z-50 flex flex-col overflow-hidden animate-fade-in">
           {/* Header */}
-          <div className="bg-gradient-hero p-4 flex items-center justify-between">
+          <div className="bg-gradient-hero p-4 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
                 <Sparkles className="h-5 w-5 text-primary-foreground" />
@@ -268,35 +346,58 @@ const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
                   {language === 'ar' ? 'مساعد Exavo' : 'Exavo Assistant'}
                 </h3>
                 <p className="text-xs text-primary-foreground/80">
-                  {language === 'ar' ? 'دعنا نجد الحل المناسب لك' : 'Let\'s find the right solution for you'}
+                  {language === 'ar' ? 'اسألني أي شيء عن خدماتنا' : 'Ask me anything about our services'}
                 </p>
               </div>
             </div>
-            {step === 'recommendation' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10 text-xs"
-                onClick={handleReset}
-              >
-                {language === 'ar' ? 'ابدأ من جديد' : 'Start over'}
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10 text-xs"
+              onClick={handleReset}
+            >
+              {language === 'ar' ? 'جديد' : 'New'}
+            </Button>
           </div>
 
           {/* Messages */}
           <ScrollArea className="flex-1 p-4">
             {messages.map((message, index) => renderMessage(message, index))}
+            {isTyping && (
+              <div className="text-left mb-4">
+                <div className="inline-block p-3 rounded-lg bg-muted">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </ScrollArea>
 
-          {/* Footer hint */}
-          <div className="p-3 border-t border-border bg-muted/30 text-center">
-            <p className="text-xs text-muted-foreground">
-              {language === 'ar' 
-                ? 'اختر خيارًا للحصول على توصية'
-                : 'Choose an option to get a recommendation'}
-            </p>
+          {/* Input Area */}
+          <div className="p-3 border-t border-border bg-background shrink-0">
+            <div className="flex gap-2">
+              <Input
+                ref={inputRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={language === 'ar' ? 'اكتب سؤالك...' : 'Type your question...'}
+                className="flex-1 text-sm"
+                disabled={isTyping}
+              />
+              <Button
+                size="icon"
+                onClick={handleSend}
+                disabled={!inputValue.trim() || isTyping}
+                className="shrink-0"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
