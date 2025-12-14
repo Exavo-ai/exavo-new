@@ -1,5 +1,8 @@
 project_id = "ihxrkmnieckgvscfqgwb"
 
+[functions.api]
+verify_jwt = false
+
 [functions.send-booking-notification]
 verify_jwt = true
 
@@ -61,4 +64,10 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.send-signup-webhook]
+verify_jwt = true
+
+[functions.send-booking-reminder]
+verify_jwt = false
+
+[functions.send-ticket-reply-notification]
 verify_jwt = true
