@@ -294,8 +294,8 @@ const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
           <div className="p-3 border-t border-border bg-muted/30 text-center">
             <p className="text-xs text-muted-foreground">
               {language === 'ar' 
-                ? 'اختر من الخيارات أعلاه للمتابعة'
-                : 'Choose from the options above to continue'}
+                ? 'اختر خيارًا للحصول على توصية'
+                : 'Choose an option to get a recommendation'}
             </p>
           </div>
         </div>
