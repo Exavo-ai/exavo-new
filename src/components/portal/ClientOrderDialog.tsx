@@ -1,14 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Plus, X, Link as LinkIcon, CheckCircle2 } from 'lucide-react';
+
+interface ServicePackage {
+  id: string;
+  package_name: string;
+  price: number;
+  currency: string;
+}
 
 interface ClientOrderDialogProps {
   open: boolean;
@@ -19,17 +26,6 @@ interface ClientOrderDialogProps {
   packageName?: string;
 }
 
-const serviceOptions = [
-  'AI Consultation',
-  'Custom Development',
-  'Integration Support',
-  'Training & Onboarding',
-  'Priority Support',
-  'Data Migration',
-  'API Access',
-  'White Label Solution',
-];
-
 const ClientOrderDialog = ({ 
   open, 
   onOpenChange, 
@@ -38,22 +34,64 @@ const ClientOrderDialog = ({
   packageId, 
   packageName 
 }: ClientOrderDialogProps) => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [packages, setPackages] = useState<ServicePackage[]>([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
   
+  // Form state
   const [title, setTitle] = useState('');
-  const [shortMessage, setShortMessage] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [company, setCompany] = useState('');
+  const [selectedPackageId, setSelectedPackageId] = useState(packageId || '');
   const [longMessage, setLongMessage] = useState('');
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [links, setLinks] = useState<string[]>(['']);
 
-  const handleOptionToggle = (option: string) => {
-    setSelectedOptions(prev =>
-      prev.includes(option)
-        ? prev.filter(o => o !== option)
-        : [...prev, option]
-    );
+  // Auto-fill for signed-in users
+  useEffect(() => {
+    if (user && userProfile) {
+      setFullName(userProfile.full_name || '');
+      setEmail(userProfile.email || user.email || '');
+      setPhone(userProfile.phone || '');
+    } else if (user) {
+      setEmail(user.email || '');
+    }
+  }, [user, userProfile, open]);
+
+  // Set package from props
+  useEffect(() => {
+    if (packageId) {
+      setSelectedPackageId(packageId);
+    }
+  }, [packageId]);
+
+  // Fetch available packages
+  useEffect(() => {
+    if (serviceId && open) {
+      fetchPackages();
+    }
+  }, [serviceId, open]);
+
+  const fetchPackages = async () => {
+    if (!serviceId) return;
+    setLoadingPackages(true);
+    try {
+      const { data, error } = await supabase
+        .from('service_packages')
+        .select('id, package_name, price, currency')
+        .eq('service_id', serviceId)
+        .order('package_order', { ascending: true });
+      
+      if (error) throw error;
+      setPackages(data || []);
+    } catch (error) {
+      console.error('Error fetching packages:', error);
+    } finally {
+      setLoadingPackages(false);
+    }
   };
 
   const addLink = () => {
@@ -76,9 +114,13 @@ const ClientOrderDialog = ({
 
   const resetForm = () => {
     setTitle('');
-    setShortMessage('');
+    if (!user) {
+      setFullName('');
+      setEmail('');
+      setPhone('');
+      setCompany('');
+    }
     setLongMessage('');
-    setSelectedOptions([]);
     setLinks(['']);
     setSuccess(false);
   };
@@ -96,6 +138,11 @@ const ClientOrderDialog = ({
       return;
     }
 
+    if (!selectedPackageId) {
+      toast.error('Please select a package');
+      return;
+    }
+
     setLoading(true);
     try {
       const validLinks = links.filter(l => l.trim());
@@ -106,9 +153,9 @@ const ClientOrderDialog = ({
           user_id: user.id,
           service_id: serviceId || null,
           title: title.trim(),
-          short_message: shortMessage.trim() || null,
+          short_message: `Package: ${packageName || packages.find(p => p.id === selectedPackageId)?.package_name || 'N/A'}`,
           long_message: longMessage.trim() || null,
-          multiselect_options: selectedOptions,
+          multiselect_options: [],
           links: validLinks,
           attachments: [],
           amount: 0,
@@ -132,6 +179,8 @@ const ClientOrderDialog = ({
     onOpenChange(false);
     setTimeout(resetForm, 300);
   };
+
+  const selectedPackage = packages.find(p => p.id === selectedPackageId);
 
   if (success) {
     return (
@@ -161,11 +210,36 @@ const ClientOrderDialog = ({
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
             Order: {serviceName}
-            {packageName && <span className="text-primary"> - {packageName}</span>}
+            {(packageName || selectedPackage) && (
+              <span className="text-primary"> - {packageName || selectedPackage?.package_name}</span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5 mt-2">
+          {/* Package Selection */}
+          {packages.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="package">Package *</Label>
+              <Select 
+                value={selectedPackageId} 
+                onValueChange={setSelectedPackageId}
+                disabled={loadingPackages}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingPackages ? "Loading packages..." : "Select a package"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {packages.map((pkg) => (
+                    <SelectItem key={pkg.id} value={pkg.id}>
+                      {pkg.package_name} - {pkg.currency} {pkg.price.toLocaleString()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title">Order Title *</Label>
@@ -178,40 +252,56 @@ const ClientOrderDialog = ({
             />
           </div>
 
-          {/* Short Message */}
-          <div className="space-y-2">
-            <Label htmlFor="shortMessage">Short Summary</Label>
-            <Input
-              id="shortMessage"
-              value={shortMessage}
-              onChange={(e) => setShortMessage(e.target.value)}
-              placeholder="One-line summary of what you need"
-            />
+          {/* Personal Info (auto-filled for logged in users) */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input
+                id="fullName"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="John Doe"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="john@example.com"
+              />
+            </div>
           </div>
 
-          {/* Multiselect Options */}
-          <div className="space-y-3">
-            <Label>Select Options (Optional)</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {serviceOptions.map((option) => (
-                <div
-                  key={option}
-                  className="flex items-center space-x-2 p-2 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors"
-                  onClick={() => handleOptionToggle(option)}
-                >
-                  <Checkbox
-                    checked={selectedOptions.includes(option)}
-                    onCheckedChange={() => handleOptionToggle(option)}
-                  />
-                  <span className="text-sm">{option}</span>
-                </div>
-              ))}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+1 (555) 123-4567"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="company">Company</Label>
+              <Input
+                id="company"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                placeholder="Acme Inc."
+              />
             </div>
           </div>
 
           {/* Long Message */}
           <div className="space-y-2">
-            <Label htmlFor="longMessage">Detailed Description</Label>
+            <Label htmlFor="longMessage">Project Description</Label>
             <Textarea
               id="longMessage"
               value={longMessage}

@@ -111,7 +111,7 @@ export const PremiumServiceCard = ({
             className="flex-1 rounded-xl bg-gradient-hero hover:opacity-90 shadow-glow transition-all hover:shadow-glow-lg h-9 sm:h-10 text-xs sm:text-sm"
             onClick={onBook}
           >
-            {language === 'ar' ? 'اشتر الآن' : 'Buy Now'}
+            {language === 'ar' ? 'اختر الباقة' : 'Select Package'}
           </Button>
         </div>
       </div>

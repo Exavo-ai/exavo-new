@@ -3,11 +3,17 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
+interface UserProfile {
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   userRole: 'admin' | 'client' | null;
-  userProfile: { full_name: string | null } | null;
+  userProfile: UserProfile | null;
   loading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -19,7 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'client' | null>(null);
-  const [userProfile, setUserProfile] = useState<{ full_name: string | null } | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -83,12 +89,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, email, phone')
         .eq('id', userId)
         .single();
 
       if (!error && data) {
-        setUserProfile({ full_name: data.full_name });
+        setUserProfile({ 
+          full_name: data.full_name,
+          email: data.email,
+          phone: data.phone 
+        });
       }
     } catch (error) {
       console.error('Error fetching profile:', error);

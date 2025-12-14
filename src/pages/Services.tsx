@@ -3,7 +3,6 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
-import BookingDialog from "@/components/BookingDialog";
 import { PremiumServiceCard } from "@/components/PremiumServiceCard";
 import { PremiumServiceFilters } from "@/components/PremiumServiceFilters";
 import { ServiceDetailsDialog } from "@/components/ServiceDetailsDialog";
@@ -12,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { SlidersHorizontal } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useToast } from "@/hooks/use-toast";
 
 interface Service {
   id: string;
@@ -52,15 +50,11 @@ const iconMap: Record<string, any> = {
 
 const Services = () => {
   const { language } = useLanguage();
-  const { toast } = useToast();
   const isMobile = useIsMobile();
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [selectedPackageId, setSelectedPackageId] = useState<string>('');
-  const [selectedPackageName, setSelectedPackageName] = useState<string>('');
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -108,19 +102,9 @@ const Services = () => {
     }
   };
 
-  const handleBookService = (service: Service) => {
+  const handleOpenServiceDetails = (service: Service) => {
     setSelectedService(service);
     setDetailsDialogOpen(true);
-  };
-
-  const handleSelectPackage = (serviceId: string, serviceName: string, packageId: string, packageName: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (service) {
-      setSelectedService(service);
-      setSelectedPackageId(packageId);
-      setSelectedPackageName(packageName);
-      setDialogOpen(true);
-    }
   };
 
   const handleCategoryToggle = (categoryId: string) => {
@@ -276,7 +260,7 @@ const Services = () => {
                         currency={service.currency}
                         image_url={service.image_url}
                         Icon={IconComponent}
-                        onBook={() => handleBookService(service)}
+                        onBook={() => handleOpenServiceDetails(service)}
                       />
                     );
                   })}
@@ -301,23 +285,11 @@ const Services = () => {
       <Footer />
       
       {selectedService && (
-        <>
-          <BookingDialog
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-            serviceName={language === 'ar' ? selectedService.name_ar : selectedService.name}
-            serviceId={selectedService.id}
-            packageId={selectedPackageId}
-            packageName={selectedPackageName}
-          />
-          
-          <ServiceDetailsDialog
-            service={selectedService}
-            open={detailsDialogOpen}
-            onOpenChange={setDetailsDialogOpen}
-            onSelectPackage={handleSelectPackage}
-          />
-        </>
+        <ServiceDetailsDialog
+          service={selectedService}
+          open={detailsDialogOpen}
+          onOpenChange={setDetailsDialogOpen}
+        />
       )}
     </div>
   );
