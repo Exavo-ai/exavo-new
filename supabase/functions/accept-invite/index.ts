@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { corsHeaders, successResponse, errors, handleCors } from "../_shared/response.ts";
 import { z, validateBody, formatZodError } from "../_shared/validation.ts";
+import { checkRateLimit, createRateLimitKey, RateLimitPresets } from "../_shared/rate-limit.ts";
 
 // Request validation schema
 const acceptInviteSchema = z.object({
@@ -31,29 +32,6 @@ function validatePassword(password: string): { valid: boolean; error?: string } 
   return { valid: true };
 }
 
-// Simple in-memory rate limiting (resets on function cold start)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_MAX = 5;
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
-
-function checkRateLimit(identifier: string): { allowed: boolean; retryAfter?: number } {
-  const now = Date.now();
-  const entry = rateLimitMap.get(identifier);
-  
-  if (!entry || now > entry.resetTime) {
-    rateLimitMap.set(identifier, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
-    return { allowed: true };
-  }
-  
-  if (entry.count >= RATE_LIMIT_MAX) {
-    const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
-    return { allowed: false, retryAfter };
-  }
-  
-  entry.count++;
-  return { allowed: true };
-}
-
 serve(async (req) => {
   // Handle CORS
   const corsResponse = handleCors(req);
@@ -76,14 +54,9 @@ serve(async (req) => {
 
     const { token, fullName, password, createAccount } = body;
 
-    // Get client IP for rate limiting
-    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
-                     req.headers.get("cf-connecting-ip") || 
-                     "unknown";
-    
-    // Rate limiting check
-    const rateLimitKey = `${clientIP}:${token.substring(0, 8)}`;
-    const rateCheck = checkRateLimit(rateLimitKey);
+    // Rate limiting check - use shared module
+    const rateLimitKey = createRateLimitKey(req, token.substring(0, 8));
+    const rateCheck = checkRateLimit(rateLimitKey, RateLimitPresets.SENSITIVE);
     
     if (!rateCheck.allowed) {
       console.log("[ACCEPT-INVITE] Rate limit exceeded for:", rateLimitKey);
