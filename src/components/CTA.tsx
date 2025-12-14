@@ -1,12 +1,12 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useNavigate } from "react-router-dom";
+import DemoRequestDialog from "@/components/DemoRequestDialog";
 
 const CTA = () => {
   const { language } = useLanguage();
-  const navigate = useNavigate();
-
+  const [demoDialogOpen, setDemoDialogOpen] = useState(false);
   return (
     <section className="py-16 lg:py-20 relative overflow-hidden bg-muted/30">
       {/* Background gradient */}
@@ -36,7 +36,7 @@ const CTA = () => {
               variant="hero" 
               size="lg"
               className="text-base sm:text-lg px-10 h-14 font-semibold"
-              onClick={() => navigate('/booking')}
+              onClick={() => setDemoDialogOpen(true)}
             >
               {language === 'ar' ? 'اطلب عرضًا توضيحيًا' : 'Request a Demo'}
               <ArrowRight className="w-5 h-5" />
@@ -44,6 +44,8 @@ const CTA = () => {
           </div>
         </div>
       </div>
+
+      <DemoRequestDialog open={demoDialogOpen} onOpenChange={setDemoDialogOpen} />
     </section>
   );
 };

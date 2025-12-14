@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,10 +6,10 @@ import { Brain, Sparkles, Target, TrendingUp, Users, Zap, ArrowRight, CheckCircl
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import Newsletter from '@/components/Newsletter';
+import DemoRequestDialog from '@/components/DemoRequestDialog';
 
 const Landing = () => {
-  const navigate = useNavigate();
-
+  const [demoDialogOpen, setDemoDialogOpen] = useState(false);
   const features = [
     {
       icon: Brain,
@@ -121,7 +121,7 @@ const Landing = () => {
               <Button 
                 size="lg" 
                 className="text-base sm:text-lg px-8 sm:px-10 py-5 sm:py-6 w-full sm:w-auto bg-gradient-hero hover:shadow-glow-lg transition-all group font-semibold"
-                onClick={() => navigate('/booking')}
+                onClick={() => setDemoDialogOpen(true)}
               >
                 Request a Demo
                 <ArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
@@ -258,7 +258,7 @@ const Landing = () => {
                 <Button 
                   size="lg" 
                   className="text-base sm:text-lg px-10 py-6 bg-gradient-hero hover:shadow-glow-lg transition-all group font-semibold"
-                  onClick={() => navigate('/booking')}
+                  onClick={() => setDemoDialogOpen(true)}
                 >
                   Request a Demo
                   <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
@@ -271,6 +271,8 @@ const Landing = () => {
 
       <Newsletter />
       <Footer />
+
+      <DemoRequestDialog open={demoDialogOpen} onOpenChange={setDemoDialogOpen} />
     </div>
   );
 };
