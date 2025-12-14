@@ -1,17 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { corsHeaders, successResponse, errors, handleCors } from "../_shared/response.ts";
+import { z, validateBody, formatZodError } from "../_shared/validation.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "X-Frame-Options": "DENY",
-  "X-Content-Type-Options": "nosniff",
-  "X-XSS-Protection": "1; mode=block",
-  "Referrer-Policy": "no-referrer-when-downgrade",
-  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-  "Pragma": "no-cache",
-};
+// Request validation schema
+const acceptInviteSchema = z.object({
+  token: z.string().min(1, "Token is required").max(500, "Token too long"),
+  fullName: z.string().trim().max(100, "Name must be less than 100 characters").optional(),
+  password: z.string().optional(),
+  createAccount: z.boolean().optional(),
+}).refine(
+  (data) => !data.createAccount || (data.createAccount && data.password),
+  { message: "Password is required when creating account", path: ["password"] }
+);
 
 // Password validation matching frontend registerSchema requirements
 function validatePassword(password: string): { valid: boolean; error?: string } {
@@ -32,8 +33,8 @@ function validatePassword(password: string): { valid: boolean; error?: string } 
 
 // Simple in-memory rate limiting (resets on function cold start)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_MAX = 5; // Max attempts per window
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 
 function checkRateLimit(identifier: string): { allowed: boolean; retryAfter?: number } {
   const now = Date.now();
@@ -54,47 +55,39 @@ function checkRateLimit(identifier: string): { allowed: boolean; retryAfter?: nu
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  // Only allow POST
+  if (req.method !== "POST") {
+    console.log("[ACCEPT-INVITE] Invalid method:", req.method);
+    return errors.badRequest(`Method ${req.method} not allowed. Use POST.`);
   }
 
   try {
+    // Validate request body
+    const { data: body, error: validationError } = await validateBody(req, acceptInviteSchema);
+    if (validationError) {
+      console.log("[ACCEPT-INVITE] Validation error:", validationError.errors);
+      const formatted = formatZodError(validationError);
+      return errors.validationError(formatted.message, formatted.details);
+    }
+
+    const { token, fullName, password, createAccount } = body;
+
     // Get client IP for rate limiting
     const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
                      req.headers.get("cf-connecting-ip") || 
                      "unknown";
     
-    const { token, fullName, password, createAccount } = await req.json();
-
-    if (!token) {
-      console.log("[ACCEPT-INVITE] No token provided");
-      return new Response(
-        JSON.stringify({ success: false, error: "Token is required" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
-    }
-
-    // Rate limiting check based on IP + token combination
+    // Rate limiting check
     const rateLimitKey = `${clientIP}:${token.substring(0, 8)}`;
     const rateCheck = checkRateLimit(rateLimitKey);
     
     if (!rateCheck.allowed) {
       console.log("[ACCEPT-INVITE] Rate limit exceeded for:", rateLimitKey);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Too many attempts. Please try again later.",
-          retryAfter: rateCheck.retryAfter 
-        }),
-        { 
-          headers: { 
-            ...corsHeaders, 
-            "Content-Type": "application/json",
-            "Retry-After": String(rateCheck.retryAfter)
-          }, 
-          status: 429 
-        }
-      );
+      return errors.tooManyRequests(rateCheck.retryAfter);
     }
 
     console.log("[ACCEPT-INVITE] Accepting invitation with token:", token.substring(0, 8) + "...");
@@ -105,7 +98,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // First, validate that the token is still valid
+    // Validate token exists
     const { data: member, error: fetchError } = await supabaseServiceClient
       .from("team_members")
       .select("id, email, status, token_expires_at, role, organization_id")
@@ -120,36 +113,27 @@ serve(async (req) => {
 
     if (fetchError) {
       console.error("[ACCEPT-INVITE] Database error:", fetchError);
-      return new Response(
-        JSON.stringify({ success: false, error: "Database error" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
+      return errors.internal("Database error occurred");
     }
 
     if (!member) {
       console.log("[ACCEPT-INVITE] No invitation found for token");
-      return new Response(
-        JSON.stringify({ success: false, error: "Invalid invitation token" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
+      return errors.notFound("Invitation");
     }
 
     // Check if already activated
     if (member.status === "active") {
       console.log("[ACCEPT-INVITE] Already activated, returning success");
-      return new Response(
-        JSON.stringify({ success: true, message: "This invitation has already been accepted" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
+      return successResponse({
+        message: "This invitation has already been accepted",
+        alreadyActivated: true,
+      });
     }
 
     // Check if expired
     if (member.token_expires_at && new Date(member.token_expires_at) < new Date()) {
       console.log("[ACCEPT-INVITE] Token expired");
-      return new Response(
-        JSON.stringify({ success: false, error: "This invitation has expired" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
+      return errors.badRequest("This invitation has expired");
     }
 
     // If createAccount flag is set, create the user account
@@ -158,10 +142,7 @@ serve(async (req) => {
       const passwordValidation = validatePassword(password);
       if (!passwordValidation.valid) {
         console.log("[ACCEPT-INVITE] Password validation failed:", passwordValidation.error);
-        return new Response(
-          JSON.stringify({ success: false, error: passwordValidation.error }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-        );
+        return errors.validationError(passwordValidation.error || "Invalid password");
       }
 
       console.log("[ACCEPT-INVITE] Creating user account with email confirmed");
@@ -177,7 +158,7 @@ serve(async (req) => {
         }
       );
 
-      // Create user with email already confirmed and no verification email
+      // Create user with email already confirmed
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
         email: member.email,
         password: password,
@@ -192,10 +173,7 @@ serve(async (req) => {
         if (userError.message.includes("already registered") || userError.message.includes("already exists")) {
           console.log("[ACCEPT-INVITE] User already exists, proceeding with activation");
         } else {
-          return new Response(
-            JSON.stringify({ success: false, error: "Failed to create account" }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-          );
+          return errors.badRequest("Failed to create account: " + userError.message);
         }
       } else {
         console.log("[ACCEPT-INVITE] ✓ User account created:", userData.user?.id);
@@ -222,34 +200,19 @@ serve(async (req) => {
 
     if (updateError) {
       console.error("[ACCEPT-INVITE] Update error:", updateError);
-      return new Response(
-        JSON.stringify({ success: false, error: "Failed to activate invitation" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
+      return errors.internal("Failed to activate invitation");
     }
 
     console.log("[ACCEPT-INVITE] ✓ Invitation activated successfully");
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Invitation accepted successfully",
-        data: {
-          email: member.email,
-          role: member.role,
-          organization_id: member.organization_id,
-        }
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-    );
+    return successResponse({
+      message: "Invitation accepted successfully",
+      email: member.email,
+      role: member.role,
+      organization_id: member.organization_id,
+    });
   } catch (error) {
-    console.error("[ACCEPT-INVITE] Error:", error);
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: "An error occurred processing your request" 
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    );
+    console.error("[ACCEPT-INVITE] Unexpected error:", error);
+    return errors.internal("An error occurred processing your request");
   }
 });

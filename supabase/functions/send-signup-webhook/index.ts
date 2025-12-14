@@ -1,34 +1,36 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { corsHeaders, successResponse, errors, handleCors } from "../_shared/response.ts";
+import { z, validateBody, formatZodError } from "../_shared/validation.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "X-Frame-Options": "DENY",
-  "X-Content-Type-Options": "nosniff",
-  "X-XSS-Protection": "1; mode=block",
-  "Referrer-Policy": "no-referrer-when-downgrade",
-  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-  "Pragma": "no-cache",
-};
+// Request validation schema
+const signupDataSchema = z.object({
+  email: z.string().trim().email("Invalid email address").max(255),
+  full_name: z.string().trim().min(1, "Name is required").max(100),
+  phone: z.string().trim().max(20).optional().nullable(),
+  created_at: z.string().optional(),
+});
 
-interface SignupData {
-  email: string;
-  full_name: string;
-  phone?: string;
-  created_at?: string;
-}
+serve(async (req) => {
+  // Handle CORS
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
-const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // Only allow POST
+  if (req.method !== "POST") {
+    console.log("[SIGNUP-WEBHOOK] Invalid method:", req.method);
+    return errors.badRequest(`Method ${req.method} not allowed. Use POST.`);
   }
 
   try {
-    const signupData: SignupData = await req.json();
-    
-    console.log("Sending signup data to webhook:", signupData);
+    // Validate request body
+    const { data: signupData, error: validationError } = await validateBody(req, signupDataSchema);
+    if (validationError) {
+      console.log("[SIGNUP-WEBHOOK] Validation error:", validationError.errors);
+      const formatted = formatZodError(validationError);
+      return errors.validationError(formatted.message, formatted.details);
+    }
+
+    console.log("[SIGNUP-WEBHOOK] Sending signup data to webhook:", signupData.email);
 
     const webhookUrl = "https://n8n.exavo.app/webhook/lovable-form";
     
@@ -47,29 +49,23 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (!webhookResponse.ok) {
-      console.error("Webhook response not OK:", webhookResponse.status, await webhookResponse.text());
-      throw new Error(`Webhook returned status ${webhookResponse.status}`);
+      const errorText = await webhookResponse.text();
+      console.error("[SIGNUP-WEBHOOK] Webhook response not OK:", webhookResponse.status, errorText);
+      // Don't fail the request if webhook fails - it's not critical
+      return successResponse({ 
+        webhookSent: false, 
+        message: "Signup recorded but webhook failed" 
+      });
     }
 
-    console.log("Webhook sent successfully");
+    console.log("[SIGNUP-WEBHOOK] ✓ Webhook sent successfully");
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
-  } catch (error: any) {
-    console.error("Error sending signup webhook:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return successResponse({ 
+      webhookSent: true,
+      message: "Signup data sent to webhook successfully"
+    });
+  } catch (error) {
+    console.error("[SIGNUP-WEBHOOK] Error:", error);
+    return errors.internal(error instanceof Error ? error.message : 'Unknown error');
   }
-};
-
-serve(handler);
+});

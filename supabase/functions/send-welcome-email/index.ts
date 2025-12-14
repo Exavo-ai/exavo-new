@@ -1,20 +1,20 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { corsHeaders, successResponse, createdResponse, errors, handleCors } from "../_shared/response.ts";
+import { z, validateBody, formatZodError, emailSchema } from "../_shared/validation.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "X-Frame-Options": "DENY",
-  "X-Content-Type-Options": "nosniff",
-  "X-XSS-Protection": "1; mode=block",
-  "Referrer-Policy": "no-referrer-when-downgrade",
-  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-  "Pragma": "no-cache",
-};
+// Request validation schema
+const welcomeEmailSchema = z.object({
+  email: emailSchema,
+  full_name: z.string().trim().max(100).optional(),
+});
 
 async function sendEmail(to: string[], subject: string, html: string) {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  
+  if (!RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY not configured");
+  }
   
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -33,10 +33,7 @@ async function sendEmail(to: string[], subject: string, html: string) {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("Resend API error:", {
-      status: response.status,
-      body: errorText
-    });
+    console.error("Resend API error:", { status: response.status, body: errorText });
     throw new Error(`Failed to send email: ${errorText}`);
   }
 
@@ -44,21 +41,26 @@ async function sendEmail(to: string[], subject: string, html: string) {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  // Only allow POST
+  if (req.method !== "POST") {
+    console.log("[WELCOME-EMAIL] Invalid method:", req.method);
+    return errors.badRequest(`Method ${req.method} not allowed. Use POST.`);
   }
 
   try {
-    const { email, full_name } = await req.json();
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !emailRegex.test(email)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid email address" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
+    // Validate request body
+    const { data: body, error: validationError } = await validateBody(req, welcomeEmailSchema);
+    if (validationError) {
+      console.log("[WELCOME-EMAIL] Validation error:", validationError.errors);
+      const formatted = formatZodError(validationError);
+      return errors.validationError(formatted.message, formatted.details);
     }
+
+    const { email, full_name } = body;
 
     // Create Supabase admin client
     const supabaseAdmin = createClient(
@@ -71,6 +73,8 @@ serve(async (req) => {
         },
       }
     );
+
+    console.log("[WELCOME-EMAIL] Processing invitation for:", email);
 
     // Try to create user with auto-confirmed email
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -312,22 +316,15 @@ serve(async (req) => {
         `
       );
 
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: `Invitation sent to ${email}`,
-          existing_user: true
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        }
-      );
+      return successResponse({ 
+        message: `Invitation sent to ${email}`,
+        existing_user: true
+      });
     }
 
     if (createError) {
-      console.error("Error creating user:", createError);
-      throw new Error(`Failed to create user: ${createError.message}`);
+      console.error("[WELCOME-EMAIL] Error creating user:", createError);
+      return errors.badRequest("Failed to create user: " + createError.message);
     }
 
     // Generate password recovery link for the new user
@@ -558,35 +555,14 @@ serve(async (req) => {
       `
     );
 
-    console.log(`Successfully sent invitation to ${email}`);
+    console.log(`[WELCOME-EMAIL] ✓ Successfully sent invitation to ${email}`);
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: `Invitation sent to ${email}`,
-        user_id: newUser.user.id 
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
+    return createdResponse({ 
+      message: `Invitation sent to ${email}`,
+      user_id: newUser.user.id 
+    });
   } catch (error) {
-    console.error("Error in send-welcome-email:", error);
-    
-    // Return 400 for email sending failures, 500 for other errors
-    const isEmailError = error instanceof Error && error.message.includes("Failed to send email");
-    const statusCode = isEmailError ? 400 : 500;
-    
-    return new Response(
-      JSON.stringify({ 
-        error: "Failed to send email",
-        details: error instanceof Error ? error.message : 'Unknown error occurred' 
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: statusCode,
-      }
-    );
+    console.error("[WELCOME-EMAIL] Error:", error);
+    return errors.internal(error instanceof Error ? error.message : 'Unknown error');
   }
 });
