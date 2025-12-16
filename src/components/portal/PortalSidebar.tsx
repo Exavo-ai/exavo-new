@@ -6,7 +6,6 @@ import {
   CreditCard,
   LifeBuoy,
   UsersRound,
-  FolderOpen,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -22,7 +21,6 @@ const allNavigation = [
   { name: "Billing", href: "/client/billing", icon: CreditCard, ownerOnly: true },
   { name: "Tickets", href: "/client/tickets", icon: LifeBuoy, permission: "create_tickets" },
   { name: "Team", href: "/client/team", icon: UsersRound, permission: "view_team" },
-  { name: "Files", href: "/client/files", icon: FolderOpen, permission: "access_files" },
   { name: "Settings", href: "/client/settings", icon: Settings, permission: "access_settings" },
 ];
 
