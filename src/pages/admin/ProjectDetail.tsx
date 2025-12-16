@@ -3,11 +3,12 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ArrowLeft,
   Calendar,
@@ -45,6 +46,7 @@ import AdminDeliveryDialog from "@/components/admin/AdminDeliveryDialog";
 import AdminMilestoneDialog from "@/components/admin/AdminMilestoneDialog";
 import { CreateTicketDialog } from "@/components/portal/CreateTicketDialog";
 import type { Milestone } from "@/hooks/useAdminProjects";
+import { cn } from "@/lib/utils";
 
 const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
   switch (status.toLowerCase()) {
@@ -87,6 +89,7 @@ export default function AdminProjectDetailPage() {
     createMilestone,
     updateMilestone,
     deleteMilestone,
+    updateProject,
   } = useAdminProject(projectId);
 
   const [newComment, setNewComment] = useState("");
@@ -172,44 +175,75 @@ export default function AdminProjectDetailPage() {
         </div>
       </div>
 
-      {/* Progress Overview */}
+      {/* Project Dates */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Progress</p>
-              <div className="flex items-center gap-3">
-                <Progress value={project.progress || 0} className="flex-1 h-3" />
-                <span className="font-semibold">{project.progress || 0}%</span>
-              </div>
+              <p className="text-sm text-muted-foreground mb-2">Start Date</p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !project.start_date && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {project.start_date
+                      ? format(new Date(project.start_date), "MMM d, yyyy")
+                      : "Select start date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={project.start_date ? new Date(project.start_date) : undefined}
+                    onSelect={(date) =>
+                      updateProject({ start_date: date ? format(date, "yyyy-MM-dd") : null })
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Start Date</p>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground mb-2">Due Date</p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !project.due_date && "text-muted-foreground"
+                    )}
+                  >
+                    <Clock className="mr-2 h-4 w-4" />
+                    {project.due_date
+                      ? format(new Date(project.due_date), "MMM d, yyyy")
+                      : "Select due date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={project.due_date ? new Date(project.due_date) : undefined}
+                    onSelect={(date) =>
+                      updateProject({ due_date: date ? format(date, "yyyy-MM-dd") : null })
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Created</p>
+              <div className="h-10 flex items-center">
                 <span className="font-medium">
-                  {project.start_date
-                    ? format(new Date(project.start_date), "MMM d, yyyy")
-                    : "Not set"}
+                  {format(new Date(project.created_at), "MMM d, yyyy")}
                 </span>
               </div>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Due Date</p>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">
-                  {project.due_date
-                    ? format(new Date(project.due_date), "MMM d, yyyy")
-                    : "Not set"}
-                </span>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Created</p>
-              <span className="font-medium">
-                {format(new Date(project.created_at), "MMM d, yyyy")}
-              </span>
             </div>
           </div>
         </CardContent>

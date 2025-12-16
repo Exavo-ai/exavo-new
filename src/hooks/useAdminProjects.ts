@@ -425,6 +425,32 @@ export function useAdminProject(projectId: string | undefined) {
     }
   };
 
+  const updateProject = async (data: { start_date?: string | null; due_date?: string | null }) => {
+    if (!user || !projectId) return false;
+
+    try {
+      const { error } = await supabase
+        .from("projects")
+        .update({
+          ...data,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", projectId);
+
+      if (error) throw error;
+      toast({ title: "Project updated" });
+      loadProject();
+      return true;
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update project",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     project,
     milestones,
@@ -442,5 +468,6 @@ export function useAdminProject(projectId: string | undefined) {
     createMilestone,
     updateMilestone,
     deleteMilestone,
+    updateProject,
   };
 }
