@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/portal/StatusBadge";
@@ -40,7 +40,7 @@ export default function DashboardPage() {
   const [totalProjectsCount, setTotalProjectsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notes, setNotes] = useState("");
+  
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -340,26 +340,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Notes section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Notes</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Textarea
-            placeholder="Write your notes here..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="min-h-[150px] resize-none"
-          />
-          <div className="flex justify-end">
-            <Button size="sm" variant="outline">
-              Save
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
