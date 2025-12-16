@@ -24,6 +24,8 @@ import AdminBookings from "@/pages/admin/Bookings";
 import AdminPayments from "@/pages/admin/Payments";
 import AdminTickets from "@/pages/admin/Tickets";
 import AdminSettings from "@/pages/admin/Settings";
+import AdminProjects from "@/pages/admin/Projects";
+import AdminProjectDetail from "@/pages/admin/ProjectDetail";
 import ClientDashboard from "./pages/ClientDashboard";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import Analytics from "./pages/Analytics";
@@ -129,6 +131,26 @@ const App = () => (
                   <ProtectedRoute requireRole="admin">
                     <AdminLayout>
                       <AdminSettings />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/projects"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminProjects />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/projects/:projectId"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminProjectDetail />
                     </AdminLayout>
                   </ProtectedRoute>
                 }

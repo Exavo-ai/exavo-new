@@ -9,6 +9,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import exavoLogo from "@/assets/exavo-logo.png";
@@ -18,6 +19,7 @@ const navigation = [
   { name: "Users", href: "/admin/users", icon: Users },
   { name: "Services", href: "/admin/services", icon: Briefcase },
   { name: "Bookings", href: "/admin/bookings", icon: Calendar },
+  { name: "Projects", href: "/admin/projects", icon: FolderKanban },
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
   { name: "Tickets", href: "/admin/tickets", icon: LifeBuoy },
   { name: "Settings", href: "/admin/settings", icon: Settings },
