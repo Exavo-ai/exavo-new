@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
+
 import {
   Select,
   SelectContent,
@@ -169,15 +169,6 @@ export default function ProjectsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Progress */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="font-medium">{project.progress || 0}%</span>
-                  </div>
-                  <Progress value={project.progress || 0} className="h-2" />
-                </div>
-
                 {/* Due Date */}
                 {project.due_date && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
