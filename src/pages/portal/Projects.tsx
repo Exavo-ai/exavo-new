@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -11,15 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Search, AlertCircle, FolderKanban, Filter, ExternalLink, Calendar, Clock } from "lucide-react";
+import { Search, AlertCircle, FolderKanban, Filter, ExternalLink, Calendar } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -96,10 +88,10 @@ export default function ProjectsPage() {
         </Button>
       </div>
 
+      {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle>All Projects</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-4 mt-4">
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -124,111 +116,93 @@ export default function ProjectsPage() {
               </SelectContent>
             </Select>
           </div>
-        </CardHeader>
-        <CardContent>
-          {projects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <FolderKanban className="w-16 h-16 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Projects Yet</h3>
-              <p className="text-muted-foreground text-center mb-4">
-                You don't have any projects yet. Browse our services to get started.
-              </p>
-              <Button onClick={() => navigate("/client/services/browse")}>
-                Browse Services
-              </Button>
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="font-semibold">Project</TableHead>
-                    <TableHead className="font-semibold">Status</TableHead>
-                    <TableHead className="font-semibold hidden lg:table-cell">Progress</TableHead>
-                    <TableHead className="font-semibold hidden md:table-cell">Start Date</TableHead>
-                    <TableHead className="font-semibold hidden md:table-cell">Due Date</TableHead>
-                    <TableHead className="font-semibold text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredProjects.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        No projects found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredProjects.map((project, index) => (
-                      <TableRow
-                        key={project.id}
-                        className={`cursor-pointer hover:bg-muted/50 ${index % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
-                        onClick={() => navigate(`/client/projects/${project.id}`)}
-                      >
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{project.title || project.name}</span>
-                            {project.service?.name && (
-                              <span className="text-xs text-muted-foreground">
-                                {project.service.name}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusVariant(project.status)}>
-                            {getStatusLabel(project.status)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <div className="flex items-center gap-2 min-w-[120px]">
-                            <Progress value={project.progress || 0} className="h-2" />
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              {project.progress || 0}%
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {project.start_date ? (
-                            <div className="flex items-center gap-1 text-sm">
-                              <Calendar className="w-3 h-3" />
-                              {format(new Date(project.start_date), "MMM d, yyyy")}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {project.due_date ? (
-                            <div className="flex items-center gap-1 text-sm">
-                              <Clock className="w-3 h-3" />
-                              {format(new Date(project.due_date), "MMM d, yyyy")}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/client/projects/${project.id}`);
-                            }}
-                          >
-                            <ExternalLink className="w-4 h-4 mr-2" />
-                            Open
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
         </CardContent>
       </Card>
+
+      {/* Projects Grid */}
+      {projects.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <FolderKanban className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Projects Yet</h3>
+            <p className="text-muted-foreground text-center mb-4">
+              You don't have any projects yet. Browse our services to get started.
+            </p>
+            <Button onClick={() => navigate("/client/services/browse")}>
+              Browse Services
+            </Button>
+          </CardContent>
+        </Card>
+      ) : filteredProjects.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <Search className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Projects Found</h3>
+            <p className="text-muted-foreground text-center">
+              No projects match your search criteria.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProjects.map((project) => (
+            <Card 
+              key={project.id} 
+              className="hover:shadow-lg transition-shadow cursor-pointer group"
+              onClick={() => navigate(`/client/projects/${project.id}`)}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-lg truncate group-hover:text-primary transition-colors">
+                      {project.title || project.name}
+                    </CardTitle>
+                    {project.service?.name && (
+                      <CardDescription className="truncate mt-1">
+                        {project.service.name}
+                      </CardDescription>
+                    )}
+                  </div>
+                  <Badge variant={getStatusVariant(project.status)} className="shrink-0">
+                    {getStatusLabel(project.status)}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Progress */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Progress</span>
+                    <span className="font-medium">{project.progress || 0}%</span>
+                  </div>
+                  <Progress value={project.progress || 0} className="h-2" />
+                </div>
+
+                {/* Due Date */}
+                {project.due_date && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="w-4 h-4" />
+                    <span>Due {format(new Date(project.due_date), "MMM d, yyyy")}</span>
+                  </div>
+                )}
+
+                {/* Action Button */}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/client/projects/${project.id}`);
+                  }}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open Project
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
