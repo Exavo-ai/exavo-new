@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -170,17 +169,10 @@ export default function ProjectDetailPage() {
         </Button>
       </div>
 
-      {/* Progress Overview */}
+      {/* Project Dates */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Progress</p>
-              <div className="flex items-center gap-3">
-                <Progress value={project.progress || 0} className="flex-1 h-3" />
-                <span className="font-semibold">{project.progress || 0}%</span>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <p className="text-sm text-muted-foreground mb-1">Start Date</p>
               <div className="flex items-center gap-2">
