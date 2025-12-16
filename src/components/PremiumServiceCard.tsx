@@ -19,6 +19,7 @@ interface PremiumServiceCardProps {
   image_url?: string | null;
   Icon: LucideIcon;
   onBook: () => void;
+  onDetails?: () => void;
 }
 
 export const PremiumServiceCard = ({
@@ -32,6 +33,7 @@ export const PremiumServiceCard = ({
   image_url,
   Icon,
   onBook,
+  onDetails,
 }: PremiumServiceCardProps) => {
   const { language } = useLanguage();
   const navigate = useNavigate();
@@ -102,7 +104,7 @@ export const PremiumServiceCard = ({
           <Button 
             variant="outline" 
             className="flex-1 rounded-xl hover:bg-secondary transition-all h-9 sm:h-10 text-xs sm:text-sm"
-            onClick={() => navigate(`/services/${id}`)}
+            onClick={() => onDetails ? onDetails() : navigate(`/services/${id}`)}
           >
             {language === 'ar' ? 'التفاصيل' : 'Details'}
           </Button>

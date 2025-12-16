@@ -308,6 +308,7 @@ const BrowseServices = () => {
                     image_url={service.image_url}
                     Icon={ServiceIcon}
                     onBook={() => handleBookService(service)}
+                    onDetails={() => handleBookService(service)}
                   />
                 );
               })}
