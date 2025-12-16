@@ -3,13 +3,12 @@ import {
   LayoutDashboard,
   Users,
   Briefcase,
-  Calendar,
   CreditCard,
   LifeBuoy,
   Settings,
   ChevronLeft,
   ChevronRight,
-  FolderKanban,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import exavoLogo from "@/assets/exavo-logo.png";
@@ -18,8 +17,7 @@ const navigation = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Users", href: "/admin/users", icon: Users },
   { name: "Services", href: "/admin/services", icon: Briefcase },
-  { name: "Bookings", href: "/admin/bookings", icon: Calendar },
-  { name: "Projects", href: "/admin/projects", icon: FolderKanban },
+  { name: "Work", href: "/admin/work", icon: Layers },
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
   { name: "Tickets", href: "/admin/tickets", icon: LifeBuoy },
   { name: "Settings", href: "/admin/settings", icon: Settings },

@@ -20,11 +20,10 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminUsers from "@/pages/admin/Users";
 import AdminServices from "@/pages/admin/Services";
-import AdminBookings from "@/pages/admin/Bookings";
+import AdminWork from "@/pages/admin/Work";
 import AdminPayments from "@/pages/admin/Payments";
 import AdminTickets from "@/pages/admin/Tickets";
 import AdminSettings from "@/pages/admin/Settings";
-import AdminProjects from "@/pages/admin/Projects";
 import AdminProjectDetail from "@/pages/admin/ProjectDetail";
 import ClientDashboard from "./pages/ClientDashboard";
 import PaymentSuccess from "./pages/PaymentSuccess";
@@ -96,11 +95,11 @@ const App = () => (
                 }
               />
               <Route
-                path="/admin/bookings"
+                path="/admin/work"
                 element={
                   <ProtectedRoute requireRole="admin">
                     <AdminLayout>
-                      <AdminBookings />
+                      <AdminWork />
                     </AdminLayout>
                   </ProtectedRoute>
                 }
@@ -131,16 +130,6 @@ const App = () => (
                   <ProtectedRoute requireRole="admin">
                     <AdminLayout>
                       <AdminSettings />
-                    </AdminLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/projects"
-                element={
-                  <ProtectedRoute requireRole="admin">
-                    <AdminLayout>
-                      <AdminProjects />
                     </AdminLayout>
                   </ProtectedRoute>
                 }
