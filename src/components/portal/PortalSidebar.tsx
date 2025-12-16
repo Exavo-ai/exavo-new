@@ -4,7 +4,6 @@ import {
   Briefcase,
   FolderKanban,
   CreditCard,
-  LifeBuoy,
   UsersRound,
   Settings,
   ChevronLeft,
@@ -19,7 +18,6 @@ const allNavigation = [
   { name: "Services", href: "/client/services/browse", icon: Briefcase },
   { name: "Projects", href: "/client/projects", icon: FolderKanban, permission: "manage_orders" },
   { name: "Billing", href: "/client/billing", icon: CreditCard, ownerOnly: true },
-  { name: "Tickets", href: "/client/tickets", icon: LifeBuoy, permission: "create_tickets" },
   { name: "Team", href: "/client/team", icon: UsersRound, permission: "view_team" },
   { name: "Settings", href: "/client/settings", icon: Settings, permission: "access_settings" },
 ];
