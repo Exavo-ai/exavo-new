@@ -215,12 +215,13 @@ export default function ProjectDetailPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="milestones">Milestones</TabsTrigger>
           <TabsTrigger value="deliveries">Deliveries</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="comments">Comments</TabsTrigger>
+          <TabsTrigger value="tickets">Tickets</TabsTrigger>
           <TabsTrigger value="billing">Billing</TabsTrigger>
         </TabsList>
 
@@ -534,121 +535,124 @@ export default function ProjectDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* Billing Tab */}
-        <TabsContent value="billing">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Invoices */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Receipt className="w-5 h-5" />
-                  Invoices
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {invoices.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">No invoices yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {invoices.map((invoice) => (
-                      <div
-                        key={invoice.id}
-                        className="flex items-center justify-between p-3 rounded-lg border"
-                      >
-                        <div>
-                          <p className="font-medium">
-                            {invoice.currency} {invoice.amount.toFixed(2)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(invoice.created_at), "MMM d, yyyy")}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant={
-                              invoice.status === "paid"
-                                ? "default"
-                                : invoice.status === "pending"
-                                ? "secondary"
-                                : "destructive"
-                            }
-                          >
-                            {invoice.status}
-                          </Badge>
-                          {invoice.pdf_url && (
-                            <Button variant="ghost" size="sm" asChild>
-                              <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
-                                <Download className="w-4 h-4" />
-                              </a>
-                            </Button>
-                          )}
-                          {invoice.hosted_invoice_url && (
-                            <Button variant="ghost" size="sm" asChild>
-                              <a
-                                href={invoice.hosted_invoice_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Tickets */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        {/* Tickets Tab */}
+        <TabsContent value="tickets">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <div>
                 <CardTitle className="flex items-center gap-2">
                   <LifeBuoy className="w-5 h-5" />
                   Support Tickets
                 </CardTitle>
-                {!isCompleted && projectId && (
-                  <CreateTicketDialog
-                    projectId={projectId}
-                    projectName={project?.name}
-                    onTicketCreated={refetch}
-                    trigger={
-                      <Button size="sm">
-                        <Plus className="w-4 h-4 mr-2" />
-                        New Ticket
-                      </Button>
-                    }
-                  />
-                )}
-              </CardHeader>
-              <CardContent>
-                {tickets.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">
-                    No tickets for this project.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {tickets.map((ticket) => (
-                      <Link
-                        key={ticket.id}
-                        to={`/client/tickets/${ticket.id}`}
-                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50"
-                      >
-                        <div>
-                          <p className="font-medium">{ticket.subject}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(ticket.created_at), "MMM d, yyyy")}
-                          </p>
-                        </div>
-                        <Badge>{ticket.status}</Badge>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                <CardDescription>Get help with this project</CardDescription>
+              </div>
+              {!isCompleted && projectId && (
+                <CreateTicketDialog
+                  projectId={projectId}
+                  projectName={project?.name}
+                  onTicketCreated={refetch}
+                  trigger={
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      New Ticket
+                    </Button>
+                  }
+                />
+              )}
+            </CardHeader>
+            <CardContent>
+              {tickets.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No tickets for this project. Create one if you need help.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {tickets.map((ticket) => (
+                    <Link
+                      key={ticket.id}
+                      to={`/client/tickets/${ticket.id}`}
+                      className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50"
+                    >
+                      <div>
+                        <p className="font-medium">{ticket.subject}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(ticket.created_at), "MMM d, yyyy")}
+                        </p>
+                      </div>
+                      <Badge>{ticket.status}</Badge>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Billing Tab */}
+        <TabsContent value="billing">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Receipt className="w-5 h-5" />
+                Invoices
+              </CardTitle>
+              <CardDescription>Payment history for this project</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {invoices.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No invoices yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {invoices.map((invoice) => (
+                    <div
+                      key={invoice.id}
+                      className="flex items-center justify-between p-3 rounded-lg border"
+                    >
+                      <div>
+                        <p className="font-medium">
+                          {invoice.currency} {invoice.amount.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(invoice.created_at), "MMM d, yyyy")}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            invoice.status === "paid"
+                              ? "default"
+                              : invoice.status === "pending"
+                              ? "secondary"
+                              : "destructive"
+                          }
+                        >
+                          {invoice.status}
+                        </Badge>
+                        {invoice.pdf_url && (
+                          <Button variant="ghost" size="sm" asChild>
+                            <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
+                              <Download className="w-4 h-4" />
+                            </a>
+                          </Button>
+                        )}
+                        {invoice.hosted_invoice_url && (
+                          <Button variant="ghost" size="sm" asChild>
+                            <a
+                              href={invoice.hosted_invoice_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
