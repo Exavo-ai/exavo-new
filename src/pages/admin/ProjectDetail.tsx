@@ -27,6 +27,7 @@ import {
   Trash2,
   Plus,
   User,
+  Pencil,
 } from "lucide-react";
 import { useAdminProject } from "@/hooks/useAdminProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,7 +42,9 @@ import {
 } from "@/components/ui/dialog";
 import AdminProjectFileUploadDialog from "@/components/admin/AdminProjectFileUploadDialog";
 import AdminDeliveryDialog from "@/components/admin/AdminDeliveryDialog";
+import AdminMilestoneDialog from "@/components/admin/AdminMilestoneDialog";
 import { CreateTicketDialog } from "@/components/portal/CreateTicketDialog";
+import type { Milestone } from "@/hooks/useAdminProjects";
 
 const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
   switch (status.toLowerCase()) {
@@ -81,12 +84,17 @@ export default function AdminProjectDetailPage() {
     addComment,
     deleteFile,
     updateTicketStatus,
+    createMilestone,
+    updateMilestone,
+    deleteMilestone,
   } = useAdminProject(projectId);
 
   const [newComment, setNewComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
   const [fileUploadOpen, setFileUploadOpen] = useState(false);
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
+  const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
 
   const isCompleted = project?.status === "completed";
 
@@ -263,9 +271,20 @@ export default function AdminProjectDetailPage() {
         {/* Milestones Tab */}
         <TabsContent value="milestones">
           <Card>
-            <CardHeader>
-              <CardTitle>Project Milestones</CardTitle>
-              <CardDescription>Track the progress of the project</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <div>
+                <CardTitle>Project Milestones</CardTitle>
+                <CardDescription>Track and manage project progress</CardDescription>
+              </div>
+              {!isCompleted && (
+                <Button onClick={() => {
+                  setEditingMilestone(null);
+                  setMilestoneDialogOpen(true);
+                }}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Milestone
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {milestones.length === 0 ? (
@@ -289,17 +308,41 @@ export default function AdminProjectDetailPage() {
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <h4 className="font-medium">{milestone.title}</h4>
-                          <Badge
-                            variant={
-                              milestone.status === "completed"
-                                ? "default"
-                                : milestone.status === "in_progress"
-                                ? "secondary"
-                                : "outline"
-                            }
-                          >
-                            {getStatusLabel(milestone.status)}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={
+                                milestone.status === "completed"
+                                  ? "default"
+                                  : milestone.status === "in_progress"
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                            >
+                              {getStatusLabel(milestone.status)}
+                            </Badge>
+                            {!isCompleted && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingMilestone(milestone);
+                                    setMilestoneDialogOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => deleteMilestone(milestone.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
                         {milestone.description && (
                           <p className="text-sm text-muted-foreground mt-1">
@@ -659,6 +702,26 @@ export default function AdminProjectDetailPage() {
           onOpenChange={setDeliveryDialogOpen}
           projectId={projectId}
           onSuccess={refetch}
+        />
+      )}
+
+      {/* Milestone Dialog */}
+      {projectId && (
+        <AdminMilestoneDialog
+          open={milestoneDialogOpen}
+          onOpenChange={(open) => {
+            setMilestoneDialogOpen(open);
+            if (!open) setEditingMilestone(null);
+          }}
+          projectId={projectId}
+          milestone={editingMilestone}
+          onSave={async (data) => {
+            if (editingMilestone) {
+              return updateMilestone(editingMilestone.id, data);
+            }
+            return createMilestone(data);
+          }}
+          nextOrderIndex={milestones.length}
         />
       )}
     </div>
