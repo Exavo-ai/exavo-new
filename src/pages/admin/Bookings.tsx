@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, Search, Filter, Pencil, Trash2, TrendingUp } from "lucide-react";
+import { Eye, Search, Filter, Pencil, Trash2, TrendingUp, FolderOpen } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -49,6 +50,7 @@ interface Booking {
   project_progress: number;
   project_status: string;
   created_at: string;
+  project_id?: string | null;
 }
 
 export default function Bookings() {
@@ -61,7 +63,9 @@ export default function Bookings() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [projectMap, setProjectMap] = useState<Record<string, string>>({});
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadBookings();
@@ -76,6 +80,20 @@ export default function Bookings() {
 
       if (error) throw error;
       setBookings(data || []);
+
+      // Fetch linked projects
+      const { data: projects } = await supabase
+        .from("projects")
+        .select("id, appointment_id")
+        .not("appointment_id", "is", null);
+
+      if (projects) {
+        const map: Record<string, string> = {};
+        projects.forEach((p) => {
+          if (p.appointment_id) map[p.appointment_id] = p.id;
+        });
+        setProjectMap(map);
+      }
     } catch (error) {
       console.error("Error loading bookings:", error);
       toast({
@@ -447,6 +465,17 @@ export default function Bookings() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {projectMap[booking.id] && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => navigate(`/admin/projects/${projectMap[booking.id]}`)}
+                              title="Open Project"
+                              className="text-primary"
+                            >
+                              <FolderOpen className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
