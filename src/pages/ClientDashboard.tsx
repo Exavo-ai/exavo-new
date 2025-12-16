@@ -7,7 +7,9 @@ import ConversationsPage from "./portal/Conversations";
 import SubscriptionsPage from "./portal/Subscriptions";
 import TicketsPage from "./portal/Tickets";
 import TicketDetailPage from "./portal/TicketDetail";
-import OrdersPage from "./portal/Orders";
+import ProjectsPage from "./portal/Projects";
+import ProjectDetailPage from "./portal/ProjectDetail";
+import BillingPage from "./portal/Billing";
 import AIToolsPage from "./portal/AITools";
 import TeamPage from "./portal/Team";
 import SettingsPage from "./portal/Settings";
@@ -41,7 +43,9 @@ const ClientDashboard = () => {
         <Route path="crm/leads" element={<LeadsPage />} />
         <Route path="crm/clients" element={<ClientsPage />} />
         <Route path="crm/conversations" element={<ConversationsPage />} />
-        <Route path="orders" element={<OrdersPage />} />
+        <Route path="projects" element={<ProjectsPage />} />
+        <Route path="projects/:projectId" element={<ProjectDetailPage />} />
+        <Route path="billing" element={<BillingPage />} />
         <Route path="forms" element={<FormsPage />} />
         <Route path="subscriptions" element={<SubscriptionsPage />} />
         <Route path="invoices" element={<InvoicesPage />} />
@@ -53,6 +57,8 @@ const ClientDashboard = () => {
         <Route path="files" element={<FilesPage />} />
         <Route path="workspace-config" element={<WorkspaceConfigPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        {/* Redirect old routes */}
+        <Route path="orders" element={<Navigate to="/client/projects" replace />} />
         <Route path="*" element={<Navigate to="/client" replace />} />
       </Routes>
     </PortalLayout>

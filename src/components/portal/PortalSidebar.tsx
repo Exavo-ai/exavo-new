@@ -2,9 +2,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Briefcase,
+  FolderKanban,
   CreditCard,
-  ShoppingBag,
-  Receipt,
   LifeBuoy,
   UsersRound,
   FolderOpen,
@@ -19,10 +18,8 @@ const allNavigation = [
   { name: "Dashboard", href: "/client", icon: LayoutDashboard, permission: "access_dashboard" },
   { name: "Workspace", href: "/client/workspace", icon: UsersRound, permission: "view_team" },
   { name: "Services", href: "/client/services/browse", icon: Briefcase },
-  { name: "Purchase History", href: "/client/purchase-history", icon: CreditCard, ownerOnly: true },
-  { name: "My Orders", href: "/client/orders", icon: ShoppingBag, permission: "manage_orders" },
-  { name: "Subscriptions", href: "/client/subscriptions", icon: Receipt, ownerOnly: true },
-  { name: "Invoices", href: "/client/invoices", icon: Receipt, ownerOnly: true },
+  { name: "Projects", href: "/client/projects", icon: FolderKanban, permission: "manage_orders" },
+  { name: "Billing", href: "/client/billing", icon: CreditCard, ownerOnly: true },
   { name: "Tickets", href: "/client/tickets", icon: LifeBuoy, permission: "create_tickets" },
   { name: "Team", href: "/client/team", icon: UsersRound, permission: "view_team" },
   { name: "Files", href: "/client/files", icon: FolderOpen, permission: "access_files" },
@@ -39,7 +36,10 @@ export function PortalSidebar({ collapsed, onToggle }: PortalSidebarProps) {
   const location = useLocation();
   const { isWorkspaceOwner, permissions } = useTeam();
 
-  const isActive = (href: string) => location.pathname === href;
+  const isActive = (href: string) => {
+    if (href === "/client") return location.pathname === "/client";
+    return location.pathname.startsWith(href);
+  };
 
   // Filter navigation based on workspace ownership and permissions
   const navigation = allNavigation.filter(item => {
