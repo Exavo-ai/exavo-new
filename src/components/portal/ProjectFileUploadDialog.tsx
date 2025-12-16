@@ -74,7 +74,7 @@ export default function ProjectFileUploadDialog({
     setUploading(true);
     try {
       for (const file of files) {
-        const fileName = `${projectId}/${user.id}/${Date.now()}_${file.name}`;
+        const fileName = `${user.id}/projects/${projectId}/${Date.now()}_${file.name}`;
 
         // Upload to storage
         const { error: uploadError } = await supabase.storage
