@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+
 import { StatusBadge } from "@/components/portal/StatusBadge";
 import { Building2, Crown, Users, Bot, Zap, AlertCircle, FolderKanban, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -324,15 +324,9 @@ export default function DashboardPage() {
                         {project.service?.name || format(new Date(project.created_at), "MMM d, yyyy")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 min-w-[80px]">
-                        <Progress value={project.progress || 0} className="h-2 w-16" />
-                        <span className="text-xs text-muted-foreground">{project.progress || 0}%</span>
-                      </div>
-                      <Button variant="ghost" size="sm" className="h-8">
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    <Button variant="ghost" size="sm" className="h-8">
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
                   </div>
                 ))}
               </div>
