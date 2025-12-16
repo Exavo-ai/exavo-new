@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,6 +52,7 @@ const iconMap: Record<string, any> = {
 const BrowseServices = () => {
   const { language } = useLanguage();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const [services, setServices] = useState<Service[]>([]);
@@ -308,7 +310,7 @@ const BrowseServices = () => {
                     image_url={service.image_url}
                     Icon={ServiceIcon}
                     onBook={() => handleBookService(service)}
-                    onDetails={() => handleBookService(service)}
+                    onDetails={() => navigate(`/client/services/${service.id}`)}
                   />
                 );
               })}
