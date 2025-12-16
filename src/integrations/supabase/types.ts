@@ -218,6 +218,97 @@ export type Database = {
         }
         Relationships: []
       }
+      deliveries: {
+        Row: {
+          created_at: string
+          created_by: string
+          files: Json | null
+          id: string
+          message: string
+          project_id: string
+          revision_notes: string | null
+          revision_requested: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          files?: Json | null
+          id?: string
+          message: string
+          project_id: string
+          revision_notes?: string | null
+          revision_requested?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          files?: Json | null
+          id?: string
+          message?: string
+          project_id?: string
+          revision_notes?: string | null
+          revision_requested?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      milestones: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          order_index: number
+          project_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          order_index?: number
+          project_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          order_index?: number
+          project_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestones_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -449,35 +540,206 @@ export type Database = {
         }
         Relationships: []
       }
-      projects: {
+      project_comments: {
+        Row: {
+          author_id: string
+          author_role: string
+          body: string
+          created_at: string
+          id: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          author_role: string
+          body: string
+          created_at?: string
+          id?: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          author_role?: string
+          body?: string
+          created_at?: string
+          id?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_comments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_files: {
         Row: {
           created_at: string
-          description: string | null
+          file_path: string
+          file_size: number | null
+          filename: string
           id: string
-          name: string
-          status: string
-          updated_at: string
-          user_id: string
+          mime_type: string | null
+          project_id: string
+          uploader_id: string
+          uploader_role: string
         }
         Insert: {
           created_at?: string
-          description?: string | null
+          file_path: string
+          file_size?: number | null
+          filename: string
           id?: string
-          name: string
-          status?: string
-          updated_at?: string
-          user_id: string
+          mime_type?: string | null
+          project_id: string
+          uploader_id: string
+          uploader_role: string
         }
         Update: {
           created_at?: string
+          file_path?: string
+          file_size?: number | null
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          project_id?: string
+          uploader_id?: string
+          uploader_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_invoices: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          hosted_invoice_url: string | null
+          id: string
+          pdf_url: string | null
+          project_id: string
+          status: string
+          stripe_invoice_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          hosted_invoice_url?: string | null
+          id?: string
+          pdf_url?: string | null
+          project_id: string
+          status?: string
+          stripe_invoice_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          hosted_invoice_url?: string | null
+          id?: string
+          pdf_url?: string | null
+          project_id?: string
+          status?: string
+          stripe_invoice_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          appointment_id: string | null
+          client_id: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          name: string
+          progress: number | null
+          service_id: string | null
+          start_date: string | null
+          status: string
+          title: string | null
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
           description?: string | null
+          due_date?: string | null
+          id?: string
+          name: string
+          progress?: number | null
+          service_id?: string | null
+          start_date?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
           id?: string
           name?: string
+          progress?: number | null
+          service_id?: string | null
+          start_date?: string | null
           status?: string
+          title?: string | null
           updated_at?: string
           user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "projects_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_packages: {
         Row: {
@@ -711,6 +973,7 @@ export type Database = {
           description: string
           id: string
           priority: string
+          project_id: string | null
           service: string | null
           status: string
           subject: string
@@ -723,6 +986,7 @@ export type Database = {
           description: string
           id?: string
           priority?: string
+          project_id?: string | null
           service?: string | null
           status?: string
           subject: string
@@ -735,13 +999,22 @@ export type Database = {
           description?: string
           id?: string
           priority?: string
+          project_id?: string | null
           service?: string | null
           status?: string
           subject?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tickets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_files: {
         Row: {
