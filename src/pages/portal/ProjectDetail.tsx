@@ -26,6 +26,7 @@ import {
   AlertCircle,
   Upload,
   Trash2,
+  Plus,
 } from "lucide-react";
 import { useProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +40,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import ProjectFileUploadDialog from "@/components/portal/ProjectFileUploadDialog";
+import { CreateTicketDialog } from "@/components/portal/CreateTicketDialog";
 
 const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
   switch (status.toLowerCase()) {
@@ -601,11 +603,24 @@ export default function ProjectDetailPage() {
 
             {/* Tickets */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <CardTitle className="flex items-center gap-2">
                   <LifeBuoy className="w-5 h-5" />
                   Support Tickets
                 </CardTitle>
+                {!isCompleted && projectId && (
+                  <CreateTicketDialog
+                    projectId={projectId}
+                    projectName={project?.name}
+                    onTicketCreated={refetch}
+                    trigger={
+                      <Button size="sm">
+                        <Plus className="w-4 h-4 mr-2" />
+                        New Ticket
+                      </Button>
+                    }
+                  />
+                )}
               </CardHeader>
               <CardContent>
                 {tickets.length === 0 ? (
