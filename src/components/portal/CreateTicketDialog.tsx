@@ -24,9 +24,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface CreateTicketDialogProps {
   onTicketCreated?: () => void;
+  projectId?: string;
+  projectName?: string;
+  trigger?: React.ReactNode;
 }
 
-export function CreateTicketDialog({ onTicketCreated }: CreateTicketDialogProps) {
+export function CreateTicketDialog({ onTicketCreated, projectId, projectName, trigger }: CreateTicketDialogProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -86,9 +89,10 @@ export function CreateTicketDialog({ onTicketCreated }: CreateTicketDialogProps)
           subject: formData.issue_type,
           description: formData.description,
           priority: formData.priority.toLowerCase(),
-          service: formData.company || null,
+          service: formData.company || projectName || null,
           status: "open",
           user_id: user.id,
+          project_id: projectId || null,
         })
         .select()
         .single();
@@ -154,10 +158,12 @@ export function CreateTicketDialog({ onTicketCreated }: CreateTicketDialogProps)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Ticket
-        </Button>
+        {trigger || (
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Ticket
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
