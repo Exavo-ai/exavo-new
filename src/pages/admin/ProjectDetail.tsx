@@ -137,7 +137,7 @@ export default function AdminProjectDetailPage() {
             <p className="text-lg font-semibold">Project Not Found</p>
             <p className="text-muted-foreground">{error || "Unable to load project"}</p>
           </div>
-          <Button onClick={() => navigate("/admin/projects")}>Back to Projects</Button>
+          <Button onClick={() => navigate("/admin/work")}>Back to Work</Button>
         </div>
       </div>
     );
@@ -148,7 +148,7 @@ export default function AdminProjectDetailPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin/projects")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/admin/work")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
