@@ -427,14 +427,6 @@ export default function Work() {
                       </Select>
                     </div>
 
-                    {/* Booking Progress */}
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Booking Progress</span>
-                        <span>{getProgressValue(booking.status)}%</span>
-                      </div>
-                      <Progress value={getProgressValue(booking.status)} className="h-2" />
-                    </div>
 
                     {/* Project Status Dropdown */}
                     <div className="space-y-2">
