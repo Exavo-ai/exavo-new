@@ -25,6 +25,7 @@ import {
   RotateCcw,
   AlertCircle,
   Upload,
+  Trash2,
 } from "lucide-react";
 import { useProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -76,6 +77,7 @@ export default function ProjectDetailPage() {
     refetch,
     addComment,
     requestRevision,
+    deleteFile,
   } = useProject(projectId);
 
   const [newComment, setNewComment] = useState("");
@@ -420,16 +422,36 @@ export default function ProjectDetailPage() {
                         <div>
                           <p className="font-medium">{file.filename}</p>
                           <p className="text-xs text-muted-foreground">
+                            <span className="font-medium">
+                              {file.uploader?.full_name || file.uploader?.email || "Unknown"}
+                            </span>
+                            {" • "}
+                            <span className={file.uploader_role === "client" ? "text-primary" : "text-secondary-foreground"}>
+                              {file.uploader_role === "client" ? "Client" : "Team"}
+                            </span>
+                            {" • "}
                             {format(new Date(file.created_at), "MMM d, yyyy")}
                             {file.file_size && ` • ${(file.file_size / 1024).toFixed(1)} KB`}
                           </p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" asChild>
-                        <a href={file.file_path} target="_blank" rel="noopener noreferrer">
-                          <Download className="w-4 h-4" />
-                        </a>
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" asChild>
+                          <a href={file.file_path} target="_blank" rel="noopener noreferrer">
+                            <Download className="w-4 h-4" />
+                          </a>
+                        </Button>
+                        {file.uploader_id === user?.id && !isCompleted && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => deleteFile(file.id, file.file_path)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -199,7 +199,7 @@ export function useProject(projectId: string | undefined) {
           .limit(50),
         supabase
           .from("project_files")
-          .select("*, uploader:profiles!project_files_uploader_id_fkey(full_name, email)")
+          .select("*, uploader:profiles(full_name, email)")
           .eq("project_id", projectId)
           .order("created_at", { ascending: false })
           .limit(50),
@@ -222,7 +222,7 @@ export function useProject(projectId: string | undefined) {
 
       setMilestones(milestonesRes.data || []);
       setComments(commentsRes.data || []);
-      setFiles(filesRes.data || []);
+      setFiles((filesRes.data as ProjectFile[]) || []);
       setDeliveries(deliveriesRes.data || []);
       setInvoices(invoicesRes.data || []);
       setTickets(ticketsRes.data || []);
@@ -319,6 +319,39 @@ export function useProject(projectId: string | undefined) {
     }
   };
 
+  const deleteFile = async (fileId: string, filePath: string): Promise<boolean> => {
+    if (!user) return false;
+    try {
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from("user-files")
+        .remove([filePath]);
+
+      if (storageError) {
+        console.error("Storage delete error:", storageError);
+      }
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from("project_files")
+        .delete()
+        .eq("id", fileId);
+
+      if (dbError) throw dbError;
+
+      toast({ title: "File deleted" });
+      loadProject();
+      return true;
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: "Failed to delete file",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     project,
     milestones,
@@ -332,5 +365,6 @@ export function useProject(projectId: string | undefined) {
     refetch: loadProject,
     addComment,
     requestRevision,
+    deleteFile,
   };
 }
