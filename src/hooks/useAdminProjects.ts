@@ -321,6 +321,110 @@ export function useAdminProject(projectId: string | undefined) {
     }
   };
 
+  const createMilestone = async (data: {
+    title: string;
+    description: string;
+    due_date: string | null;
+    status: string;
+    order_index: number;
+  }) => {
+    if (!user || !projectId) return false;
+
+    try {
+      const { error } = await supabase.from("milestones").insert({
+        project_id: projectId,
+        title: data.title,
+        description: data.description || null,
+        due_date: data.due_date,
+        status: data.status,
+        order_index: data.order_index,
+      });
+
+      if (error) throw error;
+      toast({ title: "Milestone created" });
+      loadProject();
+      return true;
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: "Failed to create milestone",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const updateMilestone = async (
+    milestoneId: string,
+    data: {
+      title: string;
+      description: string;
+      due_date: string | null;
+      status: string;
+      order_index: number;
+    }
+  ) => {
+    if (!user) return false;
+
+    try {
+      const updateData: any = {
+        title: data.title,
+        description: data.description || null,
+        due_date: data.due_date,
+        status: data.status,
+        order_index: data.order_index,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Set completed_at if status changed to completed
+      if (data.status === "completed") {
+        updateData.completed_at = new Date().toISOString();
+      } else {
+        updateData.completed_at = null;
+      }
+
+      const { error } = await supabase
+        .from("milestones")
+        .update(updateData)
+        .eq("id", milestoneId);
+
+      if (error) throw error;
+      toast({ title: "Milestone updated" });
+      loadProject();
+      return true;
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update milestone",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const deleteMilestone = async (milestoneId: string) => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from("milestones")
+        .delete()
+        .eq("id", milestoneId);
+
+      if (error) throw error;
+      toast({ title: "Milestone deleted" });
+      loadProject();
+      return true;
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: "Failed to delete milestone",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     project,
     milestones,
@@ -335,5 +439,8 @@ export function useAdminProject(projectId: string | undefined) {
     addComment,
     deleteFile,
     updateTicketStatus,
+    createMilestone,
+    updateMilestone,
+    deleteMilestone,
   };
 }
