@@ -24,6 +24,7 @@ import {
   Send,
   RotateCcw,
   AlertCircle,
+  Upload,
 } from "lucide-react";
 import { useProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import ProjectFileUploadDialog from "@/components/portal/ProjectFileUploadDialog";
 
 const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
   switch (status.toLowerCase()) {
@@ -71,6 +73,7 @@ export default function ProjectDetailPage() {
     tickets,
     loading,
     error,
+    refetch,
     addComment,
     requestRevision,
   } = useProject(projectId);
@@ -82,6 +85,7 @@ export default function ProjectDetailPage() {
     deliveryId: null,
   });
   const [revisionNotes, setRevisionNotes] = useState("");
+  const [fileUploadOpen, setFileUploadOpen] = useState(false);
 
   const isCompleted = project?.status === "completed";
 
@@ -387,9 +391,17 @@ export default function ProjectDetailPage() {
         {/* Files Tab */}
         <TabsContent value="files">
           <Card>
-            <CardHeader>
-              <CardTitle>Project Files</CardTitle>
-              <CardDescription>All files associated with this project</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <div>
+                <CardTitle>Project Files</CardTitle>
+                <CardDescription>All files associated with this project</CardDescription>
+              </div>
+              {!isCompleted && (
+                <Button onClick={() => setFileUploadOpen(true)}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {files.length === 0 ? (
@@ -634,6 +646,16 @@ export default function ProjectDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* File Upload Dialog */}
+      {projectId && (
+        <ProjectFileUploadDialog
+          open={fileUploadOpen}
+          onOpenChange={setFileUploadOpen}
+          projectId={projectId}
+          onUploadSuccess={refetch}
+        />
+      )}
     </div>
   );
 }
