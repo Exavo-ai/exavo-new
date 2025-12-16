@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/portal/StatusBadge";
-import { Building2, Crown, Users, Bot, Zap, AlertCircle, LifeBuoy, FolderKanban, Briefcase, ExternalLink } from "lucide-react";
+import { Building2, Crown, Users, Bot, Zap, AlertCircle, FolderKanban, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -207,8 +207,8 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* KPIs and Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      {/* KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -236,32 +236,6 @@ export default function DashboardPage() {
             <div className="text-xs text-muted-foreground mt-1">
               {activeProjects} active • {completedProjects} completed
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full justify-start"
-              onClick={() => navigate("/client/tickets")}
-            >
-              <LifeBuoy className="w-4 h-4 mr-2" />
-              Create Ticket
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full justify-start"
-              onClick={() => navigate("/client/services/browse")}
-            >
-              <Briefcase className="w-4 h-4 mr-2" />
-              Browse Services
-            </Button>
           </CardContent>
         </Card>
       </div>
