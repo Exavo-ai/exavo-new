@@ -62,6 +62,10 @@ export interface ProjectFile {
   file_size: number | null;
   mime_type: string | null;
   created_at: string;
+  uploader?: {
+    full_name: string | null;
+    email: string;
+  };
 }
 
 export interface Delivery {
@@ -195,7 +199,7 @@ export function useProject(projectId: string | undefined) {
           .limit(50),
         supabase
           .from("project_files")
-          .select("*")
+          .select("*, uploader:profiles!project_files_uploader_id_fkey(full_name, email)")
           .eq("project_id", projectId)
           .order("created_at", { ascending: false })
           .limit(50),
