@@ -79,8 +79,8 @@ const Hero = () => {
               trigger={
                 <Button 
                   size="lg"
-                  variant="outline"
-                  className="text-base sm:text-lg px-8 h-14 font-semibold gap-2"
+                  variant="hero"
+                  className="text-base sm:text-lg px-10 h-14 font-semibold gap-2"
                 >
                   <MessageSquare className="w-5 h-5" />
                   {language === 'ar' ? 'استشارة مجانية' : 'Free Consultation'}
