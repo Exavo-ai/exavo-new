@@ -8,6 +8,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTeam } from "@/contexts/TeamContext";
@@ -17,6 +18,7 @@ const allNavigation = [
   { name: "Workspace", href: "/client/workspace", icon: UsersRound, permission: "view_team" },
   { name: "Services", href: "/client/services/browse", icon: Briefcase },
   { name: "Projects", href: "/client/projects", icon: FolderKanban, permission: "manage_orders" },
+  { name: "Consultations", href: "/client/consultations", icon: MessageSquare },
   { name: "Billing", href: "/client/billing", icon: CreditCard, ownerOnly: true },
   { name: "Team", href: "/client/team", icon: UsersRound, permission: "view_team" },
   { name: "Settings", href: "/client/settings", icon: Settings, permission: "access_settings" },

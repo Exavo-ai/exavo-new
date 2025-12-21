@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Layers,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import exavoLogo from "@/assets/exavo-logo.png";
@@ -20,6 +21,7 @@ const navigation = [
   { name: "Work", href: "/admin/work", icon: Layers },
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
   { name: "Tickets", href: "/admin/tickets", icon: LifeBuoy },
+  { name: "Consultations", href: "/admin/leads", icon: MessageSquare },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

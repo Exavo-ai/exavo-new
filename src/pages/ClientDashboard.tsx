@@ -27,6 +27,7 @@ import WorkspaceConfigPage from "./portal/WorkspaceConfig";
 import BrowseServicesPage from "./portal/BrowseServices";
 import PortalServiceDetailPage from "./portal/ServiceDetail";
 import WorkspacePage from "./portal/Workspace";
+import ConsultationsPage from "./portal/Consultations";
 
 const ClientDashboard = () => {
   return (
@@ -54,6 +55,7 @@ const ClientDashboard = () => {
         <Route path="proposals" element={<ProposalsPage />} />
         <Route path="tickets" element={<TicketsPage />} />
         <Route path="tickets/:ticketId" element={<TicketDetailPage />} />
+        <Route path="consultations" element={<ConsultationsPage />} />
         <Route path="team" element={<TeamPage />} />
         <Route path="integrations" element={<IntegrationsPage />} />
         <Route path="files" element={<FilesPage />} />
