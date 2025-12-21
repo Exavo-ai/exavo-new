@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, MoreVertical, UserCheck, UserX, Trash2, Edit } from "lucide-react";
+import { Search, MoreVertical, UserCheck, UserX, Trash2, Edit, Eye } from "lucide-react";
 import { UserEditDialog } from "@/components/admin/UserEditDialog";
 import { InviteClientDialog } from "@/components/admin/InviteClientDialog";
 import {
@@ -34,6 +35,7 @@ interface User {
 }
 
 export default function Users() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -82,9 +84,14 @@ export default function Users() {
     }
   };
 
-  const handleEditUser = (user: User) => {
+  const handleEditUser = (user: User, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setSelectedUser(user);
     setEditDialogOpen(true);
+  };
+
+  const handleViewUser = (userId: string) => {
+    navigate(`/admin/users/${userId}`);
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -200,7 +207,11 @@ export default function Users() {
                   </TableRow>
                 ) : (
                   filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow 
+                      key={user.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleViewUser(user.id)}
+                    >
                       <TableCell className="font-medium">
                         {user.full_name || "N/A"}
                       </TableCell>
@@ -218,22 +229,26 @@ export default function Users() {
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="icon">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewUser(user.id); }}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleEditUser(user, e)}>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit User
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleSuspendUser(user.id)}>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSuspendUser(user.id); }}>
                               <UserX className="mr-2 h-4 w-4" />
                               Suspend
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleDeleteUser(user.id)}
+                              onClick={(e) => { e.stopPropagation(); handleDeleteUser(user.id); }}
                               className="text-destructive"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />

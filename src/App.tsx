@@ -19,6 +19,7 @@ import Booking from "./pages/Booking";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminUsers from "@/pages/admin/Users";
+import AdminUserDetail from "@/pages/admin/UserDetail";
 import AdminServices from "@/pages/admin/Services";
 import AdminWork from "@/pages/admin/Work";
 import AdminPayments from "@/pages/admin/Payments";
@@ -80,6 +81,16 @@ const App = () => (
                   <ProtectedRoute requireRole="admin">
                     <AdminLayout>
                       <AdminUsers />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/users/:userId"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminUserDetail />
                     </AdminLayout>
                   </ProtectedRoute>
                 }
