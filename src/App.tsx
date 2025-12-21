@@ -24,6 +24,7 @@ import AdminServices from "@/pages/admin/Services";
 import AdminWork from "@/pages/admin/Work";
 import AdminPayments from "@/pages/admin/Payments";
 import AdminTickets from "@/pages/admin/Tickets";
+import AdminLeads from "@/pages/admin/Leads";
 import AdminSettings from "@/pages/admin/Settings";
 import AdminProjectDetail from "@/pages/admin/ProjectDetail";
 import ClientDashboard from "./pages/ClientDashboard";
@@ -131,6 +132,16 @@ const App = () => (
                   <ProtectedRoute requireRole="admin">
                     <AdminLayout>
                       <AdminTickets />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/leads"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminLeads />
                     </AdminLayout>
                   </ProtectedRoute>
                 }

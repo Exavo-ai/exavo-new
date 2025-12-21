@@ -77,3 +77,6 @@ verify_jwt = true
 
 [functions.submit-booking-webhook]
 verify_jwt = false
+
+[functions.send-lead-reply-notification]
+verify_jwt = true
