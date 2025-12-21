@@ -1,10 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Menu, X, Sun, Moon, MessageSquare } from "lucide-react";
+import { Menu, X, Sun, Moon } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/hooks/useTheme";
-import { ConsultationRequestDialog } from "@/components/ConsultationRequestDialog";
 import exavoLogo from "@/assets/exavo-logo.png";
 
 const Navigation = () => {
@@ -48,15 +47,7 @@ const Navigation = () => {
             </div>
           </div>
           
-          <div className="hidden md:flex items-center gap-3">
-            <ConsultationRequestDialog
-              trigger={
-                <Button variant="outline" size="sm" className="gap-2 hover:scale-105 transition-transform">
-                  <MessageSquare className="w-4 h-4" />
-                  Consultation
-                </Button>
-              }
-            />
+          <div className="hidden md:flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={toggleTheme} className="hover:scale-105 transition-transform" aria-label="Toggle theme">
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </Button>
@@ -88,14 +79,6 @@ const Navigation = () => {
             <a href="/services" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">{t('nav.services')}</a>
             <a href="/contact" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">{t('nav.contact')}</a>
             <div className="flex flex-col gap-2 pt-4">
-              <ConsultationRequestDialog
-                trigger={
-                  <Button variant="outline" className="w-full gap-2">
-                    <MessageSquare className="w-4 h-4" />
-                    Request Consultation
-                  </Button>
-                }
-              />
               <Button variant="outline" onClick={toggleTheme} className="w-full gap-2">
                 {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
