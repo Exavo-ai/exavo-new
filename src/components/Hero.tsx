@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Zap, DollarSign, Package } from "lucide-react";
+import { ArrowRight, Zap, DollarSign, Package, MessageSquare } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import DemoRequestDialog from "@/components/DemoRequestDialog";
+import { ConsultationRequestDialog } from "@/components/ConsultationRequestDialog";
 
 const Hero = () => {
   const { language } = useLanguage();
@@ -62,16 +63,31 @@ const Hero = () => {
             ))}
           </div>
 
-          {/* Single Primary CTA */}
-          <Button 
-            size="lg"
-            variant="hero"
-            className="text-base sm:text-lg px-10 h-14 font-semibold"
-            onClick={() => setDemoDialogOpen(true)}
-          >
-            {language === 'ar' ? 'اطلب عرضًا توضيحيًا' : 'Request a Demo'}
-            <ArrowRight className="w-5 h-5" />
-          </Button>
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button 
+              size="lg"
+              variant="hero"
+              className="text-base sm:text-lg px-10 h-14 font-semibold"
+              onClick={() => setDemoDialogOpen(true)}
+            >
+              {language === 'ar' ? 'اطلب عرضًا توضيحيًا' : 'Request a Demo'}
+              <ArrowRight className="w-5 h-5" />
+            </Button>
+            
+            <ConsultationRequestDialog
+              trigger={
+                <Button 
+                  size="lg"
+                  variant="outline"
+                  className="text-base sm:text-lg px-8 h-14 font-semibold gap-2"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  {language === 'ar' ? 'استشارة مجانية' : 'Free Consultation'}
+                </Button>
+              }
+            />
+          </div>
         </div>
       </div>
 
