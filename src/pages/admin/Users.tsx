@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, MoreVertical, UserCheck, UserX, Trash2, Edit, Eye } from "lucide-react";
+import { Search, MoreVertical, UserCheck, UserX, Trash2, Edit, Eye, Download } from "lucide-react";
 import { UserEditDialog } from "@/components/admin/UserEditDialog";
 import { InviteClientDialog } from "@/components/admin/InviteClientDialog";
 import {
@@ -24,6 +24,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import * as XLSX from "xlsx";
 
 interface User {
   id: string;
@@ -38,6 +39,7 @@ export default function Users() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -143,6 +145,52 @@ export default function Users() {
     });
   };
 
+  const handleExportUsers = () => {
+    try {
+      setExporting(true);
+
+      // Prepare data for export - only Name and Email
+      const exportData = filteredUsers.map((user) => ({
+        Name: user.full_name || "",
+        Email: user.email,
+      }));
+
+      // Create worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+      // Set column widths
+      worksheet["!cols"] = [
+        { wch: 30 }, // Name column
+        { wch: 40 }, // Email column
+      ];
+
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+
+      // Generate filename with date
+      const today = format(new Date(), "yyyy-MM-dd");
+      const filename = `users_emails_${today}.xlsx`;
+
+      // Download file
+      XLSX.writeFile(workbook, filename);
+
+      toast({
+        title: "Success",
+        description: `Exported ${exportData.length} users to Excel`,
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to export users",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const filteredUsers = users.filter(
     (user) =>
       user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -162,12 +210,22 @@ export default function Users() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Users Management</h2>
           <p className="text-muted-foreground">Manage and monitor all users</p>
         </div>
-        <InviteClientDialog onSuccess={loadUsers} />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExportUsers}
+            disabled={exporting || filteredUsers.length === 0}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {exporting ? "Exporting..." : "Export Emails"}
+          </Button>
+          <InviteClientDialog onSuccess={loadUsers} />
+        </div>
       </div>
 
       <Card>
