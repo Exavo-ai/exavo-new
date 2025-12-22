@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Menu, X, Sun, Moon } from "lucide-react";
+import { Menu, X, Sun, Moon, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/hooks/useTheme";
+import { useAuth } from "@/contexts/AuthContext";
 import exavoLogo from "@/assets/exavo-logo.png";
 
 const Navigation = () => {
@@ -11,6 +12,16 @@ const Navigation = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { theme, setTheme } = useTheme();
+  const { user, userRole, userProfile, loading } = useAuth();
+
+  const getDashboardPath = () => {
+    return userRole === 'admin' ? '/admin' : '/portal';
+  };
+
+  const handleDashboardClick = () => {
+    setIsOpen(false);
+    navigate(getDashboardPath());
+  };
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -51,20 +62,35 @@ const Navigation = () => {
             <Button variant="ghost" size="icon" onClick={toggleTheme} className="hover:scale-105 transition-transform" aria-label="Toggle theme">
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </Button>
-            <Button 
-              variant="ghost" 
-              className="hover:scale-105 transition-transform"
-              onClick={() => navigate('/login')}
-            >
-              Sign In
-            </Button>
-            <Button 
-              variant="hero" 
-              className="hover:scale-105 transition-transform"
-              onClick={handleGetStarted}
-            >
-              {t('hero.cta')}
-            </Button>
+            {!loading && (
+              user ? (
+                <Button 
+                  variant="ghost" 
+                  className="hover:scale-105 transition-transform gap-2"
+                  onClick={handleDashboardClick}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  {userProfile?.full_name || 'Dashboard'}
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    variant="ghost" 
+                    className="hover:scale-105 transition-transform"
+                    onClick={() => navigate('/login')}
+                  >
+                    Sign In
+                  </Button>
+                  <Button 
+                    variant="hero" 
+                    className="hover:scale-105 transition-transform"
+                    onClick={handleGetStarted}
+                  >
+                    {t('hero.cta')}
+                  </Button>
+                </>
+              )
+            )}
           </div>
           
           <button className="md:hidden hover:scale-110 transition-transform" onClick={() => setIsOpen(!isOpen)} aria-label="Toggle menu">
@@ -83,13 +109,26 @@ const Navigation = () => {
                 {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
               </Button>
-              <Button 
-                variant="hero" 
-                className="w-full"
-                onClick={handleGetStarted}
-              >
-                {t('hero.cta')}
-              </Button>
+              {!loading && (
+                user ? (
+                  <Button 
+                    variant="hero" 
+                    className="w-full gap-2"
+                    onClick={handleDashboardClick}
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    {userProfile?.full_name || 'Dashboard'}
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="hero" 
+                    className="w-full"
+                    onClick={handleGetStarted}
+                  >
+                    {t('hero.cta')}
+                  </Button>
+                )
+              )}
             </div>
           </div>
         )}
