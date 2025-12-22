@@ -21,9 +21,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Search, MessageSquare, Mail, User, Clock, Send, Calendar } from "lucide-react";
+import { Search, MessageSquare, Mail, User, Clock, Send, Calendar, FolderPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ConvertToProjectDialog } from "@/components/admin/ConvertToProjectDialog";
 
 interface Lead {
   id: string;
@@ -35,6 +36,7 @@ interface Lead {
   status: string;
   created_at: string;
   updated_at: string;
+  is_converted?: boolean;
 }
 
 interface LeadMessage {
@@ -54,6 +56,7 @@ export default function AdminLeadsPage() {
   const [messages, setMessages] = useState<LeadMessage[]>([]);
   const [replyMessage, setReplyMessage] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -63,13 +66,29 @@ export default function AdminLeadsPage() {
 
   const loadLeads = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch leads
+      const { data: leadsData, error: leadsError } = await supabase
         .from("leads")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setLeads(data || []);
+      if (leadsError) throw leadsError;
+
+      // Fetch projects with lead_id to check which leads are already converted
+      const { data: projectsData } = await supabase
+        .from("projects")
+        .select("lead_id")
+        .not("lead_id", "is", null);
+
+      const convertedLeadIds = new Set(projectsData?.map((p) => p.lead_id) || []);
+
+      // Mark leads that have been converted
+      const leadsWithConversionStatus = (leadsData || []).map((lead) => ({
+        ...lead,
+        is_converted: convertedLeadIds.has(lead.id),
+      }));
+
+      setLeads(leadsWithConversionStatus);
     } catch (error: any) {
       console.error("Error loading leads:", error);
       toast({
@@ -421,12 +440,39 @@ export default function AdminLeadsPage() {
                       Mark as Closed
                     </Button>
                   )}
+
+                  {/* Convert to Project - Only for registered users */}
+                  {selectedLead.user_id && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setConvertDialogOpen(true)}
+                      disabled={selectedLead.is_converted}
+                      className="gap-2"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                      {selectedLead.is_converted ? "Already Converted" : "Convert to Project"}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Convert to Project Dialog */}
+      {selectedLead && selectedLead.user_id && (
+        <ConvertToProjectDialog
+          lead={selectedLead}
+          open={convertDialogOpen}
+          onOpenChange={setConvertDialogOpen}
+          onSuccess={() => {
+            loadLeads();
+            // Update the selected lead's conversion status
+            setSelectedLead((prev) => (prev ? { ...prev, is_converted: true } : null));
+          }}
+        />
+      )}
     </div>
   );
 }

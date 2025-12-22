@@ -783,6 +783,7 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          lead_id: string | null
           name: string
           progress: number | null
           service_id: string | null
@@ -801,6 +802,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          lead_id?: string | null
           name: string
           progress?: number | null
           service_id?: string | null
@@ -819,6 +821,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          lead_id?: string | null
           name?: string
           progress?: number | null
           service_id?: string | null
@@ -835,6 +838,13 @@ export type Database = {
             columns: ["appointment_id"]
             isOneToOne: false
             referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
