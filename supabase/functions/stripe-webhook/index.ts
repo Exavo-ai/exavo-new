@@ -93,7 +93,73 @@ serve(async (req) => {
           break;
         }
         
-        // Handle payment checkout completion
+        // Handle package purchase (one-time payment from create-package-checkout)
+        if (session.mode === 'payment' && session.metadata?.package_id) {
+          console.log(`[STRIPE-WEBHOOK] Processing package purchase: ${session.metadata.package_id}`);
+          
+          const customerEmail = session.customer_email || session.customer_details?.email;
+          const customerName = session.metadata.customer_name || session.customer_details?.name || '';
+          
+          // Get package details
+          const { data: packageData } = await supabase
+            .from('service_packages')
+            .select('*, services(id, name)')
+            .eq('id', session.metadata.package_id)
+            .single();
+          
+          if (packageData) {
+            // Find or create user from email
+            let userId = session.metadata.user_id || null;
+            
+            if (!userId && customerEmail) {
+              const { data: userData } = await supabase.auth.admin.listUsers();
+              const user = userData?.users.find(u => u.email === customerEmail);
+              userId = user?.id || null;
+            }
+            
+            // Create order record if user exists
+            if (userId) {
+              const { error: orderError } = await supabase
+                .from('orders')
+                .insert({
+                  user_id: userId,
+                  service_id: packageData.service_id,
+                  amount: packageData.price,
+                  currency: packageData.currency,
+                  status: 'pending',
+                  payment_status: 'paid',
+                  title: `${packageData.services?.name || 'Service'} - ${packageData.package_name}`,
+                  short_message: `Purchase of ${packageData.package_name}`,
+                });
+              
+              if (orderError) {
+                console.error('[STRIPE-WEBHOOK] Error creating order:', orderError);
+              } else {
+                console.log(`[STRIPE-WEBHOOK] ✓ Order created for package: ${packageData.package_name}`);
+              }
+            }
+            
+            // Send payment confirmation email
+            await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-payment-confirmation`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({
+                customerEmail,
+                customerName,
+                packageName: packageData.package_name,
+                serviceName: packageData.services?.name,
+                amount: packageData.price,
+                currency: packageData.currency,
+              }),
+            });
+          }
+          break;
+        }
+        
+        // Handle legacy appointment payment checkout completion
         const { data: payment } = await supabase
           .from('payments')
           .update({

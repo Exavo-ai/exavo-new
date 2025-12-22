@@ -1,7 +1,10 @@
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ServicePackage {
   id: string;
@@ -15,15 +18,61 @@ interface ServicePackage {
   package_order: number;
   images?: string[];
   videos?: string[];
+  stripe_price_id?: string | null;
 }
 
 interface ServicePackageCardProps {
   packageData: ServicePackage;
   isPopular?: boolean;
   onSelect: () => void;
+  customerEmail?: string;
+  customerName?: string;
 }
 
-export function ServicePackageCard({ packageData, isPopular, onSelect }: ServicePackageCardProps) {
+export function ServicePackageCard({ packageData, isPopular, onSelect, customerEmail, customerName }: ServicePackageCardProps) {
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleSelectPackage = async () => {
+    // If package has a Stripe price, go directly to checkout
+    if (packageData.stripe_price_id && packageData.price > 0) {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('create-package-checkout', {
+          body: {
+            packageId: packageData.id,
+            customerEmail,
+            customerName,
+          }
+        });
+
+        if (error) throw error;
+
+        if (data?.url) {
+          window.open(data.url, '_blank');
+        } else {
+          throw new Error('No checkout URL returned');
+        }
+      } catch (error: any) {
+        console.error('Checkout error:', error);
+        toast({
+          title: "Checkout Error",
+          description: error.message || "Failed to start checkout. Please try again.",
+          variant: "destructive",
+        });
+        // Fallback to booking form
+        onSelect();
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // No Stripe price - use booking form for custom quote
+      onSelect();
+    }
+  };
+
+  const hasStripeCheckout = packageData.stripe_price_id && packageData.price > 0;
+
   return (
     <Card className={`relative ${isPopular ? 'border-primary shadow-lg scale-105' : ''}`}>
       {isPopular && (
@@ -38,10 +87,14 @@ export function ServicePackageCard({ packageData, isPopular, onSelect }: Service
           <p className="text-sm text-muted-foreground mt-2">{packageData.description}</p>
         )}
         <CardDescription className="mt-3">
-          <span className="text-3xl font-bold text-foreground">
-            {packageData.currency === 'USD' ? '$' : packageData.currency}
-            {packageData.price}
-          </span>
+          {packageData.price > 0 ? (
+            <span className="text-3xl font-bold text-foreground">
+              {packageData.currency === 'USD' ? '$' : packageData.currency}
+              {packageData.price}
+            </span>
+          ) : (
+            <span className="text-xl font-semibold text-muted-foreground">Contact for Quote</span>
+          )}
         </CardDescription>
       </CardHeader>
 
@@ -74,9 +127,19 @@ export function ServicePackageCard({ packageData, isPopular, onSelect }: Service
         <Button 
           className="w-full" 
           variant={isPopular ? "default" : "outline"}
-          onClick={onSelect}
+          onClick={handleSelectPackage}
+          disabled={loading}
         >
-          Select Package
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : hasStripeCheckout ? (
+            "Buy Now"
+          ) : (
+            "Request Quote"
+          )}
         </Button>
       </CardFooter>
     </Card>

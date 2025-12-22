@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.send-lead-reply-notification]
 verify_jwt = true
+
+[functions.create-package-checkout]
+verify_jwt = false

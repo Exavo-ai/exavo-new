@@ -21,6 +21,7 @@ interface ServicePackage {
   package_order: number;
   images?: string[];
   videos?: string[];
+  stripe_price_id?: string | null;
 }
 
 interface Service {
@@ -113,6 +114,7 @@ export function ServiceDetailsDialog({
         package_order: pkg.package_order,
         images: Array.isArray(pkg.images) ? pkg.images.map(String) : undefined,
         videos: Array.isArray(pkg.videos) ? pkg.videos.map(String) : undefined,
+        stripe_price_id: pkg.stripe_price_id || null,
       })));
     } catch (error: any) {
       console.error('Error fetching packages:', error);
