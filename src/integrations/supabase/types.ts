@@ -561,10 +561,17 @@ export type Database = {
           appointment_id: string | null
           created_at: string
           currency: string
+          customer_email: string | null
+          customer_name: string | null
+          description: string | null
           id: string
+          package_id: string | null
           payment_method: string | null
+          service_id: string | null
           status: string
+          stripe_invoice_id: string | null
           stripe_payment_id: string | null
+          stripe_receipt_url: string | null
           stripe_session_id: string | null
           updated_at: string
           user_id: string
@@ -574,10 +581,17 @@ export type Database = {
           appointment_id?: string | null
           created_at?: string
           currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          description?: string | null
           id?: string
+          package_id?: string | null
           payment_method?: string | null
+          service_id?: string | null
           status?: string
+          stripe_invoice_id?: string | null
           stripe_payment_id?: string | null
+          stripe_receipt_url?: string | null
           stripe_session_id?: string | null
           updated_at?: string
           user_id: string
@@ -587,10 +601,17 @@ export type Database = {
           appointment_id?: string | null
           created_at?: string
           currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          description?: string | null
           id?: string
+          package_id?: string | null
           payment_method?: string | null
+          service_id?: string | null
           status?: string
+          stripe_invoice_id?: string | null
           stripe_payment_id?: string | null
+          stripe_receipt_url?: string | null
           stripe_session_id?: string | null
           updated_at?: string
           user_id?: string
@@ -601,6 +622,20 @@ export type Database = {
             columns: ["appointment_id"]
             isOneToOne: false
             referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "service_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
