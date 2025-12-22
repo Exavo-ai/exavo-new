@@ -82,13 +82,6 @@ export function AdminHeader({ isMobile, onMenuToggle }: AdminHeaderProps) {
         >
           <img src={exavoLogo} alt="Exavo" className="h-7 sm:h-8 w-auto" />
         </button>
-        <button
-          onClick={() => navigate('/')}
-          className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted rounded-full transition-all border border-border/50"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          <span>Back to Website</span>
-        </button>
         <div className="min-w-0">
           <h1 className="text-sm sm:text-base font-semibold truncate">
             Hello, {userName}! 👋
