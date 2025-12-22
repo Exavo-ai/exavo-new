@@ -870,6 +870,7 @@ export type Database = {
           package_order: number
           price: number
           service_id: string
+          stripe_price_id: string | null
           updated_at: string
           videos: Json | null
         }
@@ -886,6 +887,7 @@ export type Database = {
           package_order?: number
           price: number
           service_id: string
+          stripe_price_id?: string | null
           updated_at?: string
           videos?: Json | null
         }
@@ -902,6 +904,7 @@ export type Database = {
           package_order?: number
           price?: number
           service_id?: string
+          stripe_price_id?: string | null
           updated_at?: string
           videos?: Json | null
         }
