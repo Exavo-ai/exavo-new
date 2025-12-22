@@ -17,6 +17,7 @@ import {
   Clock,
   Mail,
   User,
+  Plus,
 } from "lucide-react";
 import {
   Select,
@@ -40,6 +41,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { EditBookingDialog } from "@/components/admin/EditBookingDialog";
 import { ViewBookingDialog } from "@/components/admin/ViewBookingDialog";
+import { CreateProjectDialog } from "@/components/admin/CreateProjectDialog";
 
 interface Booking {
   id: string;
@@ -92,6 +94,7 @@ export default function Work() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [projectMap, setProjectMap] = useState<Record<string, string>>({});
+  const [createProjectDialogOpen, setCreateProjectDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -546,6 +549,10 @@ export default function Work() {
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
+            <Button onClick={() => setCreateProjectDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Project
+            </Button>
           </div>
 
           {loadingProjects ? (
@@ -663,6 +670,12 @@ export default function Work() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CreateProjectDialog
+        open={createProjectDialogOpen}
+        onOpenChange={setCreateProjectDialogOpen}
+        onSuccess={loadProjects}
+      />
     </div>
   );
 }
