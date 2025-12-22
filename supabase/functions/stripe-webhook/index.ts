@@ -5,9 +5,26 @@ import { corsHeaders, successResponse, errors } from "../_shared/response.ts";
 
 const PLAN_PRODUCT_MAP: Record<string, string> = {
   'prod_TTapRptmEkLouu': 'starter',
-  'prod_TTapq8rgy3dmHT': 'pro', 
+  'prod_TTapq8rgy3dmHT': 'pro',
   'prod_TTapwaC6qD21xi': 'enterprise'
 };
+
+async function getUserIdByEmail(supabase: any, email: string): Promise<string | null> {
+  // IMPORTANT: Use profiles table instead of auth.admin.listUsers() to avoid pagination limits.
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[STRIPE-WEBHOOK] Error looking up profile by email:', error);
+    return null;
+  }
+
+  return (data as any)?.id ?? null;
+}
+
 
 serve(async (req) => {
   // Only allow POST for webhooks
@@ -28,6 +45,7 @@ serve(async (req) => {
     console.error("[STRIPE-WEBHOOK] STRIPE_WEBHOOK_SECRET not configured");
     return errors.internal("Webhook not configured");
   }
+
 
   const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
     apiVersion: '2025-08-27.basil',
@@ -62,16 +80,16 @@ serve(async (req) => {
           
           const customerEmail = session.customer_email || session.customer_details?.email;
           if (customerEmail) {
-            const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
-            const user = userData?.users.find(u => u.email === customerEmail);
-            
-            if (user) {
-              console.log(`[STRIPE-WEBHOOK] Found user: ${user.id}, updating workspace`);
+            const userId = await getUserIdByEmail(supabase, customerEmail);
+
+            if (userId) {
+              console.log(`[STRIPE-WEBHOOK] Found user: ${userId}, updating workspace`);
+
               
               const { error: upsertError } = await supabase
                 .from('workspaces')
                 .upsert({
-                  owner_id: user.id,
+                  owner_id: userId,
                   current_plan_product_id: productId,
                   subscription_status: subscription.status,
                   stripe_customer_id: session.customer as string,
@@ -155,13 +173,12 @@ serve(async (req) => {
             }
           }
 
-          // Find user by email
+          // Find user by email (required so RLS will allow the client/admin to see it later)
           let userId = session.metadata?.user_id || null;
           if (!userId && customerEmail) {
-            const { data: userData } = await supabase.auth.admin.listUsers();
-            const user = userData?.users.find(u => u.email === customerEmail);
-            userId = user?.id || null;
+            userId = await getUserIdByEmail(supabase, customerEmail);
           }
+
 
           // Calculate amount (session.amount_total is in cents)
           const amount = (session.amount_total || 0) / 100;
@@ -305,19 +322,19 @@ serve(async (req) => {
         const planName = PLAN_PRODUCT_MAP[productId] || 'unknown';
         
         console.log(`[STRIPE-WEBHOOK] Email: ${customerEmail}, Product: ${productId}, Plan: ${planName}`);
-        
-        const { data: userData } = await supabase.auth.admin.listUsers();
-        const user = userData?.users.find(u => u.email === customerEmail);
-        
-        if (!user) {
+
+        const userId = await getUserIdByEmail(supabase, customerEmail);
+
+        if (!userId) {
           console.error('[STRIPE-WEBHOOK] User not found for email:', customerEmail);
           break;
         }
+
         
         const { data: existingWorkspace } = await supabase
           .from('workspaces')
           .select('stripe_subscription_id')
-          .eq('owner_id', user.id)
+          .eq('owner_id', userId)
           .single();
         
         if (existingWorkspace?.stripe_subscription_id && 
@@ -334,7 +351,7 @@ serve(async (req) => {
         const { error: updateError } = await supabase
           .from('workspaces')
           .upsert({
-            owner_id: user.id,
+            owner_id: userId,
             current_plan_product_id: productId,
             subscription_status: subscription.status,
             stripe_customer_id: customerId,
