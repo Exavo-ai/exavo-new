@@ -91,14 +91,17 @@ const Login = () => {
       }
       
       // Redirect based on user role - admins go to admin dashboard
-      // Note: userRole from context may not be updated yet, so we fetch it
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', data.user.id);
-      
-      const hasAdminRole = roleData?.some(r => r.role === 'admin');
-      const targetPath = hasAdminRole ? '/admin' : '/portal';
+      // Use the existing backend role-check function (no role data in client storage)
+      const { data: isAdmin, error: roleError } = await supabase.rpc('has_role', {
+        _user_id: data.user.id,
+        _role: 'admin',
+      });
+
+      if (roleError) {
+        console.error('[LOGIN] Role check failed:', roleError);
+      }
+
+      const targetPath = isAdmin ? '/admin' : '/client';
       console.log("[LOGIN] Redirecting to:", targetPath);
       navigate(targetPath, { replace: true });
     } catch (error: any) {
@@ -110,7 +113,7 @@ const Login = () => {
 
   // If already logged in, show a friendly message with dashboard link
   if (isAlreadyLoggedIn) {
-    const dashboardPath = userRole === 'admin' ? '/admin' : '/portal';
+    const dashboardPath = userRole === 'admin' ? '/admin' : '/client';
     return (
       <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5"></div>

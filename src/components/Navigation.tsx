@@ -15,7 +15,7 @@ const Navigation = () => {
   const { user, userRole, userProfile, loading } = useAuth();
 
   const getDashboardPath = () => {
-    return userRole === 'admin' ? '/admin' : '/portal';
+    return userRole === 'admin' ? '/admin' : '/client';
   };
 
   const handleDashboardClick = () => {
