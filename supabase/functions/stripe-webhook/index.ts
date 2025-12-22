@@ -94,67 +94,158 @@ serve(async (req) => {
         }
         
         // Handle package purchase (one-time payment from create-package-checkout)
-        if (session.mode === 'payment' && session.metadata?.package_id) {
-          console.log(`[STRIPE-WEBHOOK] Processing package purchase: ${session.metadata.package_id}`);
+        if (session.mode === 'payment') {
+          console.log(`[STRIPE-WEBHOOK] Processing one-time payment`);
           
           const customerEmail = session.customer_email || session.customer_details?.email;
-          const customerName = session.metadata.customer_name || session.customer_details?.name || '';
+          const customerName = session.metadata?.customer_name || session.customer_details?.name || '';
+          const packageId = session.metadata?.package_id || null;
           
-          // Get package details
-          const { data: packageData } = await supabase
-            .from('service_packages')
-            .select('*, services(id, name)')
-            .eq('id', session.metadata.package_id)
-            .single();
-          
-          if (packageData) {
-            // Find or create user from email
-            let userId = session.metadata.user_id || null;
-            
-            if (!userId && customerEmail) {
-              const { data: userData } = await supabase.auth.admin.listUsers();
-              const user = userData?.users.find(u => u.email === customerEmail);
-              userId = user?.id || null;
+          // Get payment intent for receipt URL
+          let receiptUrl = null;
+          let paymentMethod = 'card';
+          if (session.payment_intent) {
+            try {
+              const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent as string, {
+                expand: ['latest_charge']
+              });
+              const charge = paymentIntent.latest_charge as Stripe.Charge;
+              if (charge) {
+                receiptUrl = charge.receipt_url;
+                paymentMethod = charge.payment_method_details?.type || 'card';
+              }
+            } catch (e) {
+              console.error('[STRIPE-WEBHOOK] Error getting payment intent:', e);
             }
+          }
+
+          // Get invoice URL if exists
+          let invoiceUrl = null;
+          let invoicePdfUrl = null;
+          let stripeInvoiceId = null;
+          if (session.invoice) {
+            try {
+              const invoice = await stripe.invoices.retrieve(session.invoice as string);
+              invoiceUrl = invoice.hosted_invoice_url;
+              invoicePdfUrl = invoice.invoice_pdf;
+              stripeInvoiceId = invoice.id;
+            } catch (e) {
+              console.error('[STRIPE-WEBHOOK] Error getting invoice:', e);
+            }
+          }
+
+          // Get package and service details
+          let packageData = null;
+          let serviceName = '';
+          let packageName = '';
+          let serviceId = null;
+          
+          if (packageId) {
+            const { data: pkg } = await supabase
+              .from('service_packages')
+              .select('*, services(id, name)')
+              .eq('id', packageId)
+              .single();
             
-            // Create order record if user exists
-            if (userId) {
+            if (pkg) {
+              packageData = pkg;
+              serviceName = pkg.services?.name || '';
+              packageName = pkg.package_name || '';
+              serviceId = pkg.service_id;
+            }
+          }
+
+          // Find user by email
+          let userId = session.metadata?.user_id || null;
+          if (!userId && customerEmail) {
+            const { data: userData } = await supabase.auth.admin.listUsers();
+            const user = userData?.users.find(u => u.email === customerEmail);
+            userId = user?.id || null;
+          }
+
+          // Calculate amount (session.amount_total is in cents)
+          const amount = (session.amount_total || 0) / 100;
+          const currency = (session.currency || 'usd').toUpperCase();
+
+          // Create payment record
+          if (userId) {
+            const paymentDescription = packageData 
+              ? `${serviceName} - ${packageName}`
+              : 'One-time payment';
+
+            const { data: payment, error: paymentError } = await supabase
+              .from('payments')
+              .insert({
+                user_id: userId,
+                service_id: serviceId,
+                package_id: packageId,
+                amount: amount,
+                currency: currency,
+                status: 'completed',
+                payment_method: paymentMethod,
+                stripe_session_id: session.id,
+                stripe_payment_id: session.payment_intent as string,
+                stripe_invoice_id: stripeInvoiceId,
+                stripe_receipt_url: receiptUrl || invoiceUrl,
+                customer_email: customerEmail,
+                customer_name: customerName,
+                description: paymentDescription,
+              })
+              .select()
+              .single();
+
+            if (paymentError) {
+              console.error('[STRIPE-WEBHOOK] Error creating payment:', paymentError);
+            } else {
+              console.log(`[STRIPE-WEBHOOK] ✓ Payment created: ${payment.id}`);
+              
+              // Also create an order record for tracking
               const { error: orderError } = await supabase
                 .from('orders')
                 .insert({
                   user_id: userId,
-                  service_id: packageData.service_id,
-                  amount: packageData.price,
-                  currency: packageData.currency,
+                  service_id: serviceId,
+                  amount: amount,
+                  currency: currency,
                   status: 'pending',
                   payment_status: 'paid',
-                  title: `${packageData.services?.name || 'Service'} - ${packageData.package_name}`,
-                  short_message: `Purchase of ${packageData.package_name}`,
+                  title: paymentDescription,
+                  short_message: `Purchase of ${packageName || 'service'}`,
                 });
               
               if (orderError) {
                 console.error('[STRIPE-WEBHOOK] Error creating order:', orderError);
               } else {
-                console.log(`[STRIPE-WEBHOOK] ✓ Order created for package: ${packageData.package_name}`);
+                console.log(`[STRIPE-WEBHOOK] ✓ Order created for payment`);
               }
             }
-            
+
             // Send payment confirmation email
-            await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-payment-confirmation`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-              },
-              body: JSON.stringify({
-                customerEmail,
-                customerName,
-                packageName: packageData.package_name,
-                serviceName: packageData.services?.name,
-                amount: packageData.price,
-                currency: packageData.currency,
-              }),
-            });
+            try {
+              await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-payment-confirmation`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                },
+                body: JSON.stringify({
+                  customerEmail,
+                  customerName,
+                  serviceName: serviceName || 'Service',
+                  packageName: packageName || 'Package',
+                  amount: amount,
+                  currency: currency,
+                  receiptUrl: receiptUrl || invoiceUrl,
+                  invoiceUrl: invoiceUrl,
+                  paymentId: session.payment_intent,
+                }),
+              });
+              console.log(`[STRIPE-WEBHOOK] ✓ Payment confirmation email triggered`);
+            } catch (emailError) {
+              console.error('[STRIPE-WEBHOOK] Error sending confirmation email:', emailError);
+            }
+          } else {
+            console.log(`[STRIPE-WEBHOOK] No user found for email: ${customerEmail}, payment not saved to DB`);
           }
           break;
         }
