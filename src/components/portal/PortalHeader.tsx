@@ -1,4 +1,4 @@
-import { User, LogOut, Settings as SettingsIcon, CreditCard, Sun, Moon, Menu } from "lucide-react";
+import { User, LogOut, Settings as SettingsIcon, CreditCard, Sun, Moon, Menu, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/hooks/useTheme";
@@ -40,7 +40,13 @@ export function PortalHeader({ isMobile, onMenuToggle }: PortalHeaderProps) {
             <Menu className="h-5 w-5" />
           </Button>
         )}
-        <img src={exavoLogo} alt="Exavo AI" className="h-7 sm:h-8 w-auto shrink-0" />
+        <button 
+          onClick={() => navigate('/')} 
+          className="shrink-0 hover:opacity-80 transition-opacity"
+          title="Back to Website"
+        >
+          <img src={exavoLogo} alt="Exavo AI" className="h-7 sm:h-8 w-auto" />
+        </button>
         <div className="min-w-0">
           <h1 className="text-sm sm:text-base font-semibold truncate">
             {firstName ? `Hello, ${firstName}!` : "Hello!"} 👋
@@ -80,6 +86,11 @@ export function PortalHeader({ isMobile, onMenuToggle }: PortalHeaderProps) {
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/')}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Back to Website
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate("/client/settings")}>
               <SettingsIcon className="mr-2 h-4 w-4" />

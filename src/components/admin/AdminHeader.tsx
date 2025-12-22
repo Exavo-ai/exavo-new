@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Menu, Sun, Moon, LogOut, User } from "lucide-react";
+import { Menu, Sun, Moon, LogOut, User, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -75,7 +75,13 @@ export function AdminHeader({ isMobile, onMenuToggle }: AdminHeaderProps) {
             <Menu className="h-5 w-5" />
           </Button>
         )}
-        <img src={exavoLogo} alt="Exavo" className="h-7 sm:h-8 w-auto shrink-0" />
+        <button 
+          onClick={() => navigate('/')} 
+          className="shrink-0 hover:opacity-80 transition-opacity"
+          title="Back to Website"
+        >
+          <img src={exavoLogo} alt="Exavo" className="h-7 sm:h-8 w-auto" />
+        </button>
         <div className="min-w-0">
           <h1 className="text-sm sm:text-base font-semibold truncate">
             Hello, {userName}! 👋
@@ -111,6 +117,10 @@ export function AdminHeader({ isMobile, onMenuToggle }: AdminHeaderProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => navigate('/')}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Back to Website
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/admin/settings")}>
               <User className="mr-2 h-4 w-4" />
               Settings
