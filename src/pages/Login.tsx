@@ -14,17 +14,13 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const { user, userRole } = useAuth();
+  const { user, userRole, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('inviteToken');
 
-  useEffect(() => {
-    // Redirect if already logged in with proper role (but not if handling invite)
-    if (user && userRole && !loading && !inviteToken) {
-      const targetPath = userRole === 'admin' ? '/admin' : '/client';
-      navigate(targetPath, { replace: true });
-    }
-  }, [user, userRole, loading, navigate, inviteToken]);
+  // Show a message if already logged in, but don't force redirect
+  // This allows users to navigate freely between portal and main site
+  const isAlreadyLoggedIn = !authLoading && user && userRole && !inviteToken;
 
   const handleInviteActivation = async () => {
     if (!inviteToken) return;
@@ -94,15 +90,54 @@ const Login = () => {
         toast.success(t('auth.loginSuccess'));
       }
       
-      // Always redirect to client dashboard (team members are always clients)
-      console.log("[LOGIN] Redirecting to client dashboard");
-      navigate('/client/dashboard', { replace: true });
+      // Redirect based on user role - admins go to admin dashboard
+      // Note: userRole from context may not be updated yet, so we fetch it
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', data.user.id);
+      
+      const hasAdminRole = roleData?.some(r => r.role === 'admin');
+      const targetPath = hasAdminRole ? '/admin' : '/portal';
+      console.log("[LOGIN] Redirecting to:", targetPath);
+      navigate(targetPath, { replace: true });
     } catch (error: any) {
       console.error("[LOGIN] Login error:", error);
       toast.error(error.message || t('auth.loginError'));
       setLoading(false);
     }
   };
+
+  // If already logged in, show a friendly message with dashboard link
+  if (isAlreadyLoggedIn) {
+    const dashboardPath = userRole === 'admin' ? '/admin' : '/portal';
+    return (
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:4rem_4rem]"></div>
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="max-w-md mx-auto">
+            <div className="bg-card rounded-2xl p-8 border border-border shadow-glow text-center">
+              <h1 className="text-3xl font-bold bg-gradient-hero bg-clip-text text-transparent mb-4">
+                You're already signed in
+              </h1>
+              <p className="text-muted-foreground mb-6">
+                You can continue to your dashboard or browse the main website.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Button variant="hero" className="w-full" onClick={() => navigate(dashboardPath)}>
+                  Go to Dashboard
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => navigate('/')}>
+                  Back to Home
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
