@@ -1,6 +1,6 @@
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { corsHeaders, successResponse, errors, handleCors } from "../_shared/response.ts";
+import { successResponse, errors, handleCors } from "../_shared/response.ts";
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
 
     if (!supabaseUrl || !serviceRoleKey || !stripeSecretKey) {
-      return errors.internal("Server configuration error");
+      return errors.internal("Server not configured");
     }
 
     const authHeader = req.headers.get("Authorization");
@@ -29,10 +29,9 @@ Deno.serve(async (req) => {
     } = await supabase.auth.getUser(token);
 
     if (userError || !user) {
-      return errors.unauthorized("Invalid or expired token");
+      return errors.unauthorized("Invalid user");
     }
 
-    // Get workspace subscription
     const { data: workspace } = await supabase
       .from("workspaces")
       .select("stripe_subscription_id")
@@ -47,21 +46,15 @@ Deno.serve(async (req) => {
       apiVersion: "2025-08-27.basil",
     });
 
-    let subscription: Stripe.Subscription;
-    try {
-      subscription = await stripe.subscriptions.retrieve(workspace.stripe_subscription_id, {
-        expand: ["items.data.price.product"],
-      });
-    } catch {
+    const subscription = await stripe.subscriptions.retrieve(workspace.stripe_subscription_id, {
+      expand: ["items.data.price.product"],
+    });
+
+    if (subscription.status !== "active" && subscription.status !== "trialing") {
       return successResponse({ subscriptions: [] });
     }
 
-    if (!["active", "trialing"].includes(subscription.status)) {
-      return successResponse({ subscriptions: [] });
-    }
-
-    const item = subscription.items.data[0];
-    const price = item.price;
+    const price = subscription.items.data[0].price;
     const product = typeof price.product === "string" ? await stripe.products.retrieve(price.product) : price.product;
 
     const formattedSubscription = {
@@ -69,7 +62,7 @@ Deno.serve(async (req) => {
       status: subscription.status,
       plan_name: product.name,
       amount: (price.unit_amount || 0) / 100,
-      currency: price.currency.toUpperCase(),
+      currency: price.currency,
       interval: price.recurring?.interval || "month",
       current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
     };
@@ -77,8 +70,8 @@ Deno.serve(async (req) => {
     return successResponse({
       subscriptions: [formattedSubscription],
     });
-  } catch (error) {
-    console.error("[GET-SUBSCRIPTIONS]", error);
-    return errors.internal("Unexpected error");
+  } catch (err) {
+    console.error("[GET-SUBSCRIPTIONS]", err);
+    return errors.internal("Failed to fetch subscriptions");
   }
 });
