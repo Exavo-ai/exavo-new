@@ -1,30 +1,25 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import Stripe from 'https://esm.sh/stripe@18.5.0';
+import Stripe from "https://esm.sh/stripe@18.5.0";
 import { corsHeaders, successResponse, errors } from "../_shared/response.ts";
 
 const PLAN_PRODUCT_MAP: Record<string, string> = {
-  'prod_TTapRptmEkLouu': 'starter',
-  'prod_TTapq8rgy3dmHT': 'pro',
-  'prod_TTapwaC6qD21xi': 'enterprise'
+  prod_TTapRptmEkLouu: "starter",
+  prod_TTapq8rgy3dmHT: "pro",
+  prod_TTapwaC6qD21xi: "enterprise",
 };
 
 async function getUserIdByEmail(supabase: any, email: string): Promise<string | null> {
   // IMPORTANT: Use profiles table instead of auth.admin.listUsers() to avoid pagination limits.
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle();
+  const { data, error } = await supabase.from("profiles").select("id").eq("email", email).maybeSingle();
 
   if (error) {
-    console.error('[STRIPE-WEBHOOK] Error looking up profile by email:', error);
+    console.error("[STRIPE-WEBHOOK] Error looking up profile by email:", error);
     return null;
   }
 
   return (data as any)?.id ?? null;
 }
-
 
 serve(async (req) => {
   // Only allow POST for webhooks
@@ -33,8 +28,8 @@ serve(async (req) => {
     return errors.badRequest(`Method ${req.method} not allowed. Use POST.`);
   }
 
-  const signature = req.headers.get('stripe-signature');
-  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+  const signature = req.headers.get("stripe-signature");
+  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
 
   if (!signature) {
     console.log("[STRIPE-WEBHOOK] Missing stripe-signature header");
@@ -46,9 +41,8 @@ serve(async (req) => {
     return errors.internal("Webhook not configured");
   }
 
-
-  const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-    apiVersion: '2025-08-27.basil',
+  const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    apiVersion: "2025-08-27.basil",
   });
 
   try {
@@ -57,27 +51,25 @@ serve(async (req) => {
 
     console.log(`[STRIPE-WEBHOOK] Received event: ${event.type}, id: ${event.id}`);
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 
     switch (event.type) {
-      case 'checkout.session.completed': {
+      case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         console.log(`[STRIPE-WEBHOOK] Checkout completed: ${session.id}, mode: ${session.mode}`);
-        
-        if (session.mode === 'subscription' && session.subscription) {
+
+        if (session.mode === "subscription" && session.subscription) {
           console.log(`[STRIPE-WEBHOOK] Processing subscription checkout`);
-          
+
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-          const productId = typeof subscription.items.data[0].price.product === 'string'
-            ? subscription.items.data[0].price.product
-            : subscription.items.data[0].price.product.id;
-          const planName = PLAN_PRODUCT_MAP[productId] || 'unknown';
-          
+          const productId =
+            typeof subscription.items.data[0].price.product === "string"
+              ? subscription.items.data[0].price.product
+              : subscription.items.data[0].price.product.id;
+          const planName = PLAN_PRODUCT_MAP[productId] || "unknown";
+
           console.log(`[STRIPE-WEBHOOK] Product ID: ${productId}, Plan: ${planName}`);
-          
+
           const customerEmail = session.customer_email || session.customer_details?.email;
           if (customerEmail) {
             const userId = await getUserIdByEmail(supabase, customerEmail);
@@ -85,55 +77,55 @@ serve(async (req) => {
             if (userId) {
               console.log(`[STRIPE-WEBHOOK] Found user: ${userId}, updating workspace`);
 
-              
-              const { error: upsertError } = await supabase
-                .from('workspaces')
-                .upsert({
+              const { error: upsertError } = await supabase.from("workspaces").upsert(
+                {
                   owner_id: userId,
                   current_plan_product_id: productId,
                   subscription_status: subscription.status,
                   stripe_customer_id: session.customer as string,
                   stripe_subscription_id: subscription.id,
-                  updated_at: new Date().toISOString()
-                }, {
-                  onConflict: 'owner_id'
-                });
-              
+                  updated_at: new Date().toISOString(),
+                },
+                {
+                  onConflict: "owner_id",
+                },
+              );
+
               if (upsertError) {
-                console.error('[STRIPE-WEBHOOK] Error updating workspace:', upsertError);
+                console.error("[STRIPE-WEBHOOK] Error updating workspace:", upsertError);
               } else {
                 console.log(`[STRIPE-WEBHOOK] ✓ Successfully updated workspace to ${planName} plan`);
               }
             } else {
-              console.error('[STRIPE-WEBHOOK] User not found for email:', customerEmail);
+              console.error("[STRIPE-WEBHOOK] User not found for email:", customerEmail);
             }
           }
           break;
         }
-        
+
         // Handle package purchase (one-time payment from create-package-checkout)
-        if (session.mode === 'payment') {
+        if (!session.subscription && session.amount_total) {
           console.log(`[STRIPE-WEBHOOK] Processing one-time payment`);
-          
+
           const customerEmail = session.customer_email || session.customer_details?.email;
-          const customerName = session.metadata?.customer_name || session.customer_details?.name || '';
+          const customerName = session.metadata?.customer_name || session.customer_details?.name || "";
           const packageId = session.metadata?.package_id || null;
-          
+
           // Get payment intent for receipt URL
           let receiptUrl = null;
-          let paymentMethod = 'card';
+          let paymentMethod = "card";
           if (session.payment_intent) {
             try {
               const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent as string, {
-                expand: ['latest_charge']
+                expand: ["latest_charge"],
               });
               const charge = paymentIntent.latest_charge as Stripe.Charge;
               if (charge) {
                 receiptUrl = charge.receipt_url;
-                paymentMethod = charge.payment_method_details?.type || 'card';
+                paymentMethod = charge.payment_method_details?.type || "card";
               }
             } catch (e) {
-              console.error('[STRIPE-WEBHOOK] Error getting payment intent:', e);
+              console.error("[STRIPE-WEBHOOK] Error getting payment intent:", e);
             }
           }
 
@@ -148,27 +140,27 @@ serve(async (req) => {
               invoicePdfUrl = invoice.invoice_pdf;
               stripeInvoiceId = invoice.id;
             } catch (e) {
-              console.error('[STRIPE-WEBHOOK] Error getting invoice:', e);
+              console.error("[STRIPE-WEBHOOK] Error getting invoice:", e);
             }
           }
 
           // Get package and service details
           let packageData = null;
-          let serviceName = '';
-          let packageName = '';
+          let serviceName = "";
+          let packageName = "";
           let serviceId = null;
-          
+
           if (packageId) {
             const { data: pkg } = await supabase
-              .from('service_packages')
-              .select('*, services(id, name)')
-              .eq('id', packageId)
+              .from("service_packages")
+              .select("*, services(id, name)")
+              .eq("id", packageId)
               .single();
-            
+
             if (pkg) {
               packageData = pkg;
-              serviceName = pkg.services?.name || '';
-              packageName = pkg.package_name || '';
+              serviceName = pkg.services?.name || "";
+              packageName = pkg.package_name || "";
               serviceId = pkg.service_id;
             }
           }
@@ -179,26 +171,23 @@ serve(async (req) => {
             userId = await getUserIdByEmail(supabase, customerEmail);
           }
 
-
           // Calculate amount (session.amount_total is in cents)
           const amount = (session.amount_total || 0) / 100;
-          const currency = (session.currency || 'usd').toUpperCase();
+          const currency = (session.currency || "usd").toUpperCase();
 
           // Create payment record
           if (userId) {
-            const paymentDescription = packageData 
-              ? `${serviceName} - ${packageName}`
-              : 'One-time payment';
+            const paymentDescription = packageData ? `${serviceName} - ${packageName}` : "One-time payment";
 
             const { data: payment, error: paymentError } = await supabase
-              .from('payments')
+              .from("payments")
               .insert({
                 user_id: userId,
                 service_id: serviceId,
                 package_id: packageId,
                 amount: amount,
                 currency: currency,
-                status: 'completed',
+                status: "completed",
                 payment_method: paymentMethod,
                 stripe_session_id: session.id,
                 stripe_payment_id: session.payment_intent as string,
@@ -212,26 +201,24 @@ serve(async (req) => {
               .single();
 
             if (paymentError) {
-              console.error('[STRIPE-WEBHOOK] Error creating payment:', paymentError);
+              console.error("[STRIPE-WEBHOOK] Error creating payment:", paymentError);
             } else {
               console.log(`[STRIPE-WEBHOOK] ✓ Payment created: ${payment.id}`);
-              
+
               // Also create an order record for tracking
-              const { error: orderError } = await supabase
-                .from('orders')
-                .insert({
-                  user_id: userId,
-                  service_id: serviceId,
-                  amount: amount,
-                  currency: currency,
-                  status: 'pending',
-                  payment_status: 'paid',
-                  title: paymentDescription,
-                  short_message: `Purchase of ${packageName || 'service'}`,
-                });
-              
+              const { error: orderError } = await supabase.from("orders").insert({
+                user_id: userId,
+                service_id: serviceId,
+                amount: amount,
+                currency: currency,
+                status: "pending",
+                payment_status: "paid",
+                title: paymentDescription,
+                short_message: `Purchase of ${packageName || "service"}`,
+              });
+
               if (orderError) {
-                console.error('[STRIPE-WEBHOOK] Error creating order:', orderError);
+                console.error("[STRIPE-WEBHOOK] Error creating order:", orderError);
               } else {
                 console.log(`[STRIPE-WEBHOOK] ✓ Order created for payment`);
               }
@@ -239,17 +226,17 @@ serve(async (req) => {
 
             // Send payment confirmation email
             try {
-              await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-payment-confirmation`, {
-                method: 'POST',
+              await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-payment-confirmation`, {
+                method: "POST",
                 headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
                 },
                 body: JSON.stringify({
                   customerEmail,
                   customerName,
-                  serviceName: serviceName || 'Service',
-                  packageName: packageName || 'Package',
+                  serviceName: serviceName || "Service",
+                  packageName: packageName || "Package",
                   amount: amount,
                   currency: currency,
                   receiptUrl: receiptUrl || invoiceUrl,
@@ -259,37 +246,34 @@ serve(async (req) => {
               });
               console.log(`[STRIPE-WEBHOOK] ✓ Payment confirmation email triggered`);
             } catch (emailError) {
-              console.error('[STRIPE-WEBHOOK] Error sending confirmation email:', emailError);
+              console.error("[STRIPE-WEBHOOK] Error sending confirmation email:", emailError);
             }
           } else {
             console.log(`[STRIPE-WEBHOOK] No user found for email: ${customerEmail}, payment not saved to DB`);
           }
           break;
         }
-        
+
         // Handle legacy appointment payment checkout completion
         const { data: payment } = await supabase
-          .from('payments')
+          .from("payments")
           .update({
-            status: 'completed',
+            status: "completed",
             stripe_payment_id: session.payment_intent as string,
-            payment_method: 'card'
+            payment_method: "card",
           })
-          .eq('stripe_session_id', session.id)
+          .eq("stripe_session_id", session.id)
           .select()
           .single();
 
         if (payment) {
-          await supabase
-            .from('appointments')
-            .update({ status: 'confirmed' })
-            .eq('id', payment.appointment_id);
+          await supabase.from("appointments").update({ status: "confirmed" }).eq("id", payment.appointment_id);
 
-          await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-payment-confirmation`, {
-            method: 'POST',
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-payment-confirmation`, {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             },
             body: JSON.stringify({
               paymentId: payment.id,
@@ -301,111 +285,108 @@ serve(async (req) => {
         break;
       }
 
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated': {
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
-        
+
         console.log(`[STRIPE-WEBHOOK] Subscription ${event.type}: ${subscription.id}, status: ${subscription.status}`);
-        
+
         const customer = await stripe.customers.retrieve(customerId);
-        const customerEmail = 'email' in customer ? customer.email : null;
-        
+        const customerEmail = "email" in customer ? customer.email : null;
+
         if (!customerEmail) {
-          console.error('[STRIPE-WEBHOOK] No customer email found');
+          console.error("[STRIPE-WEBHOOK] No customer email found");
           break;
         }
 
-        const productId = typeof subscription.items.data[0].price.product === 'string'
-          ? subscription.items.data[0].price.product
-          : subscription.items.data[0].price.product.id;
-        const planName = PLAN_PRODUCT_MAP[productId] || 'unknown';
-        
+        const productId =
+          typeof subscription.items.data[0].price.product === "string"
+            ? subscription.items.data[0].price.product
+            : subscription.items.data[0].price.product.id;
+        const planName = PLAN_PRODUCT_MAP[productId] || "unknown";
+
         console.log(`[STRIPE-WEBHOOK] Email: ${customerEmail}, Product: ${productId}, Plan: ${planName}`);
 
         const userId = await getUserIdByEmail(supabase, customerEmail);
 
         if (!userId) {
-          console.error('[STRIPE-WEBHOOK] User not found for email:', customerEmail);
+          console.error("[STRIPE-WEBHOOK] User not found for email:", customerEmail);
           break;
         }
 
-        
         const { data: existingWorkspace } = await supabase
-          .from('workspaces')
-          .select('stripe_subscription_id')
-          .eq('owner_id', userId)
+          .from("workspaces")
+          .select("stripe_subscription_id")
+          .eq("owner_id", userId)
           .single();
-        
-        if (existingWorkspace?.stripe_subscription_id && 
-            existingWorkspace.stripe_subscription_id !== subscription.id) {
+
+        if (existingWorkspace?.stripe_subscription_id && existingWorkspace.stripe_subscription_id !== subscription.id) {
           console.log(`[STRIPE-WEBHOOK] Canceling old subscription: ${existingWorkspace.stripe_subscription_id}`);
           try {
             await stripe.subscriptions.cancel(existingWorkspace.stripe_subscription_id);
             console.log(`[STRIPE-WEBHOOK] ✓ Old subscription canceled`);
           } catch (cancelError) {
-            console.error('[STRIPE-WEBHOOK] Error canceling old subscription:', cancelError);
+            console.error("[STRIPE-WEBHOOK] Error canceling old subscription:", cancelError);
           }
         }
-        
-        const { error: updateError } = await supabase
-          .from('workspaces')
-          .upsert({
+
+        const { error: updateError } = await supabase.from("workspaces").upsert(
+          {
             owner_id: userId,
             current_plan_product_id: productId,
             subscription_status: subscription.status,
             stripe_customer_id: customerId,
             stripe_subscription_id: subscription.id,
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'owner_id'
-          });
-        
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "owner_id",
+          },
+        );
+
         if (updateError) {
-          console.error('[STRIPE-WEBHOOK] Error updating workspace:', updateError);
+          console.error("[STRIPE-WEBHOOK] Error updating workspace:", updateError);
         } else {
           console.log(`[STRIPE-WEBHOOK] ✓ Successfully updated workspace subscription to ${planName} plan`);
         }
         break;
       }
 
-      case 'customer.subscription.deleted': {
+      case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
-        
+
         console.log(`[STRIPE-WEBHOOK] Subscription deleted: ${subscription.id}`);
-        
+
         const customer = await stripe.customers.retrieve(customerId);
-        const customerEmail = 'email' in customer ? customer.email : null;
-        
+        const customerEmail = "email" in customer ? customer.email : null;
+
         console.log(`[STRIPE-WEBHOOK] Subscription canceled for ${customerEmail}, reverting to free plan`);
-        
+
         const { error: updateError } = await supabase
-          .from('workspaces')
+          .from("workspaces")
           .update({
-            current_plan_product_id: 'default',
-            subscription_status: 'canceled',
+            current_plan_product_id: "default",
+            subscription_status: "canceled",
             stripe_subscription_id: null,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
-          .eq('stripe_subscription_id', subscription.id);
-        
+          .eq("stripe_subscription_id", subscription.id);
+
         if (updateError) {
-          console.error('[STRIPE-WEBHOOK] Error reverting workspace to free:', updateError);
+          console.error("[STRIPE-WEBHOOK] Error reverting workspace to free:", updateError);
         } else {
           console.log(`[STRIPE-WEBHOOK] ✓ Successfully reverted workspace to free plan`);
         }
         break;
       }
 
-      case 'checkout.session.expired':
-      case 'payment_intent.payment_failed': {
+      case "checkout.session.expired":
+      case "payment_intent.payment_failed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        
-        await supabase
-          .from('payments')
-          .update({ status: 'failed' })
-          .eq('stripe_session_id', session.id);
+
+        await supabase.from("payments").update({ status: "failed" }).eq("stripe_session_id", session.id);
         break;
       }
 
@@ -414,12 +395,11 @@ serve(async (req) => {
     }
 
     return successResponse({ received: true, eventType: event.type });
-
   } catch (error) {
-    console.error('[STRIPE-WEBHOOK] Error:', error);
+    console.error("[STRIPE-WEBHOOK] Error:", error);
     if (error instanceof Stripe.errors.StripeSignatureVerificationError) {
       return errors.badRequest("Invalid webhook signature");
     }
-    return errors.badRequest(error instanceof Error ? error.message : 'Unknown error');
+    return errors.badRequest(error instanceof Error ? error.message : "Unknown error");
   }
 });
