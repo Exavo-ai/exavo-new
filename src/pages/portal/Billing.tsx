@@ -4,7 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, RefreshCw, ShoppingBag, AlertCircle, FileText, ExternalLink } from "lucide-react";
+import {
+  CreditCard,
+  Receipt,
+  RefreshCw,
+  ExternalLink,
+  Download,
+  ShoppingBag,
+  AlertCircle,
+  FileText,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTeam } from "@/contexts/TeamContext";
 import { useNavigate } from "react-router-dom";
@@ -41,6 +50,10 @@ interface Payment {
   created_at: string;
   description: string | null;
   stripe_receipt_url: string | null;
+  service_id: string | null;
+  package_id: string | null;
+  services?: { name: string } | null;
+  service_packages?: { package_name: string } | null;
 }
 
 export default function BillingPage() {
@@ -53,6 +66,7 @@ export default function BillingPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [purchases, setPurchases] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
     if (!isWorkspaceOwner) {
@@ -68,20 +82,41 @@ export default function BillingPage() {
     try {
       setLoading(true);
 
-      const { data: inv } = await supabase.functions.invoke("get-invoices");
-      setInvoices(inv?.invoices || []);
+      // Invoices
+      const { data: invoicesData, error: invoicesError } = await supabase.functions.invoke("get-invoices");
+      if (invoicesError) throw invoicesError;
+      setInvoices(invoicesData?.invoices || []);
 
-      const { data: subs } = await supabase.functions.invoke("get-subscriptions");
-      setSubscriptions(subs?.subscriptions || []);
+      // Subscriptions
+      const { data: subsData, error: subsError } = await supabase.functions.invoke("get-subscriptions");
+      if (subsError) throw subsError;
+      setSubscriptions(subsData?.subscriptions || []);
 
-      const { data: pays } = await supabase
+      // Payments (IMPORTANT FIX)
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from("payments")
-        .select("id,amount,currency,status,created_at,description,stripe_receipt_url")
+        .select(
+          `
+          id,
+          amount,
+          currency,
+          status,
+          created_at,
+          description,
+          stripe_receipt_url,
+          service_id,
+          package_id,
+          services:service_id(name),
+          service_packages:package_id(package_name)
+        `,
+        )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      setPurchases(pays || []);
-    } catch {
+      if (paymentsError) throw paymentsError;
+      setPurchases(paymentsData || []);
+    } catch (error) {
+      console.error(error);
       toast({
         title: "Error",
         description: "Failed to load billing data",
@@ -92,12 +127,43 @@ export default function BillingPage() {
     }
   };
 
-  const badge = (s: string) => <Badge variant={s === "active" || s === "paid" ? "default" : "secondary"}>{s}</Badge>;
+  const handleManageBilling = async () => {
+    try {
+      setPortalLoading(true);
+      const { data, error } = await supabase.functions.invoke("create-billing-portal");
+      if (error) throw error;
+      if (data?.url) window.open(data.url, "_blank");
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to open billing portal",
+        variant: "destructive",
+      });
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "completed":
+      case "paid":
+        return <Badge className="bg-green-500/10 text-green-600">Paid</Badge>;
+      case "pending":
+        return <Badge variant="secondary">Pending</Badge>;
+      case "failed":
+        return <Badge variant="destructive">Failed</Badge>;
+      case "active":
+        return <Badge className="bg-green-500/10 text-green-600">Active</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
 
   if (!isWorkspaceOwner) {
     return (
       <div className="flex h-full items-center justify-center">
-        <AlertCircle className="w-16 h-16" />
+        <AlertCircle className="w-16 h-16 text-muted-foreground" />
       </div>
     );
   }
@@ -105,19 +171,53 @@ export default function BillingPage() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <RefreshCw className="w-6 h-6 animate-spin" />
+        <RefreshCw className="w-8 h-8 animate-spin" />
       </div>
     );
   }
 
+  const totalSpent = purchases
+    .filter((p) => p.status === "completed" || p.status === "paid")
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between">
-        <h1 className="text-3xl font-bold">Billing</h1>
-        <Button>
-          <CreditCard className="w-4 h-4 mr-2" />
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Billing</h1>
+          <p className="text-muted-foreground">Manage your subscriptions and payments</p>
+        </div>
+        <Button onClick={handleManageBilling} disabled={portalLoading}>
+          {portalLoading ? (
+            <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+          ) : (
+            <CreditCard className="w-4 h-4 mr-2" />
+          )}
           Manage Billing
         </Button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Spent</CardTitle>
+          </CardHeader>
+          <CardContent>${totalSpent.toFixed(2)}</CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Active Subscriptions</CardTitle>
+          </CardHeader>
+          <CardContent>{subscriptions.filter((s) => s.status === "active").length}</CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Purchases</CardTitle>
+          </CardHeader>
+          <CardContent>{purchases.length}</CardContent>
+        </Card>
       </div>
 
       <Tabs defaultValue="history">
@@ -127,27 +227,36 @@ export default function BillingPage() {
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
         </TabsList>
 
-        {/* PURCHASES */}
         <TabsContent value="history">
           <Card>
             <CardHeader>
-              <CardTitle>Purchases</CardTitle>
+              <CardTitle>Purchase History</CardTitle>
+              <CardDescription>All your payments</CardDescription>
             </CardHeader>
             <CardContent>
               {purchases.length === 0 ? (
                 <p>No purchases yet</p>
               ) : (
                 <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Receipt</TableHead>
+                    </TableRow>
+                  </TableHeader>
                   <TableBody>
                     {purchases.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell>{format(new Date(p.created_at), "MMM d, yyyy")}</TableCell>
-                        <TableCell>{p.description}</TableCell>
+                        <TableCell>{p.services?.name || p.description}</TableCell>
                         <TableCell>
-                          {p.currency} {p.amount}
+                          {p.currency} {Number(p.amount).toFixed(2)}
                         </TableCell>
-                        <TableCell>{badge(p.status)}</TableCell>
-                        <TableCell>
+                        <TableCell>{getStatusBadge(p.status)}</TableCell>
+                        <TableCell className="text-right">
                           {p.stripe_receipt_url && (
                             <Button
                               size="sm"
@@ -162,61 +271,6 @@ export default function BillingPage() {
                     ))}
                   </TableBody>
                 </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* SUBSCRIPTIONS */}
-        <TabsContent value="subscriptions">
-          <Card>
-            <CardHeader>
-              <CardTitle>Subscriptions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {subscriptions.length === 0 ? (
-                <p>No active subscriptions</p>
-              ) : (
-                subscriptions.map((s) => (
-                  <div key={s.id} className="border p-4 rounded mb-3">
-                    <p className="font-bold">{s.plan_name}</p>
-                    <p>
-                      {s.currency} {s.amount}/{s.interval}
-                    </p>
-                    <p>Renews: {format(new Date(s.current_period_end), "MMM d, yyyy")}</p>
-                    {badge(s.status)}
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* INVOICES */}
-        <TabsContent value="invoices">
-          <Card>
-            <CardHeader>
-              <CardTitle>Invoices</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {invoices.length === 0 ? (
-                <p>No invoices</p>
-              ) : (
-                invoices.map((i) => (
-                  <div key={i.id} className="border p-4 rounded mb-3">
-                    <p>
-                      {i.currency} {i.amount}
-                    </p>
-                    <p>{format(new Date(i.created_at), "MMM d, yyyy")}</p>
-                    <div className="flex gap-2">
-                      {i.hosted_invoice_url && (
-                        <Button size="sm" variant="ghost" onClick={() => window.open(i.hosted_invoice_url!, "_blank")}>
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))
               )}
             </CardContent>
           </Card>
