@@ -8,11 +8,11 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
 
-    if (!supabaseUrl || !serviceRoleKey || !stripeSecretKey) {
-      return errors.internal("Server configuration error");
+    if (!supabaseUrl || !anonKey || !stripeSecretKey) {
+      return errors.internal("Server not configured");
     }
 
     const authHeader = req.headers.get("Authorization");
@@ -21,21 +21,21 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    const supabase = createClient(supabaseUrl, anonKey);
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser(token);
+
     if (userError || !user?.email) {
-      return errors.unauthorized("Invalid or expired token");
+      return errors.unauthorized("Invalid user");
     }
 
     const stripe = new Stripe(stripeSecretKey, {
       apiVersion: "2025-08-27.basil",
     });
 
-    // Find Stripe customer
     const customers = await stripe.customers.list({
       email: user.email,
       limit: 1,
@@ -45,33 +45,27 @@ Deno.serve(async (req) => {
       return successResponse({ invoices: [] });
     }
 
-    const customerId = customers.data[0].id;
-
     const invoices = await stripe.invoices.list({
-      customer: customerId,
+      customer: customers.data[0].id,
       limit: 50,
     });
 
-    const formattedInvoices = invoices.data.map((invoice) => {
-      const firstLine = invoice.lines.data[0];
+    const formattedInvoices = invoices.data.map((invoice) => ({
+      id: invoice.id,
+      amount: invoice.amount_paid / 100,
+      currency: invoice.currency,
+      status: invoice.status,
+      created_at: new Date(invoice.created * 1000).toISOString(),
+      hosted_invoice_url: invoice.hosted_invoice_url,
+      pdf_url: invoice.invoice_pdf,
+      plan_name: invoice.lines.data[0]?.description || "Subscription",
+    }));
 
-      return {
-        id: invoice.id,
-        amount: (invoice.amount_paid || 0) / 100,
-        currency: (invoice.currency || "usd").toUpperCase(),
-        status: invoice.status || "unknown",
-        created_at: new Date(invoice.created * 1000).toISOString(),
-        pdf_url: invoice.invoice_pdf || null,
-        hosted_invoice_url: invoice.hosted_invoice_url || null,
-        plan_name: firstLine?.description || "Subscription",
-        period_start: invoice.period_start ? new Date(invoice.period_start * 1000).toISOString() : null,
-        period_end: invoice.period_end ? new Date(invoice.period_end * 1000).toISOString() : null,
-      };
+    return successResponse({
+      invoices: formattedInvoices,
     });
-
-    return successResponse({ invoices: formattedInvoices });
-  } catch (error) {
-    console.error("[GET-INVOICES]", error);
-    return errors.internal("Unexpected error");
+  } catch (err) {
+    console.error("[GET-INVOICES]", err);
+    return errors.internal("Failed to fetch invoices");
   }
 });
