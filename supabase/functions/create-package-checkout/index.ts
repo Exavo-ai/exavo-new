@@ -82,6 +82,7 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : customerEmail,
+      client_reference_id: userId || undefined,
       line_items: [
         {
           price: packageData.stripe_price_id,
