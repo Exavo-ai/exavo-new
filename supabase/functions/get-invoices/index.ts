@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
       limit: 50,
     });
 
-    const formattedInvoices = invoices.data.map((invoice) => ({
+    const formattedInvoices = invoices.data.map((invoice: Stripe.Invoice) => ({
       id: invoice.id,
       amount: invoice.amount_paid / 100,
       currency: invoice.currency,
