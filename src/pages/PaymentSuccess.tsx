@@ -15,7 +15,6 @@ const PaymentSuccess = () => {
 
   useEffect(() => {
     const verifyPayment = async () => {
-      // لو مفيش session_id نكمّل من غير Verification
       if (!sessionId) {
         setIsVerifying(false);
         return;
@@ -27,6 +26,7 @@ const PaymentSuccess = () => {
           headers: {
             "Content-Type": "application/json",
           },
+          credentials: "include", // 👈 السطر المهم
           body: JSON.stringify({ session_id: sessionId }),
         });
 
