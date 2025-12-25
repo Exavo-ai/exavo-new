@@ -253,7 +253,7 @@ export default function BillingPage() {
                     {purchases.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell>{format(new Date(p.created_at), "MMM d, yyyy")}</TableCell>
-                        <TableCell>{p.services?.name || p.description}</TableCell>
+                        <TableCell>{p.description}</TableCell>
                         <TableCell>
                           {p.currency} {Number(p.amount).toFixed(2)}
                         </TableCell>
