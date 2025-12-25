@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 serve(async (req) => {
   if (req.method !== "POST") {
@@ -10,10 +11,11 @@ serve(async (req) => {
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SIGNING_SECRET");
 
   if (!signature || !webhookSecret) {
+    console.error("[STRIPE] Missing signature or webhook secret");
     return new Response("Webhook misconfigured", { status: 400 });
   }
 
-  const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY")!, { apiVersion: "2025-08-27.basil" });
+  const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2025-08-27.basil" });
 
   try {
     const body = await req.text();
@@ -28,20 +30,46 @@ serve(async (req) => {
         mode: session.mode,
         amount: session.amount_total,
         currency: session.currency,
-        metadata: session.metadata,
+        client_reference_id: session.client_reference_id,
+        payment_status: session.payment_status,
       });
 
-      await fetch("https://exavo.ai/api/stripe/webhook", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-internal-secret": webhookSecret,
-        },
-        body: JSON.stringify({
-          event: "checkout.session.completed",
-          session,
-        }),
-      });
+      // Only process if payment is complete
+      if (session.payment_status === "paid" && session.client_reference_id) {
+        const supabaseAdmin = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+        );
+
+        // Check if payment already exists
+        const { data: existingPayment } = await supabaseAdmin
+          .from("payments")
+          .select("id")
+          .eq("stripe_session_id", session.id)
+          .maybeSingle();
+
+        if (!existingPayment) {
+          const { error: insertError } = await supabaseAdmin
+            .from("payments")
+            .insert({
+              user_id: session.client_reference_id,
+              stripe_session_id: session.id,
+              amount: (session.amount_total || 0) / 100,
+              currency: (session.currency || "usd").toUpperCase(),
+              status: "paid",
+              description: "Self-Hosted N8N",
+              customer_email: session.customer_email,
+            });
+
+          if (insertError) {
+            console.error("[STRIPE] Failed to insert payment:", insertError);
+          } else {
+            console.log("[STRIPE] Payment record created for user:", session.client_reference_id);
+          }
+        } else {
+          console.log("[STRIPE] Payment already exists for session:", session.id);
+        }
+      }
     }
 
     return new Response(JSON.stringify({ received: true }), { status: 200 });
