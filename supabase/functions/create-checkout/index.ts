@@ -110,6 +110,7 @@ serve(async (req) => {
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         customer_email: customerId ? undefined : user.email,
+        client_reference_id: user.id,
         line_items: [{ price: priceId, quantity: 1 }],
         mode: "subscription",
         success_url: `${req.headers.get("origin")}/client/subscriptions?checkout=success`,
@@ -146,6 +147,7 @@ serve(async (req) => {
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
+      client_reference_id: user.id,
       line_items: [
         {
           price_data: {
