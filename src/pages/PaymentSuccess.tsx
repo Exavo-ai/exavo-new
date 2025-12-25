@@ -21,12 +21,12 @@ const PaymentSuccess = () => {
       }
 
       try {
-        const res = await fetch("/functions/v1/verify-payment", {
+        const res = await fetch("https://ihxrkmnieckgvscfqgwb.supabase.co/functions/v1/verify-payment", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          credentials: "include", // 👈 السطر المهم
+          credentials: "include",
           body: JSON.stringify({ session_id: sessionId }),
         });
 
