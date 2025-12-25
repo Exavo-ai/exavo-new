@@ -22,7 +22,7 @@ const PaymentSuccess = () => {
       }
 
       try {
-        const res = await fetch("/api/verify-payment", {
+        const res = await fetch("/functions/v1/verify-payment", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
