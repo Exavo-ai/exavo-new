@@ -34,8 +34,11 @@ serve(async (req) => {
         payment_status: session.payment_status,
       });
 
-      // Only process if payment is complete
-      if (session.payment_status === "paid" && session.client_reference_id) {
+      // Get user ID from metadata (set by create-checkout and create-package-checkout)
+      const lovableUserId = session.metadata?.lovable_user_id;
+      
+      // Only process if payment is complete and we have a user ID
+      if (session.payment_status === "paid" && lovableUserId) {
         const supabaseAdmin = createClient(
           Deno.env.get("SUPABASE_URL") ?? "",
           Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -52,23 +55,27 @@ serve(async (req) => {
           const { error: insertError } = await supabaseAdmin
             .from("payments")
             .insert({
-              user_id: session.client_reference_id,
+              user_id: lovableUserId,
               stripe_session_id: session.id,
               amount: (session.amount_total || 0) / 100,
               currency: (session.currency || "usd").toUpperCase(),
               status: "paid",
-              description: "Self-Hosted N8N",
+              description: session.metadata?.service_name || session.metadata?.package_name || "Service Payment",
               customer_email: session.customer_email,
+              service_id: session.metadata?.service_id || null,
+              package_id: session.metadata?.package_id || null,
             });
 
           if (insertError) {
             console.error("[STRIPE] Failed to insert payment:", insertError);
           } else {
-            console.log("[STRIPE] Payment record created for user:", session.client_reference_id);
+            console.log("[STRIPE] Payment record created for lovable_user_id:", lovableUserId);
           }
         } else {
           console.log("[STRIPE] Payment already exists for session:", session.id);
         }
+      } else if (session.payment_status === "paid" && !lovableUserId) {
+        console.warn("[STRIPE] Payment completed but no lovable_user_id in metadata:", session.id);
       }
     }
 

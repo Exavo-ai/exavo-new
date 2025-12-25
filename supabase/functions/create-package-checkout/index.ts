@@ -93,11 +93,11 @@ serve(async (req) => {
       success_url: successUrl || `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl || `${origin}/services`,
       metadata: {
+        lovable_user_id: userId || '',
         package_id: packageId,
         service_id: packageData.service_id,
         service_name: serviceName,
         package_name: packageData.package_name,
-        user_id: userId || '',
         customer_name: customerName || '',
       },
     });
