@@ -2,12 +2,11 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
-// Supabase project used by the app (Ahmed@exavoai.io)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://qtphccxhrnncokryenlw.supabase.co";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://ihxrkmnieckgvscfqgwb.supabase.co";
 
 const SUPABASE_PUBLISHABLE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0cGhjY3hocm5uY29rcnllbmx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxOTA2NDMsImV4cCI6MjA3OTc2NjY0M30.slpWOfVyHWe7booqKIt9T78FOis-quMSIH3Wno1yJCY";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloeHJrbW5pZWNrZ3ZzY2ZxZ3diIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwNDEwODAsImV4cCI6MjA3ODYxNzA4MH0.I_TVEMnRLB0Ru4rNMEx9XQasrIS6ySn6gZS2gRWG1bU";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
