@@ -69,12 +69,8 @@ export default function BillingPage() {
   const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
-    if (!isWorkspaceOwner) {
-      navigate("/client");
-      return;
-    }
     loadBillingData();
-  }, [isWorkspaceOwner]);
+  }, [user]);
 
   /* ================= DATA LOADING ================= */
 
@@ -155,14 +151,6 @@ export default function BillingPage() {
   };
 
   /* ================= GUARDS ================= */
-
-  if (!isWorkspaceOwner) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <AlertCircle className="w-12 h-12 text-muted-foreground" />
-      </div>
-    );
-  }
 
   if (loading) {
     return (

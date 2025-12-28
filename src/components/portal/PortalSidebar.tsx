@@ -10,16 +10,15 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTeam } from "@/contexts/TeamContext";
 
 const allNavigation = [
-  { name: "Dashboard", href: "/client", icon: LayoutDashboard, permission: "access_dashboard" },
-  { name: "Workspace", href: "/client/workspace", icon: UsersRound, permission: "view_team" },
+  { name: "Dashboard", href: "/client", icon: LayoutDashboard },
+  { name: "Workspace", href: "/client/workspace", icon: UsersRound },
   { name: "Services", href: "/client/services/browse", icon: Briefcase },
   { name: "Consultations", href: "/client/consultations", icon: MessageSquare },
-  { name: "Billing", href: "/client/billing", icon: CreditCard, ownerOnly: true },
-  { name: "Team", href: "/client/team", icon: UsersRound, permission: "view_team" },
-  { name: "Settings", href: "/client/settings", icon: Settings, permission: "access_settings" },
+  { name: "Billing", href: "/client/billing", icon: CreditCard },
+  { name: "Team", href: "/client/team", icon: UsersRound },
+  { name: "Settings", href: "/client/settings", icon: Settings },
 ];
 
 interface PortalSidebarProps {
@@ -30,26 +29,14 @@ interface PortalSidebarProps {
 export function PortalSidebar({ collapsed, onToggle }: PortalSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isWorkspaceOwner, permissions } = useTeam();
 
   const isActive = (href: string) => {
     if (href === "/client") return location.pathname === "/client";
     return location.pathname.startsWith(href);
   };
 
-  // Filter navigation based on workspace ownership and permissions
-  const navigation = allNavigation.filter(item => {
-    // Owner-only items (billing routes)
-    if (item.ownerOnly && !isWorkspaceOwner) return false;
-    
-    // Check permission requirements
-    if (item.permission) {
-      // @ts-ignore - permissions is a dynamic object
-      if (!permissions[item.permission]) return false;
-    }
-    
-    return true;
-  });
+  // Show all navigation items for authenticated users
+  const navigation = allNavigation;
 
   return (
     <div
