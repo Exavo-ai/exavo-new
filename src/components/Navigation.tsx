@@ -5,7 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { CreditBalance } from "@/components/CreditBalance";
 import exavoLogo from "@/assets/exavo-logo.png";
 
 const Navigation = () => {
@@ -65,17 +64,14 @@ const Navigation = () => {
             </Button>
             {!loading && (
               user ? (
-                <>
-                  <CreditBalance />
-                  <Button 
-                    variant="ghost" 
-                    className="hover:scale-105 transition-transform gap-2"
-                    onClick={handleDashboardClick}
-                  >
-                    <LayoutDashboard className="w-4 h-4" />
-                    {userProfile?.full_name || 'Dashboard'}
-                  </Button>
-                </>
+                <Button 
+                  variant="ghost" 
+                  className="hover:scale-105 transition-transform gap-2"
+                  onClick={handleDashboardClick}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  {userProfile?.full_name || 'Dashboard'}
+                </Button>
               ) : (
                 <>
                   <Button 
@@ -115,17 +111,14 @@ const Navigation = () => {
               </Button>
               {!loading && (
                 user ? (
-                  <>
-                    <CreditBalance className="w-full justify-center" />
-                    <Button 
-                      variant="hero" 
-                      className="w-full gap-2"
-                      onClick={handleDashboardClick}
-                    >
-                      <LayoutDashboard className="w-4 h-4" />
-                      {userProfile?.full_name || 'Dashboard'}
-                    </Button>
-                  </>
+                  <Button 
+                    variant="hero" 
+                    className="w-full gap-2"
+                    onClick={handleDashboardClick}
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    {userProfile?.full_name || 'Dashboard'}
+                  </Button>
                 ) : (
                   <Button 
                     variant="hero" 
