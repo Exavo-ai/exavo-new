@@ -32,6 +32,9 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import Analytics from "./pages/Analytics";
 import Landing from "./pages/Landing";
 import FAQ from "./pages/FAQ";
+import Pricing from "./pages/Pricing";
+import BillingSuccess from "./pages/billing/Success";
+import BillingCancel from "./pages/billing/Cancel";
 
 import NotFound from "./pages/NotFound";
 import ChatWidget from "./components/ChatWidget";
@@ -53,6 +56,9 @@ const App = () => (
         <Route path="/services/:id" element={<ServiceDetail />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/billing/success" element={<BillingSuccess />} />
+        <Route path="/billing/cancel" element={<BillingCancel />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/client/invite/accept" element={<AcceptInvitation />} />
