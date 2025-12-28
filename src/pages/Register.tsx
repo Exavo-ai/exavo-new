@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import { Loader2, Mail, Lock, User } from 'lucide-react';
 import { registerSchema } from '@/lib/validation';
 import { PasswordStrengthMeter } from '@/components/PasswordStrengthMeter';
+import { GoogleAuthButton } from '@/components/GoogleAuthButton';
+import { Separator } from '@/components/ui/separator';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -167,6 +169,21 @@ const Register = () => {
                 )}
               </Button>
             </form>
+
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <Separator className="w-full" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+                </div>
+              </div>
+              
+              <div className="mt-4">
+                <GoogleAuthButton mode="signup" />
+              </div>
+            </div>
 
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">
