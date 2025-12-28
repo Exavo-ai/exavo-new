@@ -2,7 +2,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Briefcase,
-  FolderKanban,
   CreditCard,
   UsersRound,
   Settings,
@@ -17,7 +16,6 @@ const allNavigation = [
   { name: "Dashboard", href: "/client", icon: LayoutDashboard, permission: "access_dashboard" },
   { name: "Workspace", href: "/client/workspace", icon: UsersRound, permission: "view_team" },
   { name: "Services", href: "/client/services/browse", icon: Briefcase },
-  { name: "Projects", href: "/client/projects", icon: FolderKanban, permission: "manage_orders" },
   { name: "Consultations", href: "/client/consultations", icon: MessageSquare },
   { name: "Billing", href: "/client/billing", icon: CreditCard, ownerOnly: true },
   { name: "Team", href: "/client/team", icon: UsersRound, permission: "view_team" },
