@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfYear, subDays, format, parseISO } from "date-fns";
+import { RealtimeChannel } from "@supabase/supabase-js";
 
 export type DateRangePreset = "7d" | "30d" | "90d" | "ytd" | "custom";
 
@@ -223,6 +224,49 @@ export function useAdminAnalytics(preset: DateRangePreset, customRange?: DateRan
 
   useEffect(() => {
     loadAnalytics();
+  }, [loadAnalytics]);
+
+  // Real-time subscriptions for automatic refresh
+  useEffect(() => {
+    const channelRef: RealtimeChannel = supabase
+      .channel('admin-analytics-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payments' },
+        () => {
+          console.log('Payment change detected, refreshing analytics...');
+          loadAnalytics();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointments' },
+        () => {
+          console.log('Appointment change detected, refreshing analytics...');
+          loadAnalytics();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'daily_metrics' },
+        () => {
+          console.log('Daily metrics updated, refreshing analytics...');
+          loadAnalytics();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'service_metrics' },
+        () => {
+          console.log('Service metrics updated, refreshing analytics...');
+          loadAnalytics();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channelRef);
+    };
   }, [loadAnalytics]);
 
   return { ...data, refetch: loadAnalytics };
