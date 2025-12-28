@@ -25,34 +25,23 @@ interface MultiMediaUploaderProps {
   label?: string;
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const BUCKET_NAME = "service-media";
 
-async function uploadFile(file: File, folder: string): Promise<{ url: string; type: "image" | "video" }> {
-  const { data: { session } } = await supabase.auth.getSession();
+async function uploadFile(file: File, folder: string): Promise<string> {
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
   
-  if (!session?.access_token) {
-    throw new Error("You must be logged in to upload files");
-  }
-
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('folder', folder);
-
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/upload-media`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${session.access_token}`,
-    },
-    body: formData,
-  });
-
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.error || 'Upload failed');
-  }
-
-  return { url: result.url, type: result.type };
+  const { error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(fileName, file, { upsert: true });
+  
+  if (error) throw error;
+  
+  const { data: { publicUrl } } = supabase.storage
+    .from(BUCKET_NAME)
+    .getPublicUrl(fileName);
+  
+  return publicUrl;
 }
 
 function MediaPreview({ media, onRemove }: { media: MediaItem; onRemove: () => void }) {
@@ -102,13 +91,12 @@ export function SingleMediaUploader({ media, onChange, label = "Media" }: Single
   const handleFileUpload = async (file: File, type: "image" | "video") => {
     setUploading(true);
     try {
-      const result = await uploadFile(file, type === "image" ? "images" : "videos");
-      onChange({ url: result.url, type: result.type, source: "upload" });
+      const url = await uploadFile(file, type === "image" ? "images" : "videos");
+      onChange({ url, type, source: "upload" });
       toast({ title: "Success", description: "File uploaded successfully" });
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error("Upload error:", error);
-      const message = error instanceof Error ? error.message : "Failed to upload file";
-      toast({ title: "Error", description: message, variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Failed to upload file", variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -225,13 +213,12 @@ export function MultiMediaUploader({ media, onChange, label = "Media" }: MultiMe
   const handleFileUpload = async (file: File, type: "image" | "video") => {
     setUploading(true);
     try {
-      const result = await uploadFile(file, type === "image" ? "images" : "videos");
-      onChange([...media, { url: result.url, type: result.type, source: "upload" }]);
+      const url = await uploadFile(file, type === "image" ? "images" : "videos");
+      onChange([...media, { url, type, source: "upload" }]);
       toast({ title: "Success", description: "File uploaded successfully" });
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error("Upload error:", error);
-      const message = error instanceof Error ? error.message : "Failed to upload file";
-      toast({ title: "Error", description: message, variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Failed to upload file", variant: "destructive" });
     } finally {
       setUploading(false);
     }
