@@ -159,6 +159,48 @@ serve(async (req) => {
     }
 
     logStep("Payment recorded successfully", { paymentId: newPayment.id });
+
+    // Create a booking (appointment) with status = pending for service purchases
+    if (session.mode === "payment" && session.metadata?.service_id) {
+      // Check if booking already exists for this session
+      const { data: existingBooking } = await supabaseAdmin
+        .from("appointments")
+        .select("id")
+        .eq("notes", `stripe_session:${session_id}`)
+        .maybeSingle();
+
+      if (!existingBooking) {
+        const customerName = session.customer_details?.name || session.metadata?.customer_name || "Customer";
+        const customerEmail = session.customer_email || session.customer_details?.email || "";
+
+        const { error: bookingError } = await supabaseAdmin
+          .from("appointments")
+          .insert({
+            user_id: userId,
+            service_id: session.metadata.service_id,
+            package_id: session.metadata.package_id || null,
+            full_name: customerName,
+            email: customerEmail,
+            phone: "",
+            appointment_date: new Date().toISOString().split("T")[0],
+            appointment_time: "TBD",
+            status: "pending",
+            project_status: "not_started",
+            notes: `stripe_session:${session_id}\nService: ${session.metadata?.service_name || "Unknown"}\nPackage: ${session.metadata?.package_name || "Unknown"}\nPayment: $${(session.amount_total || 0) / 100}`,
+          });
+
+        if (bookingError) {
+          logStep("ERROR: Failed to create booking", { error: bookingError });
+        } else {
+          logStep("Booking created for service purchase", {
+            userId,
+            serviceId: session.metadata.service_id,
+          });
+        }
+      } else {
+        logStep("Booking already exists for session", { sessionId: session_id });
+      }
+    }
     
     return new Response(
       JSON.stringify({ 
