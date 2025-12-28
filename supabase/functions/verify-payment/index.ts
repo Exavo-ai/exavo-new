@@ -7,6 +7,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const logStep = (step: string, details?: unknown) => {
+  console.log(`[VERIFY-PAYMENT] ${step}`, details ? JSON.stringify(details) : "");
+};
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -22,7 +26,6 @@ serve(async (req) => {
   }
 
   try {
-    // Parse request body
     const { session_id } = await req.json();
     
     if (!session_id) {
@@ -32,40 +35,11 @@ serve(async (req) => {
       );
     }
 
-    console.log("[VERIFY-PAYMENT] Verifying session:", session_id);
-
-    // Authenticate user
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Authorization required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    
-    if (userError || !userData.user) {
-      console.log("[VERIFY-PAYMENT] Auth error:", userError?.message);
-      return new Response(
-        JSON.stringify({ success: false, error: "Invalid authentication" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const user = userData.user;
-    console.log("[VERIFY-PAYMENT] User authenticated:", user.id);
+    logStep("Verifying session", { session_id });
 
     // Initialize Stripe
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
-      console.error("[VERIFY-PAYMENT] STRIPE_SECRET_KEY not configured");
       return new Response(
         JSON.stringify({ success: false, error: "Stripe not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -73,12 +47,35 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
 
-    // Retrieve the checkout session
+    // Retrieve the checkout session from Stripe
     const session = await stripe.checkout.sessions.retrieve(session_id);
-    console.log("[VERIFY-PAYMENT] Session retrieved, payment_status:", session.payment_status);
+    logStep("Session retrieved", { payment_status: session.payment_status, mode: session.mode });
 
-    // Verify payment status
+    // Check if payment already recorded in our database
+    const { data: existingPayment } = await supabaseAdmin
+      .from("payments")
+      .select("id, amount, currency, description, status")
+      .eq("stripe_session_id", session_id)
+      .maybeSingle();
+
+    if (existingPayment) {
+      logStep("Payment already recorded", { paymentId: existingPayment.id });
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          payment: existingPayment,
+          message: "Payment verified" 
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Payment not in database yet, check Stripe status
     if (session.payment_status !== "paid") {
       return new Response(
         JSON.stringify({ success: false, error: "Payment not completed" }),
@@ -86,56 +83,95 @@ serve(async (req) => {
       );
     }
 
-    // Use service role client for insert
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    // Get user from metadata or try to authenticate
+    let userId = session.metadata?.lovable_user_id;
+    
+    if (!userId) {
+      // Try to get from auth header
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader) {
+        const supabaseClient = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+        );
+        const token = authHeader.replace("Bearer ", "");
+        const { data: userData } = await supabaseClient.auth.getUser(token);
+        userId = userData.user?.id;
+      }
+    }
 
-    // Check if payment already recorded
-    const { data: existingPayment } = await supabaseAdmin
-      .from("payments")
-      .select("id")
-      .eq("stripe_session_id", session_id)
-      .single();
-
-    if (existingPayment) {
-      console.log("[VERIFY-PAYMENT] Payment already recorded:", existingPayment.id);
+    if (!userId) {
+      logStep("No user ID available");
       return new Response(
-        JSON.stringify({ success: true, message: "Payment already verified" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "User not identified" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Prepare description
+    let description = session.metadata?.service_name || session.metadata?.package_name || "Payment";
+    if (session.mode === "subscription") {
+      description = `Subscription: ${description}`;
+    }
+
+    // Get receipt URL
+    let receiptUrl: string | null = null;
+    if (session.payment_intent && typeof session.payment_intent === "string") {
+      try {
+        const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
+        if (paymentIntent.latest_charge && typeof paymentIntent.latest_charge === "string") {
+          const charge = await stripe.charges.retrieve(paymentIntent.latest_charge);
+          receiptUrl = charge.receipt_url || null;
+        }
+      } catch (e) {
+        logStep("Could not get receipt URL", { error: e });
+      }
+    }
+
     // Insert payment record
-    const { error: insertError } = await supabaseAdmin.from("payments").insert({
-      user_id: user.id,
+    const paymentData = {
+      user_id: userId,
       stripe_session_id: session_id,
-      amount: (session.amount_total ?? 0) / 100, // Convert from cents
-      currency: session.currency?.toUpperCase() ?? "USD",
+      amount: (session.amount_total ?? 0) / 100,
+      currency: (session.currency || "usd").toUpperCase(),
       status: "paid",
-      description: "Self-Hosted N8N",
-      customer_email: session.customer_details?.email ?? user.email,
-      customer_name: session.customer_details?.name ?? null,
-    });
+      description,
+      customer_email: session.customer_email || session.customer_details?.email,
+      customer_name: session.customer_details?.name || null,
+      service_id: session.metadata?.service_id || null,
+      package_id: session.metadata?.package_id || null,
+      stripe_receipt_url: receiptUrl,
+      payment_method: session.payment_method_types?.[0] || "card",
+    };
+
+    const { data: newPayment, error: insertError } = await supabaseAdmin
+      .from("payments")
+      .insert(paymentData)
+      .select("id, amount, currency, description, status")
+      .single();
 
     if (insertError) {
-      console.error("[VERIFY-PAYMENT] Insert error:", insertError.message);
+      logStep("Insert error", { error: insertError });
       return new Response(
         JSON.stringify({ success: false, error: "Failed to record payment" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("[VERIFY-PAYMENT] Payment recorded successfully");
+    logStep("Payment recorded successfully", { paymentId: newPayment.id });
+    
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ 
+        success: true, 
+        payment: newPayment,
+        message: "Payment verified and recorded" 
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[VERIFY-PAYMENT] Error:", errorMessage);
+    logStep("ERROR", { message: errorMessage });
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

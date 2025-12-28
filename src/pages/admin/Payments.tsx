@@ -69,7 +69,8 @@ export default function Payments() {
 
   const loadPayments = async () => {
     try {
-      const { data, error } = await supabase
+      // First get payments
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from("payments")
         .select(`
           *,
@@ -78,8 +79,29 @@ export default function Payments() {
         `)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setPayments(data || []);
+      if (paymentsError) throw paymentsError;
+
+      // Get unique user IDs to fetch profiles
+      const userIds = [...new Set((paymentsData || []).map(p => p.user_id))];
+      
+      // Fetch profiles for all users
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+
+      // Create a map of user_id to profile
+      const profilesMap = new Map(
+        (profilesData || []).map(p => [p.id, { full_name: p.full_name, email: p.email }])
+      );
+
+      // Merge profiles into payments
+      const paymentsWithProfiles = (paymentsData || []).map(payment => ({
+        ...payment,
+        profiles: profilesMap.get(payment.user_id) || null,
+      }));
+
+      setPayments(paymentsWithProfiles);
     } catch (error) {
       console.error("Error loading payments:", error);
       toast({
