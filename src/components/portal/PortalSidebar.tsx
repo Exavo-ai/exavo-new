@@ -11,16 +11,15 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTeam } from "@/contexts/TeamContext";
 
-// All navigation items - visible to all authenticated users by default
-const allNavigation = [
+// All navigation items - always visible to all authenticated users
+const navigation = [
   { name: "Dashboard", href: "/client", icon: LayoutDashboard },
   { name: "Workspace", href: "/client/workspace", icon: UsersRound },
   { name: "Services", href: "/client/services/browse", icon: Briefcase },
   { name: "Projects", href: "/client/projects", icon: FolderKanban },
   { name: "Consultations", href: "/client/consultations", icon: MessageSquare },
-  { name: "Billing", href: "/client/billing", icon: CreditCard, ownerOnly: true },
+  { name: "Billing", href: "/client/billing", icon: CreditCard },
   { name: "Team", href: "/client/team", icon: UsersRound },
   { name: "Settings", href: "/client/settings", icon: Settings },
 ];
@@ -33,18 +32,11 @@ interface PortalSidebarProps {
 export function PortalSidebar({ collapsed, onToggle }: PortalSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isWorkspaceOwner } = useTeam();
 
   const isActive = (href: string) => {
     if (href === "/client") return location.pathname === "/client";
     return location.pathname.startsWith(href);
   };
-
-  // Only filter billing for non-owners - all other items always visible
-  const navigation = allNavigation.filter(item => {
-    if (item.ownerOnly && !isWorkspaceOwner) return false;
-    return true;
-  });
 
   return (
     <div
