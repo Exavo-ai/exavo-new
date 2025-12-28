@@ -41,11 +41,10 @@ export default function WorkspacePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load workspace data once team context finishes loading
-    if (!teamLoading) {
+    if (!teamLoading && organizationId) {
       loadWorkspaceData();
     }
-  }, [teamLoading, teamMembers, workspaceOwnerEmail]);
+  }, [teamLoading, organizationId]);
 
   const loadWorkspaceData = async () => {
     try {
@@ -79,7 +78,7 @@ export default function WorkspacePage() {
     : currentUserRole === "admin" ? "Admin"
     : currentUserRole === "member" ? "Member"
     : currentUserRole === "viewer" ? "Viewer"
-    : "Member";
+    : "Unknown";
 
   return (
     <div className="space-y-6">

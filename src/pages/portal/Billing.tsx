@@ -15,6 +15,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -57,6 +58,7 @@ interface Payment {
 
 export default function BillingPage() {
   const { user } = useAuth();
+  const { isWorkspaceOwner } = useTeam();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -67,10 +69,12 @@ export default function BillingPage() {
   const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      loadBillingData();
+    if (!isWorkspaceOwner) {
+      navigate("/client");
+      return;
     }
-  }, [user]);
+    loadBillingData();
+  }, [isWorkspaceOwner]);
 
   /* ================= DATA LOADING ================= */
 
@@ -151,6 +155,14 @@ export default function BillingPage() {
   };
 
   /* ================= GUARDS ================= */
+
+  if (!isWorkspaceOwner) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <AlertCircle className="w-12 h-12 text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (loading) {
     return (

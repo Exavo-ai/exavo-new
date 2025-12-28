@@ -53,40 +53,29 @@ export default function DashboardPage() {
   } = useTeam();
 
   useEffect(() => {
-    // Load dashboard as soon as team context finishes loading
-    // Don't wait for organizationId - handle gracefully for new users
-    if (user && !teamLoading) {
+    if (user && !teamLoading && organizationId) {
       loadDashboardData();
-    } else if (!user && !teamLoading) {
-      // No user, stop loading
-      setLoading(false);
     }
-  }, [user, teamLoading]);
+  }, [user, teamLoading, organizationId]);
 
   const loadDashboardData = async () => {
     try {
       setError(null);
-      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
       
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      
-      if (!currentUser) {
-        setLoading(false);
-        return;
+      if (!user || !organizationId) {
+        throw new Error("Not authenticated or workspace not found");
       }
 
-      // Use organizationId if available, otherwise use user's own id
-      const userId = organizationId || currentUser.id;
+      const userId = isWorkspaceOwner ? user.id : organizationId;
 
-      // Fetch all tickets count for the user/workspace
+      // Fetch all tickets count
       const { count: ticketsCount, error: ticketsCountError } = await supabase
         .from('tickets')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
 
-      if (ticketsCountError) {
-        console.error("Tickets count error:", ticketsCountError);
-      }
+      if (ticketsCountError) throw ticketsCountError;
       setTotalTicketsCount(ticketsCount || 0);
 
       // Fetch recent tickets
@@ -97,33 +86,25 @@ export default function DashboardPage() {
         .order('created_at', { ascending: false })
         .limit(5);
 
-      if (ticketsError) {
-        console.error("Tickets fetch error:", ticketsError);
-      }
+      if (ticketsError) throw ticketsError;
       setTickets(ticketsData || []);
 
-      // Fetch all projects count for the user/workspace
+      // Fetch all projects count
       const { count: projectsCount, error: projectsCountError } = await supabase
         .from('projects')
-        .select('*', { count: 'exact', head: true })
-        .or(`user_id.eq.${userId},workspace_id.eq.${userId}`);
+        .select('*', { count: 'exact', head: true });
 
-      if (projectsCountError) {
-        console.error("Projects count error:", projectsCountError);
-      }
+      if (projectsCountError) throw projectsCountError;
       setTotalProjectsCount(projectsCount || 0);
 
       // Fetch recent projects
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('*, service:services(name)')
-        .or(`user_id.eq.${userId},workspace_id.eq.${userId}`)
         .order('created_at', { ascending: false })
         .limit(5);
 
-      if (projectsError) {
-        console.error("Projects fetch error:", projectsError);
-      }
+      if (projectsError) throw projectsError;
       setProjects(projectsData || []);
     } catch (err: any) {
       console.error("Error loading dashboard:", err);
@@ -138,25 +119,12 @@ export default function DashboardPage() {
     }
   };
 
-  // Show loading only while team context is loading
-  if (teamLoading) {
+  if (loading || teamLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-muted-foreground">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show content loading state briefly
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading your workspace...</p>
         </div>
       </div>
     );
