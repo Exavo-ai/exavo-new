@@ -17,8 +17,7 @@ import {
   Settings as SettingsIcon,
   LifeBuoy,
   FolderOpen,
-  Loader2,
-  Briefcase
+  Loader2
 } from "lucide-react";
 
 interface WorkspaceData {
@@ -43,7 +42,6 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     // Load workspace data once team context finishes loading
-    // Don't block on organizationId - handle new users gracefully
     if (!teamLoading) {
       loadWorkspaceData();
     }
@@ -55,7 +53,7 @@ export default function WorkspacePage() {
       const activeMembers = teamMembers.filter(m => m.status === 'active').length;
 
       setWorkspaceData({
-        ownerEmail: workspaceOwnerEmail || "Not set",
+        ownerEmail: workspaceOwnerEmail || "Unknown",
         teamSize: activeMembers
       });
     } catch (error) {
@@ -65,52 +63,13 @@ export default function WorkspacePage() {
     }
   };
 
-  // Only show team loading state briefly
-  if (teamLoading) {
+  if (teamLoading || loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <Loader2 className="w-16 h-16 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading workspace...</p>
         </div>
-      </div>
-    );
-  }
-
-  // Handle new users without a workspace - show empty state with CTA
-  if (!organizationId && !isWorkspaceOwner) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Workspace</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your workspace team and settings
-          </p>
-        </div>
-
-        <Separator />
-
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
-              <Users className="w-8 h-8 text-primary" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Welcome to Your Workspace</h2>
-            <p className="text-muted-foreground max-w-md mb-6">
-              Your workspace is being set up. You can browse services, create support tickets, and manage your projects.
-            </p>
-            <div className="flex gap-3">
-              <Button onClick={() => navigate("/client/services/browse")}>
-                <Briefcase className="w-4 h-4 mr-2" />
-                Browse Services
-              </Button>
-              <Button variant="outline" onClick={() => navigate("/client/settings")}>
-                <SettingsIcon className="w-4 h-4 mr-2" />
-                Settings
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     );
   }
