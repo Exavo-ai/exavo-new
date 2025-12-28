@@ -17,7 +17,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { serviceSchema } from "@/lib/validation";
 import { Plus, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SingleMediaUploader, MultiMediaUploader, MediaItem } from "./MediaUploader";
 
 interface CreateServiceDialogProps {
   open: boolean;
@@ -34,23 +33,7 @@ interface Package {
   delivery_time: string;
   notes: string;
   package_order: number;
-  media: MediaItem[];
-}
-
-// Helper to convert new media format back to images/videos arrays for backend
-function convertMediaToLegacy(media: MediaItem[]): { images: string[]; videos: string[] } {
-  const images: string[] = [];
-  const videos: string[] = [];
-  
-  media.forEach(item => {
-    if (item.type === 'image') {
-      images.push(item.url);
-    } else {
-      videos.push(item.url);
-    }
-  });
-  
-  return { images, videos };
+  image_urls: string;
 }
 
 export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateServiceDialogProps) {
@@ -62,12 +45,12 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
     description: "",
     category: "",
     active: true,
+    image_url: "",
   });
-  const [serviceMedia, setServiceMedia] = useState<MediaItem | null>(null);
   const [packages, setPackages] = useState<Package[]>([
-    { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, media: [] },
-    { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, media: [] },
-    { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, media: [] },
+    { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, image_urls: "" },
+    { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, image_urls: "" },
+    { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, image_urls: "" },
   ]);
 
   useEffect(() => {
@@ -100,7 +83,7 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
       delivery_time: "",
       notes: "",
       package_order: packages.length,
-      media: [],
+      image_urls: "",
     }]);
   };
 
@@ -140,12 +123,12 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
       description: "",
       category: "",
       active: true,
+      image_url: "",
     });
-    setServiceMedia(null);
     setPackages([
-      { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, media: [] },
-      { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, media: [] },
-      { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, media: [] },
+      { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, image_urls: "" },
+      { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, image_urls: "" },
+      { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, image_urls: "" },
     ]);
   };
 
@@ -193,15 +176,24 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
           currency: "USD",
           category: formData.category,
           active: formData.active,
-          image_url: serviceMedia?.url || null,
-          media: serviceMedia,
+          image_url: formData.image_url || null,
           packages: validPackages.map(pkg => {
-            const { images, videos } = convertMediaToLegacy(pkg.media);
+            // Parse comma-separated image URLs
+            const images = pkg.image_urls
+              .split(',')
+              .map(url => url.trim())
+              .filter(url => url.length > 0);
             return {
-              ...pkg,
+              package_name: pkg.package_name,
+              description: pkg.description,
+              price: pkg.price,
+              currency: pkg.currency,
               features: pkg.features.filter(f => f.trim()),
+              delivery_time: pkg.delivery_time,
+              notes: pkg.notes,
+              package_order: pkg.package_order,
               images,
-              videos,
+              videos: [],
             };
           }),
         },
@@ -278,11 +270,15 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
             </Select>
           </div>
 
-          <SingleMediaUploader
-            media={serviceMedia}
-            onChange={setServiceMedia}
-            label="Service Media"
-          />
+          <div className="space-y-2">
+            <Label htmlFor="image_url">Image URL (Optional)</Label>
+            <Input
+              id="image_url"
+              value={formData.image_url}
+              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+              placeholder="https://example.com/image.jpg"
+            />
+          </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -392,11 +388,14 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
                     ))}
                   </div>
 
-                  <MultiMediaUploader
-                    media={pkg.media}
-                    onChange={(media) => updatePackage(pkgIndex, 'media', media)}
-                    label="Package Media"
-                  />
+                  <div className="space-y-2">
+                    <Label>Image URLs (Optional, comma-separated)</Label>
+                    <Input
+                      value={pkg.image_urls}
+                      onChange={(e) => updatePackage(pkgIndex, 'image_urls', e.target.value)}
+                      placeholder="https://example.com/img1.jpg, https://example.com/img2.jpg"
+                    />
+                  </div>
 
                   <div className="space-y-2">
                     <Label>Notes (Optional)</Label>
