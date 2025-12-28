@@ -3,6 +3,12 @@ import { corsHeaders, createdResponse, errors, handleCors } from "../_shared/res
 import { z, validateBody, formatZodError, uuidSchema } from "../_shared/validation.ts";
 import { checkRateLimit, createRateLimitKey, RateLimitPresets } from "../_shared/rate-limit.ts";
 
+const mediaItemSchema = z.object({
+  url: z.string().url("Invalid URL"),
+  type: z.enum(["image", "video"]),
+  source: z.enum(["url", "upload"]),
+});
+
 const packageSchema = z.object({
   package_name: z.string().trim().min(1, "Package name is required").max(100, "Package name too long"),
   description: z.string().trim().max(2000, "Description too long").optional(),
@@ -26,6 +32,7 @@ const createServiceSchema = z.object({
   category: uuidSchema,
   active: z.boolean().default(true),
   image_url: z.string().url("Invalid image URL").nullable().optional(),
+  media: mediaItemSchema.nullable().optional(),
   packages: z.array(packageSchema).max(10, "Too many packages").optional(),
 });
 
@@ -108,6 +115,7 @@ Deno.serve(async (req) => {
         category: validatedData.category,
         active: validatedData.active,
         image_url: validatedData.image_url,
+        media: validatedData.media,
       })
       .select()
       .single();

@@ -3,6 +3,12 @@ import { corsHeaders, successResponse, errors, handleCors } from "../_shared/res
 import { z, validateBody, formatZodError, uuidSchema } from "../_shared/validation.ts";
 import { checkRateLimit, createRateLimitKey, RateLimitPresets } from "../_shared/rate-limit.ts";
 
+const mediaItemSchema = z.object({
+  url: z.string().url("Invalid URL"),
+  type: z.enum(["image", "video"]),
+  source: z.enum(["url", "upload"]),
+});
+
 const packageSchema = z.object({
   id: uuidSchema.optional(),
   package_name: z.string().trim().min(1, "Package name is required").max(100, "Package name too long"),
@@ -29,6 +35,7 @@ const updateServiceSchema = z.object({
     category: uuidSchema,
     active: z.boolean(),
     image_url: z.string().url("Invalid image URL").nullable().optional(),
+    media: mediaItemSchema.nullable().optional(),
   }),
   packages: z.array(packageSchema).max(10, "Too many packages").optional(),
 });
