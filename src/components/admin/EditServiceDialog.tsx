@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { serviceSchema } from "@/lib/validation";
 import { Plus, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SingleMediaUploader, MultiMediaUploader, MediaItem } from "./MediaUploader";
 
 interface Service {
   id: string;
@@ -29,6 +30,7 @@ interface Service {
   category: string;
   active: boolean;
   image_url: string | null;
+  media?: MediaItem | null;
 }
 
 interface Package {
@@ -41,8 +43,7 @@ interface Package {
   delivery_time: string;
   notes: string;
   package_order: number;
-  images: string[];
-  videos: string[];
+  media: MediaItem[];
 }
 
 interface EditServiceDialogProps {
@@ -50,6 +51,45 @@ interface EditServiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+}
+
+// Helper to convert old images/videos arrays to new media format
+function migratePackageMedia(pkg: any): MediaItem[] {
+  const media: MediaItem[] = [];
+  
+  if (Array.isArray(pkg.images)) {
+    pkg.images.forEach((url: string) => {
+      if (url && typeof url === 'string') {
+        media.push({ url, type: 'image', source: 'url' });
+      }
+    });
+  }
+  
+  if (Array.isArray(pkg.videos)) {
+    pkg.videos.forEach((url: string) => {
+      if (url && typeof url === 'string') {
+        media.push({ url, type: 'video', source: 'url' });
+      }
+    });
+  }
+  
+  return media;
+}
+
+// Helper to convert new media format back to images/videos arrays for backend
+function convertMediaToLegacy(media: MediaItem[]): { images: string[]; videos: string[] } {
+  const images: string[] = [];
+  const videos: string[] = [];
+  
+  media.forEach(item => {
+    if (item.type === 'image') {
+      images.push(item.url);
+    } else {
+      videos.push(item.url);
+    }
+  });
+  
+  return { images, videos };
 }
 
 export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: EditServiceDialogProps) {
@@ -61,8 +101,8 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
     description: "",
     category: "",
     active: true,
-    image_url: "",
   });
+  const [serviceMedia, setServiceMedia] = useState<MediaItem | null>(null);
   const [packages, setPackages] = useState<Package[]>([]);
 
   useEffect(() => {
@@ -107,12 +147,11 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
         delivery_time: pkg.delivery_time || '',
         notes: pkg.notes || '',
         package_order: pkg.package_order,
-        images: Array.isArray(pkg.images) ? pkg.images as string[] : [],
-        videos: Array.isArray(pkg.videos) ? pkg.videos as string[] : [],
+        media: migratePackageMedia(pkg),
       })));
     } else {
       setPackages([
-        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [] },
+        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, media: [] },
       ]);
     }
   };
@@ -124,8 +163,16 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
         description: service.description || "",
         category: service.category || "",
         active: service.active ?? true,
-        image_url: service.image_url || "",
       });
+      
+      // Load service media - prefer new media field, fallback to image_url
+      if (service.media) {
+        setServiceMedia(service.media);
+      } else if (service.image_url) {
+        setServiceMedia({ url: service.image_url, type: 'image', source: 'url' });
+      } else {
+        setServiceMedia(null);
+      }
     }
   }, [service]);
 
@@ -139,8 +186,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
       delivery_time: "",
       notes: "",
       package_order: packages.length,
-      images: [],
-      videos: [],
+      media: [],
     }]);
   };
 
@@ -212,12 +258,18 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
             currency: "USD",
             category: formData.category,
             active: formData.active,
-            image_url: formData.image_url || null,
+            image_url: serviceMedia?.url || null,
+            media: serviceMedia,
           },
-          packages: validPackages.map(pkg => ({
-            ...pkg,
-            features: pkg.features.filter(f => f.trim()),
-          })),
+          packages: validPackages.map(pkg => {
+            const { images, videos } = convertMediaToLegacy(pkg.media);
+            return {
+              ...pkg,
+              features: pkg.features.filter(f => f.trim()),
+              images,
+              videos,
+            };
+          }),
         },
       });
 
@@ -272,7 +324,6 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
             />
           </div>
 
-
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
             <Select
@@ -292,15 +343,11 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="image_url">Image URL (Optional)</Label>
-            <Input
-              id="image_url"
-              value={formData.image_url}
-              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              placeholder="https://example.com/image.jpg"
-            />
-          </div>
+          <SingleMediaUploader
+            media={serviceMedia}
+            onChange={setServiceMedia}
+            label="Service Media"
+          />
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -410,23 +457,11 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
                     ))}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Image URLs (Optional, comma-separated)</Label>
-                    <Input
-                      value={pkg.images.join(', ')}
-                      onChange={(e) => updatePackage(pkgIndex, 'images', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                      placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Video URLs (Optional, comma-separated)</Label>
-                    <Input
-                      value={pkg.videos.join(', ')}
-                      onChange={(e) => updatePackage(pkgIndex, 'videos', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                      placeholder="https://youtube.com/watch?v=..., https://vimeo.com/..."
-                    />
-                  </div>
+                  <MultiMediaUploader
+                    media={pkg.media}
+                    onChange={(media) => updatePackage(pkgIndex, 'media', media)}
+                    label="Package Media"
+                  />
 
                   <div className="space-y-2">
                     <Label>Notes (Optional)</Label>

@@ -1064,6 +1064,7 @@ export type Database = {
           description_ar: string
           id: string
           image_url: string | null
+          media: Json | null
           name: string
           name_ar: string
           price: number
@@ -1078,6 +1079,7 @@ export type Database = {
           description_ar: string
           id?: string
           image_url?: string | null
+          media?: Json | null
           name: string
           name_ar: string
           price: number
@@ -1092,6 +1094,7 @@ export type Database = {
           description_ar?: string
           id?: string
           image_url?: string | null
+          media?: Json | null
           name?: string
           name_ar?: string
           price?: number

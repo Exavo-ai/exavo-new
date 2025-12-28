@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { serviceSchema } from "@/lib/validation";
 import { Plus, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SingleMediaUploader, MultiMediaUploader, MediaItem } from "./MediaUploader";
 
 interface CreateServiceDialogProps {
   open: boolean;
@@ -33,8 +34,23 @@ interface Package {
   delivery_time: string;
   notes: string;
   package_order: number;
-  images: string[];
-  videos: string[];
+  media: MediaItem[];
+}
+
+// Helper to convert new media format back to images/videos arrays for backend
+function convertMediaToLegacy(media: MediaItem[]): { images: string[]; videos: string[] } {
+  const images: string[] = [];
+  const videos: string[] = [];
+  
+  media.forEach(item => {
+    if (item.type === 'image') {
+      images.push(item.url);
+    } else {
+      videos.push(item.url);
+    }
+  });
+  
+  return { images, videos };
 }
 
 export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateServiceDialogProps) {
@@ -46,12 +62,12 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
     description: "",
     category: "",
     active: true,
-    image_url: "",
   });
+  const [serviceMedia, setServiceMedia] = useState<MediaItem | null>(null);
   const [packages, setPackages] = useState<Package[]>([
-    { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [] },
-    { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, images: [], videos: [] },
-    { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, images: [], videos: [] },
+    { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, media: [] },
+    { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, media: [] },
+    { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, media: [] },
   ]);
 
   useEffect(() => {
@@ -84,8 +100,7 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
       delivery_time: "",
       notes: "",
       package_order: packages.length,
-      images: [],
-      videos: [],
+      media: [],
     }]);
   };
 
@@ -119,13 +134,28 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
     setPackages(updated);
   };
 
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      description: "",
+      category: "",
+      active: true,
+    });
+    setServiceMedia(null);
+    setPackages([
+      { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, media: [] },
+      { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, media: [] },
+      { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, media: [] },
+    ]);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const result = serviceSchema.safeParse({
       name: formData.name,
       description: formData.description,
-      price: 0, // Price is now at package level
+      price: 0,
       currency: "USD",
     });
     
@@ -159,15 +189,21 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
           name_ar: formData.name,
           description: formData.description,
           description_ar: formData.description,
-          price: 0, // Price is now at package level
+          price: 0,
           currency: "USD",
           category: formData.category,
           active: formData.active,
-          image_url: formData.image_url || null,
-          packages: validPackages.map(pkg => ({
-            ...pkg,
-            features: pkg.features.filter(f => f.trim()),
-          })),
+          image_url: serviceMedia?.url || null,
+          media: serviceMedia,
+          packages: validPackages.map(pkg => {
+            const { images, videos } = convertMediaToLegacy(pkg.media);
+            return {
+              ...pkg,
+              features: pkg.features.filter(f => f.trim()),
+              images,
+              videos,
+            };
+          }),
         },
       });
 
@@ -180,19 +216,7 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
 
       onSuccess();
       onOpenChange(false);
-      
-      setFormData({
-        name: "",
-        description: "",
-        category: "",
-        active: true,
-        image_url: "",
-      });
-      setPackages([
-        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [] },
-        { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, images: [], videos: [] },
-        { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, images: [], videos: [] },
-      ]);
+      resetForm();
     } catch (error: any) {
       console.error("Error creating service:", error);
       toast({
@@ -235,7 +259,6 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
             />
           </div>
 
-
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
             <Select
@@ -255,15 +278,11 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="image_url">Image URL (Optional)</Label>
-            <Input
-              id="image_url"
-              value={formData.image_url}
-              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              placeholder="https://example.com/image.jpg"
-            />
-          </div>
+          <SingleMediaUploader
+            media={serviceMedia}
+            onChange={setServiceMedia}
+            label="Service Media"
+          />
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -373,23 +392,11 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
                     ))}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Image URLs (Optional, comma-separated)</Label>
-                    <Input
-                      value={pkg.images.join(', ')}
-                      onChange={(e) => updatePackage(pkgIndex, 'images', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                      placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Video URLs (Optional, comma-separated)</Label>
-                    <Input
-                      value={pkg.videos.join(', ')}
-                      onChange={(e) => updatePackage(pkgIndex, 'videos', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                      placeholder="https://youtube.com/watch?v=..., https://vimeo.com/..."
-                    />
-                  </div>
+                  <MultiMediaUploader
+                    media={pkg.media}
+                    onChange={(media) => updatePackage(pkgIndex, 'media', media)}
+                    label="Package Media"
+                  />
 
                   <div className="space-y-2">
                     <Label>Notes (Optional)</Label>
