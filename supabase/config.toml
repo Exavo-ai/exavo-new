@@ -89,3 +89,6 @@ verify_jwt = true
 
 [functions.verify-payment]
 verify_jwt = false
+
+[functions.upload-media]
+verify_jwt = true
