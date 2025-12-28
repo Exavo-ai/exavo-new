@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageSquare,
+  FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ const allNavigation = [
   { name: "Dashboard", href: "/client", icon: LayoutDashboard },
   { name: "Workspace", href: "/client/workspace", icon: UsersRound },
   { name: "Services", href: "/client/services/browse", icon: Briefcase },
+  { name: "Projects", href: "/client/projects", icon: FolderKanban },
   { name: "Consultations", href: "/client/consultations", icon: MessageSquare },
   { name: "Billing", href: "/client/billing", icon: CreditCard },
   { name: "Team", href: "/client/team", icon: UsersRound },
