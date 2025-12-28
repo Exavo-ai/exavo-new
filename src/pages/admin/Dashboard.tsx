@@ -1,94 +1,27 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Briefcase, Calendar, DollarSign, TrendingUp, Activity } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Users, Briefcase, Calendar, DollarSign, TrendingUp, TrendingDown, Activity, AlertCircle } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Bar, BarChart } from "recharts";
+import { useAdminAnalytics, DateRangePreset } from "@/hooks/useAdminAnalytics";
+import { DateRangeFilter } from "@/components/admin/DateRangeFilter";
+import { subDays } from "date-fns";
 
-interface Stats {
-  totalUsers: number;
-  totalServices: number;
-  totalBookings: number;
-  totalRevenue: number;
-  monthlyGrowth: number;
-  activeUsers: number;
+interface DateRange {
+  from: Date;
+  to: Date;
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<Stats>({
-    totalUsers: 0,
-    totalServices: 0,
-    totalBookings: 0,
-    totalRevenue: 0,
-    monthlyGrowth: 0,
-    activeUsers: 0,
+  const [preset, setPreset] = useState<DateRangePreset>("30d");
+  const [customRange, setCustomRange] = useState<DateRange>({
+    from: subDays(new Date(), 30),
+    to: new Date(),
   });
-  const [loading, setLoading] = useState(true);
-  const [revenueData, setRevenueData] = useState<any[]>([]);
-  const [serviceData, setServiceData] = useState<any[]>([]);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
-    try {
-      // Fetch users count
-      const { count: usersCount } = await supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true });
-
-      // Fetch services count
-      const { count: servicesCount } = await supabase
-        .from("services")
-        .select("*", { count: "exact", head: true });
-
-      // Fetch bookings count
-      const { count: bookingsCount } = await supabase
-        .from("appointments")
-        .select("*", { count: "exact", head: true });
-
-      // Fetch total revenue
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("amount")
-        .eq("status", "completed");
-
-      const totalRevenue = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-
-      // Generate mock revenue data for chart
-      const mockRevenueData = Array.from({ length: 12 }, (_, i) => ({
-        month: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][i],
-        revenue: Math.floor(Math.random() * 5000) + 2000,
-      }));
-
-      // Fetch services data for popularity chart
-      const { data: services } = await supabase
-        .from("services")
-        .select("name, price")
-        .limit(5);
-
-      const mockServiceData = services?.map(s => ({
-        name: s.name.substring(0, 15),
-        bookings: Math.floor(Math.random() * 100) + 20,
-      })) || [];
-
-      setStats({
-        totalUsers: usersCount || 0,
-        totalServices: servicesCount || 0,
-        totalBookings: bookingsCount || 0,
-        totalRevenue: totalRevenue,
-        monthlyGrowth: 12.5,
-        activeUsers: Math.floor((usersCount || 0) * 0.6),
-      });
-
-      setRevenueData(mockRevenueData);
-      setServiceData(mockServiceData);
-    } catch (error) {
-      console.error("Error loading dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { stats, revenueData, serviceData, loading, error } = useAdminAnalytics(
+    preset,
+    preset === "custom" ? customRange : undefined
+  );
 
   if (loading) {
     return (
@@ -101,11 +34,33 @@ export default function Dashboard() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <p className="text-destructive font-medium">Failed to load dashboard</p>
+          <p className="text-muted-foreground text-sm mt-2">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const isPositiveGrowth = stats.monthlyGrowth >= 0;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h2>
-        <p className="text-muted-foreground">Overview of your platform analytics</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h2>
+          <p className="text-muted-foreground">Overview of your platform analytics</p>
+        </div>
+        <DateRangeFilter
+          preset={preset}
+          onPresetChange={setPreset}
+          customRange={customRange}
+          onCustomRangeChange={setCustomRange}
+        />
       </div>
 
       {/* Stats Cards */}
@@ -149,7 +104,7 @@ export default function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">${stats.totalRevenue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Total earnings</p>
           </CardContent>
         </Card>
@@ -157,11 +112,17 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Growth</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            {isPositiveGrowth ? (
+              <TrendingUp className="h-4 w-4 text-green-500" />
+            ) : (
+              <TrendingDown className="h-4 w-4 text-red-500" />
+            )}
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{stats.monthlyGrowth}%</div>
-            <p className="text-xs text-muted-foreground">vs last month</p>
+            <div className={`text-2xl font-bold ${isPositiveGrowth ? 'text-green-500' : 'text-red-500'}`}>
+              {isPositiveGrowth ? '+' : ''}{stats.monthlyGrowth}%
+            </div>
+            <p className="text-xs text-muted-foreground">vs previous period</p>
           </CardContent>
         </Card>
 
@@ -172,7 +133,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.activeUsers}</div>
-            <p className="text-xs text-muted-foreground">Last 30 days</p>
+            <p className="text-xs text-muted-foreground">Avg. in period</p>
           </CardContent>
         </Card>
       </div>
@@ -184,14 +145,23 @@ export default function Dashboard() {
             <CardTitle>Monthly Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={revenueData}>
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
-                <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+            {revenueData.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                No revenue data for selected period
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={revenueData}>
+                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `$${v}`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+                    formatter={(value: number) => [`$${value.toLocaleString()}`, "Revenue"]}
+                  />
+                  <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -200,14 +170,23 @@ export default function Dashboard() {
             <CardTitle>Service Popularity</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={serviceData}>
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
-                <Bar dataKey="bookings" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
+            {serviceData.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                No service data for selected period
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={serviceData}>
+                  <XAxis dataKey="service_name" stroke="hsl(var(--muted-foreground))" fontSize={10} angle={-15} textAnchor="end" height={60} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+                    formatter={(value: number) => [value, "Bookings"]}
+                  />
+                  <Bar dataKey="bookings_count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>

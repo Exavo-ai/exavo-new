@@ -275,6 +275,39 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_metrics: {
+        Row: {
+          active_users: number
+          bookings: number
+          created_at: string
+          date: string
+          id: string
+          new_users: number
+          revenue: number
+          updated_at: string
+        }
+        Insert: {
+          active_users?: number
+          bookings?: number
+          created_at?: string
+          date: string
+          id?: string
+          new_users?: number
+          revenue?: number
+          updated_at?: string
+        }
+        Update: {
+          active_users?: number
+          bookings?: number
+          created_at?: string
+          date?: string
+          id?: string
+          new_users?: number
+          revenue?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       deliveries: {
         Row: {
           created_at: string
@@ -914,6 +947,44 @@ export type Database = {
           },
           {
             foreignKeyName: "projects_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_metrics: {
+        Row: {
+          bookings_count: number
+          created_at: string
+          date: string
+          id: string
+          revenue: number
+          service_id: string | null
+          service_name: string
+        }
+        Insert: {
+          bookings_count?: number
+          created_at?: string
+          date: string
+          id?: string
+          revenue?: number
+          service_id?: string | null
+          service_name: string
+        }
+        Update: {
+          bookings_count?: number
+          created_at?: string
+          date?: string
+          id?: string
+          revenue?: number
+          service_id?: string | null
+          service_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_metrics_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
