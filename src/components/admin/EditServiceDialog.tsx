@@ -41,7 +41,8 @@ interface Package {
   delivery_time: string;
   notes: string;
   package_order: number;
-  image_urls: string;
+  images: string[];
+  videos: string[];
 }
 
 interface EditServiceDialogProps {
@@ -94,29 +95,24 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
       .order('package_order');
     
     if (!error && data) {
-      setPackages(data.map(pkg => {
-        // Convert images array to comma-separated string
-        const imagesArray = Array.isArray(pkg.images) ? pkg.images : [];
-        const imageUrls = imagesArray.filter(Boolean).join(', ');
-        
-        return {
-          id: pkg.id,
-          package_name: pkg.package_name,
-          description: pkg.description || '',
-          price: pkg.price,
-          currency: pkg.currency,
-          features: Array.isArray(pkg.features) 
-            ? pkg.features.map(f => String(f)).filter(Boolean)
-            : [],
-          delivery_time: pkg.delivery_time || '',
-          notes: pkg.notes || '',
-          package_order: pkg.package_order,
-          image_urls: imageUrls,
-        };
-      }));
+      setPackages(data.map(pkg => ({
+        id: pkg.id,
+        package_name: pkg.package_name,
+        description: pkg.description || '',
+        price: pkg.price,
+        currency: pkg.currency,
+        features: Array.isArray(pkg.features) 
+          ? pkg.features.map(f => String(f)).filter(Boolean)
+          : [],
+        delivery_time: pkg.delivery_time || '',
+        notes: pkg.notes || '',
+        package_order: pkg.package_order,
+        images: Array.isArray(pkg.images) ? pkg.images as string[] : [],
+        videos: Array.isArray(pkg.videos) ? pkg.videos as string[] : [],
+      })));
     } else {
       setPackages([
-        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, image_urls: "" },
+        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [] },
       ]);
     }
   };
@@ -143,7 +139,8 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
       delivery_time: "",
       notes: "",
       package_order: packages.length,
-      image_urls: "",
+      images: [],
+      videos: [],
     }]);
   };
 
@@ -217,25 +214,10 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
             active: formData.active,
             image_url: formData.image_url || null,
           },
-          packages: validPackages.map(pkg => {
-            // Parse comma-separated image URLs
-            const images = pkg.image_urls
-              .split(',')
-              .map(url => url.trim())
-              .filter(url => url.length > 0);
-            return {
-              package_name: pkg.package_name,
-              description: pkg.description,
-              price: pkg.price,
-              currency: pkg.currency,
-              features: pkg.features.filter(f => f.trim()),
-              delivery_time: pkg.delivery_time,
-              notes: pkg.notes,
-              package_order: pkg.package_order,
-              images,
-              videos: [],
-            };
-          }),
+          packages: validPackages.map(pkg => ({
+            ...pkg,
+            features: pkg.features.filter(f => f.trim()),
+          })),
         },
       });
 
@@ -289,6 +271,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
               required
             />
           </div>
+
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
@@ -430,9 +413,18 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
                   <div className="space-y-2">
                     <Label>Image URLs (Optional, comma-separated)</Label>
                     <Input
-                      value={pkg.image_urls}
-                      onChange={(e) => updatePackage(pkgIndex, 'image_urls', e.target.value)}
-                      placeholder="https://example.com/img1.jpg, https://example.com/img2.jpg"
+                      value={pkg.images.join(', ')}
+                      onChange={(e) => updatePackage(pkgIndex, 'images', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                      placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Video URLs (Optional, comma-separated)</Label>
+                    <Input
+                      value={pkg.videos.join(', ')}
+                      onChange={(e) => updatePackage(pkgIndex, 'videos', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                      placeholder="https://youtube.com/watch?v=..., https://vimeo.com/..."
                     />
                   </div>
 

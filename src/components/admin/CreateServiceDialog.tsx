@@ -33,7 +33,8 @@ interface Package {
   delivery_time: string;
   notes: string;
   package_order: number;
-  image_urls: string;
+  images: string[];
+  videos: string[];
 }
 
 export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateServiceDialogProps) {
@@ -48,9 +49,9 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
     image_url: "",
   });
   const [packages, setPackages] = useState<Package[]>([
-    { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, image_urls: "" },
-    { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, image_urls: "" },
-    { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, image_urls: "" },
+    { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [] },
+    { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, images: [], videos: [] },
+    { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, images: [], videos: [] },
   ]);
 
   useEffect(() => {
@@ -83,7 +84,8 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
       delivery_time: "",
       notes: "",
       package_order: packages.length,
-      image_urls: "",
+      images: [],
+      videos: [],
     }]);
   };
 
@@ -117,28 +119,13 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
     setPackages(updated);
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      description: "",
-      category: "",
-      active: true,
-      image_url: "",
-    });
-    setPackages([
-      { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, image_urls: "" },
-      { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, image_urls: "" },
-      { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, image_urls: "" },
-    ]);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const result = serviceSchema.safeParse({
       name: formData.name,
       description: formData.description,
-      price: 0,
+      price: 0, // Price is now at package level
       currency: "USD",
     });
     
@@ -172,30 +159,15 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
           name_ar: formData.name,
           description: formData.description,
           description_ar: formData.description,
-          price: 0,
+          price: 0, // Price is now at package level
           currency: "USD",
           category: formData.category,
           active: formData.active,
           image_url: formData.image_url || null,
-          packages: validPackages.map(pkg => {
-            // Parse comma-separated image URLs
-            const images = pkg.image_urls
-              .split(',')
-              .map(url => url.trim())
-              .filter(url => url.length > 0);
-            return {
-              package_name: pkg.package_name,
-              description: pkg.description,
-              price: pkg.price,
-              currency: pkg.currency,
-              features: pkg.features.filter(f => f.trim()),
-              delivery_time: pkg.delivery_time,
-              notes: pkg.notes,
-              package_order: pkg.package_order,
-              images,
-              videos: [],
-            };
-          }),
+          packages: validPackages.map(pkg => ({
+            ...pkg,
+            features: pkg.features.filter(f => f.trim()),
+          })),
         },
       });
 
@@ -208,7 +180,19 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
 
       onSuccess();
       onOpenChange(false);
-      resetForm();
+      
+      setFormData({
+        name: "",
+        description: "",
+        category: "",
+        active: true,
+        image_url: "",
+      });
+      setPackages([
+        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [] },
+        { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, images: [], videos: [] },
+        { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, images: [], videos: [] },
+      ]);
     } catch (error: any) {
       console.error("Error creating service:", error);
       toast({
@@ -250,6 +234,7 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
               required
             />
           </div>
+
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
@@ -391,9 +376,18 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
                   <div className="space-y-2">
                     <Label>Image URLs (Optional, comma-separated)</Label>
                     <Input
-                      value={pkg.image_urls}
-                      onChange={(e) => updatePackage(pkgIndex, 'image_urls', e.target.value)}
-                      placeholder="https://example.com/img1.jpg, https://example.com/img2.jpg"
+                      value={pkg.images.join(', ')}
+                      onChange={(e) => updatePackage(pkgIndex, 'images', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                      placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Video URLs (Optional, comma-separated)</Label>
+                    <Input
+                      value={pkg.videos.join(', ')}
+                      onChange={(e) => updatePackage(pkgIndex, 'videos', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                      placeholder="https://youtube.com/watch?v=..., https://vimeo.com/..."
                     />
                   </div>
 
