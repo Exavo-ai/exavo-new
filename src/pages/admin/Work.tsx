@@ -218,13 +218,71 @@ export default function Work() {
 
   const handleBookingStatusChange = async (bookingId: string, newStatus: string) => {
     try {
+      // Get the booking details first
+      const booking = bookings.find(b => b.id === bookingId);
+      
       const { error } = await supabase
         .from("appointments")
         .update({ status: newStatus })
         .eq("id", bookingId);
 
       if (error) throw error;
-      toast({ title: "Success", description: "Booking status updated" });
+      
+      // If status changed to "confirmed", create a project linked to this booking and client
+      if (newStatus === "confirmed" && booking && !projectMap[bookingId]) {
+        // Get service name for project title
+        let serviceName = "Service Project";
+        if (booking.service_id) {
+          const { data: serviceData } = await supabase
+            .from("services")
+            .select("name")
+            .eq("id", booking.service_id)
+            .single();
+          if (serviceData) serviceName = serviceData.name;
+        }
+
+        // Get user_id from the booking
+        const { data: appointmentData } = await supabase
+          .from("appointments")
+          .select("user_id")
+          .eq("id", bookingId)
+          .single();
+
+        if (appointmentData?.user_id) {
+          const { error: projectError } = await supabase
+            .from("projects")
+            .insert({
+              name: serviceName,
+              title: serviceName,
+              description: booking.notes || `Project for ${booking.full_name}`,
+              user_id: appointmentData.user_id,
+              client_id: appointmentData.user_id,
+              workspace_id: appointmentData.user_id,
+              service_id: booking.service_id,
+              appointment_id: bookingId,
+              status: "active",
+              progress: 0,
+              start_date: new Date().toISOString().split("T")[0],
+            });
+
+          if (projectError) {
+            console.error("Error creating project:", projectError);
+            if (projectError.code !== "23505") { // Ignore duplicate key errors
+              toast({
+                title: "Warning",
+                description: "Booking confirmed but failed to create project",
+                variant: "destructive",
+              });
+            }
+          } else {
+            toast({ title: "Success", description: "Booking confirmed and project created" });
+            loadProjects();
+          }
+        }
+      } else {
+        toast({ title: "Success", description: "Booking status updated" });
+      }
+      
       loadBookings();
     } catch (error) {
       console.error("Error updating status:", error);

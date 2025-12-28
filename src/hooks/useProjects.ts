@@ -104,12 +104,14 @@ export function useProjects() {
     
     try {
       setError(null);
+      // Fetch projects where user is linked via user_id, client_id, or workspace_id
       const { data, error: fetchError } = await supabase
         .from("projects")
         .select(`
           *,
           service:services(name, image_url)
         `)
+        .or(`user_id.eq.${user.id},client_id.eq.${user.id},workspace_id.eq.${user.id}`)
         .order("created_at", { ascending: false });
 
       if (fetchError) throw fetchError;
