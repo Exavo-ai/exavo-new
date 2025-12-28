@@ -17,7 +17,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { serviceSchema } from "@/lib/validation";
 import { Plus, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SingleMediaUploader, MultiMediaUploader, MediaItem } from "./MediaUploader";
 
 interface Service {
   id: string;
@@ -30,7 +29,6 @@ interface Service {
   category: string;
   active: boolean;
   image_url: string | null;
-  media?: MediaItem | null;
 }
 
 interface Package {
@@ -43,7 +41,7 @@ interface Package {
   delivery_time: string;
   notes: string;
   package_order: number;
-  media: MediaItem[];
+  image_urls: string;
 }
 
 interface EditServiceDialogProps {
@@ -51,45 +49,6 @@ interface EditServiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-}
-
-// Helper to convert old images/videos arrays to new media format
-function migratePackageMedia(pkg: any): MediaItem[] {
-  const media: MediaItem[] = [];
-  
-  if (Array.isArray(pkg.images)) {
-    pkg.images.forEach((url: string) => {
-      if (url && typeof url === 'string') {
-        media.push({ url, type: 'image', source: 'url' });
-      }
-    });
-  }
-  
-  if (Array.isArray(pkg.videos)) {
-    pkg.videos.forEach((url: string) => {
-      if (url && typeof url === 'string') {
-        media.push({ url, type: 'video', source: 'url' });
-      }
-    });
-  }
-  
-  return media;
-}
-
-// Helper to convert new media format back to images/videos arrays for backend
-function convertMediaToLegacy(media: MediaItem[]): { images: string[]; videos: string[] } {
-  const images: string[] = [];
-  const videos: string[] = [];
-  
-  media.forEach(item => {
-    if (item.type === 'image') {
-      images.push(item.url);
-    } else {
-      videos.push(item.url);
-    }
-  });
-  
-  return { images, videos };
 }
 
 export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: EditServiceDialogProps) {
@@ -101,8 +60,8 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
     description: "",
     category: "",
     active: true,
+    image_url: "",
   });
-  const [serviceMedia, setServiceMedia] = useState<MediaItem | null>(null);
   const [packages, setPackages] = useState<Package[]>([]);
 
   useEffect(() => {
@@ -135,23 +94,29 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
       .order('package_order');
     
     if (!error && data) {
-      setPackages(data.map(pkg => ({
-        id: pkg.id,
-        package_name: pkg.package_name,
-        description: pkg.description || '',
-        price: pkg.price,
-        currency: pkg.currency,
-        features: Array.isArray(pkg.features) 
-          ? pkg.features.map(f => String(f)).filter(Boolean)
-          : [],
-        delivery_time: pkg.delivery_time || '',
-        notes: pkg.notes || '',
-        package_order: pkg.package_order,
-        media: migratePackageMedia(pkg),
-      })));
+      setPackages(data.map(pkg => {
+        // Convert images array to comma-separated string
+        const imagesArray = Array.isArray(pkg.images) ? pkg.images : [];
+        const imageUrls = imagesArray.filter(Boolean).join(', ');
+        
+        return {
+          id: pkg.id,
+          package_name: pkg.package_name,
+          description: pkg.description || '',
+          price: pkg.price,
+          currency: pkg.currency,
+          features: Array.isArray(pkg.features) 
+            ? pkg.features.map(f => String(f)).filter(Boolean)
+            : [],
+          delivery_time: pkg.delivery_time || '',
+          notes: pkg.notes || '',
+          package_order: pkg.package_order,
+          image_urls: imageUrls,
+        };
+      }));
     } else {
       setPackages([
-        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, media: [] },
+        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, image_urls: "" },
       ]);
     }
   };
@@ -163,16 +128,8 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
         description: service.description || "",
         category: service.category || "",
         active: service.active ?? true,
+        image_url: service.image_url || "",
       });
-      
-      // Load service media - prefer new media field, fallback to image_url
-      if (service.media) {
-        setServiceMedia(service.media);
-      } else if (service.image_url) {
-        setServiceMedia({ url: service.image_url, type: 'image', source: 'url' });
-      } else {
-        setServiceMedia(null);
-      }
     }
   }, [service]);
 
@@ -186,7 +143,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
       delivery_time: "",
       notes: "",
       package_order: packages.length,
-      media: [],
+      image_urls: "",
     }]);
   };
 
@@ -258,16 +215,25 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
             currency: "USD",
             category: formData.category,
             active: formData.active,
-            image_url: serviceMedia?.url || null,
-            media: serviceMedia,
+            image_url: formData.image_url || null,
           },
           packages: validPackages.map(pkg => {
-            const { images, videos } = convertMediaToLegacy(pkg.media);
+            // Parse comma-separated image URLs
+            const images = pkg.image_urls
+              .split(',')
+              .map(url => url.trim())
+              .filter(url => url.length > 0);
             return {
-              ...pkg,
+              package_name: pkg.package_name,
+              description: pkg.description,
+              price: pkg.price,
+              currency: pkg.currency,
               features: pkg.features.filter(f => f.trim()),
+              delivery_time: pkg.delivery_time,
+              notes: pkg.notes,
+              package_order: pkg.package_order,
               images,
-              videos,
+              videos: [],
             };
           }),
         },
@@ -343,11 +309,15 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
             </Select>
           </div>
 
-          <SingleMediaUploader
-            media={serviceMedia}
-            onChange={setServiceMedia}
-            label="Service Media"
-          />
+          <div className="space-y-2">
+            <Label htmlFor="image_url">Image URL (Optional)</Label>
+            <Input
+              id="image_url"
+              value={formData.image_url}
+              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+              placeholder="https://example.com/image.jpg"
+            />
+          </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -457,11 +427,14 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
                     ))}
                   </div>
 
-                  <MultiMediaUploader
-                    media={pkg.media}
-                    onChange={(media) => updatePackage(pkgIndex, 'media', media)}
-                    label="Package Media"
-                  />
+                  <div className="space-y-2">
+                    <Label>Image URLs (Optional, comma-separated)</Label>
+                    <Input
+                      value={pkg.image_urls}
+                      onChange={(e) => updatePackage(pkgIndex, 'image_urls', e.target.value)}
+                      placeholder="https://example.com/img1.jpg, https://example.com/img2.jpg"
+                    />
+                  </div>
 
                   <div className="space-y-2">
                     <Label>Notes (Optional)</Label>
