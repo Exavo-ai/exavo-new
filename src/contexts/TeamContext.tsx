@@ -171,27 +171,27 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           change_workspace_info: true,
         });
       } else {
-        // User doesn't own a workspace and isn't a team member
-        setCurrentUserRole(null);
-        setOrganizationId(null);
-        setIsWorkspaceOwner(false);
-        setWorkspaceOwnerEmail(null);
-        setWorkspaceOwnerId(null);
+        // User doesn't own a workspace and isn't a team member - give basic permissions
+        setCurrentUserRole("client");
+        setOrganizationId(user.id);
+        setIsWorkspaceOwner(true); // Treat as owner of their own data
+        setWorkspaceOwnerEmail(user.email || null);
+        setWorkspaceOwnerId(user.id);
         setPermissions({
-          access_dashboard: false,
-          view_team: false,
+          access_dashboard: true,
+          view_team: true,
           manage_team: false,
           invite_members: false,
           remove_members: false,
-          access_files: false,
-          upload_files: false,
-          delete_files: false,
-          manage_tickets: false,
-          create_tickets: false,
-          manage_orders: false,
-          view_billing: false,
-          manage_billing: false,
-          access_settings: false,
+          access_files: true,
+          upload_files: true,
+          delete_files: true,
+          manage_tickets: true,
+          create_tickets: true,
+          manage_orders: true,
+          view_billing: true,
+          manage_billing: true,
+          access_settings: true,
           change_workspace_info: false,
         });
       }
