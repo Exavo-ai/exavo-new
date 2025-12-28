@@ -62,18 +62,30 @@ serve(async (req) => {
       customerId = customers.data.length > 0 ? customers.data[0].id : undefined;
     }
 
-    // Get optional user from auth header
-    let userId: string | null = null;
+    // Get user from auth header - REQUIRED for booking creation
     const authHeader = req.headers.get('Authorization');
-    if (authHeader) {
-      const supabaseAuth = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-        { global: { headers: { Authorization: authHeader } } }
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required to purchase services' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-      const { data: { user } } = await supabaseAuth.auth.getUser();
-      userId = user?.id || null;
     }
+    
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const userId = user.id;
 
     const serviceName = packageData.services?.name || 'Service';
     const origin = req.headers.get('origin') || 'https://exavo.ai';
@@ -93,12 +105,12 @@ serve(async (req) => {
       success_url: successUrl || `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl || `${origin}/services`,
       metadata: {
-        lovable_user_id: userId || '',
+        lovable_user_id: userId,
         package_id: packageId,
         service_id: packageData.service_id,
         service_name: serviceName,
         package_name: packageData.package_name,
-        customer_name: customerName || '',
+        customer_name: customerName || user.user_metadata?.full_name || '',
       },
     });
 
