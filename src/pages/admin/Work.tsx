@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Eye,
@@ -218,9 +217,6 @@ export default function Work() {
 
   const handleBookingStatusChange = async (bookingId: string, newStatus: string) => {
     try {
-      // Get the booking details first
-      const booking = bookings.find(b => b.id === bookingId);
-      
       const { error } = await supabase
         .from("appointments")
         .update({ status: newStatus })
@@ -228,56 +224,24 @@ export default function Work() {
 
       if (error) throw error;
       
-      // If status changed to "confirmed", create a project linked to this booking and client
-      if (newStatus === "confirmed" && booking && !projectMap[bookingId]) {
-        // Get service name for project title
-        let serviceName = "Service Project";
-        if (booking.service_id) {
-          const { data: serviceData } = await supabase
-            .from("services")
-            .select("name")
-            .eq("id", booking.service_id)
-            .single();
-          if (serviceData) serviceName = serviceData.name;
-        }
+      // If status changed to "confirmed", UPDATE the existing project (don't create new one)
+      // The project was already created at purchase time by verify-payment/stripe-webhook
+      if (newStatus === "confirmed" && projectMap[bookingId]) {
+        const { error: projectError } = await supabase
+          .from("projects")
+          .update({ status: "active" })
+          .eq("appointment_id", bookingId);
 
-        // Get user_id from the booking
-        const { data: appointmentData } = await supabase
-          .from("appointments")
-          .select("user_id")
-          .eq("id", bookingId)
-          .single();
-
-        if (appointmentData?.user_id) {
-          const { error: projectError } = await supabase
-            .from("projects")
-            .insert({
-              name: serviceName,
-              title: serviceName,
-              description: booking.notes || `Project for ${booking.full_name}`,
-              user_id: appointmentData.user_id,
-              client_id: appointmentData.user_id,
-              workspace_id: appointmentData.user_id,
-              service_id: booking.service_id,
-              appointment_id: bookingId,
-              status: "active",
-              progress: 0,
-              start_date: new Date().toISOString().split("T")[0],
-            });
-
-          if (projectError) {
-            console.error("Error creating project:", projectError);
-            if (projectError.code !== "23505") { // Ignore duplicate key errors
-              toast({
-                title: "Warning",
-                description: "Booking confirmed but failed to create project",
-                variant: "destructive",
-              });
-            }
-          } else {
-            toast({ title: "Success", description: "Booking confirmed and project created" });
-            loadProjects();
-          }
+        if (projectError) {
+          console.error("Error updating project:", projectError);
+          toast({
+            title: "Warning",
+            description: "Booking confirmed but failed to update project status",
+            variant: "destructive",
+          });
+        } else {
+          toast({ title: "Success", description: "Booking confirmed and project activated" });
+          loadProjects();
         }
       } else {
         toast({ title: "Success", description: "Booking status updated" });
@@ -349,7 +313,13 @@ export default function Work() {
     return status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
+  // Filter out confirmed bookings that have projects (they've been converted)
+  // Only show pending bookings or confirmed bookings without projects in Admin Work/Bookings
   const filteredBookings = bookings.filter((booking) => {
+    // Hide confirmed bookings that have been converted to projects
+    const isConvertedToProject = booking.status.toLowerCase() === "confirmed" && projectMap[booking.id];
+    if (isConvertedToProject) return false;
+    
     const matchesSearch =
       booking.full_name.toLowerCase().includes(bookingSearchTerm.toLowerCase()) ||
       booking.email.toLowerCase().includes(bookingSearchTerm.toLowerCase()) ||
@@ -655,14 +625,6 @@ export default function Work() {
                       </div>
                     )}
 
-                    {/* Progress */}
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Progress</span>
-                        <span>{project.progress || 0}%</span>
-                      </div>
-                      <Progress value={project.progress || 0} className="h-2" />
-                    </div>
 
                     {/* Due Date */}
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">

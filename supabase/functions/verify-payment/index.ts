@@ -160,20 +160,24 @@ serve(async (req) => {
 
     logStep("Payment recorded successfully", { paymentId: newPayment.id });
 
-    // Create a booking (appointment) with status = pending for service purchases
+    // Create a booking (appointment) AND project immediately for service purchases
     if (session.mode === "payment" && session.metadata?.service_id) {
-      // Check if booking already exists for this session
+      const customerName = session.customer_details?.name || session.metadata?.customer_name || "Customer";
+      const customerEmail = session.customer_email || session.customer_details?.email || "";
+      const serviceName = session.metadata?.service_name || "Service Project";
+
+      // Check if booking already exists for this session (using stripe_session_id stored in notes)
       const { data: existingBooking } = await supabaseAdmin
         .from("appointments")
         .select("id")
-        .eq("notes", `stripe_session:${session_id}`)
+        .ilike("notes", `%stripe_session:${session_id}%`)
         .maybeSingle();
 
-      if (!existingBooking) {
-        const customerName = session.customer_details?.name || session.metadata?.customer_name || "Customer";
-        const customerEmail = session.customer_email || session.customer_details?.email || "";
+      let bookingId: string | null = null;
 
-        const { error: bookingError } = await supabaseAdmin
+      if (!existingBooking) {
+        // Create booking with status = pending
+        const { data: newBooking, error: bookingError } = await supabaseAdmin
           .from("appointments")
           .insert({
             user_id: userId,
@@ -186,19 +190,61 @@ serve(async (req) => {
             appointment_time: "TBD",
             status: "pending",
             project_status: "not_started",
-            notes: `stripe_session:${session_id}\nService: ${session.metadata?.service_name || "Unknown"}\nPackage: ${session.metadata?.package_name || "Unknown"}\nPayment: $${(session.amount_total || 0) / 100}`,
-          });
+            notes: `stripe_session:${session_id}\nService: ${serviceName}\nPackage: ${session.metadata?.package_name || "Unknown"}\nPayment: $${(session.amount_total || 0) / 100}`,
+          })
+          .select("id")
+          .single();
 
         if (bookingError) {
           logStep("ERROR: Failed to create booking", { error: bookingError });
         } else {
-          logStep("Booking created for service purchase", {
-            userId,
-            serviceId: session.metadata.service_id,
-          });
+          bookingId = newBooking.id;
+          logStep("Booking created for service purchase", { userId, bookingId });
         }
       } else {
-        logStep("Booking already exists for session", { sessionId: session_id });
+        bookingId = existingBooking.id;
+        logStep("Booking already exists for session", { bookingId });
+      }
+
+      // Create project immediately (client sees it right away with status "pending")
+      if (bookingId) {
+        // Check if project already exists for this booking (using unique constraint)
+        const { data: existingProject } = await supabaseAdmin
+          .from("projects")
+          .select("id")
+          .eq("appointment_id", bookingId)
+          .maybeSingle();
+
+        if (!existingProject) {
+          const { error: projectError } = await supabaseAdmin
+            .from("projects")
+            .insert({
+              user_id: userId,
+              client_id: userId,
+              workspace_id: userId,
+              service_id: session.metadata.service_id,
+              appointment_id: bookingId,
+              name: serviceName,
+              title: serviceName,
+              description: `Project for ${customerName}`,
+              status: "pending", // Client sees it immediately with pending status
+              progress: 0,
+              start_date: new Date().toISOString().split("T")[0],
+            });
+
+          if (projectError) {
+            // Ignore duplicate key errors (project already exists)
+            if (projectError.code !== "23505") {
+              logStep("ERROR: Failed to create project", { error: projectError });
+            } else {
+              logStep("Project already exists (duplicate key)", { bookingId });
+            }
+          } else {
+            logStep("Project created for client", { userId, bookingId });
+          }
+        } else {
+          logStep("Project already exists for booking", { bookingId, projectId: existingProject.id });
+        }
       }
     }
     
