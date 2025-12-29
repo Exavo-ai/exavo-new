@@ -98,31 +98,69 @@ serve(async (req) => {
             logStep("Payment record created", { userId: lovableUserId, sessionId: session.id });
           }
 
-          // Create a booking (appointment) with status = pending for service purchases
+          // Create booking AND project immediately for service purchases
           if (session.mode === "payment" && session.metadata?.service_id) {
-            const { error: bookingError } = await supabaseAdmin
+            const customerName = session.customer_details?.name || session.metadata?.customer_name || "Customer";
+            const customerEmail = session.customer_email || "";
+            const serviceName = session.metadata?.service_name || "Service Project";
+
+            // Create booking with status = pending
+            const { data: newBooking, error: bookingError } = await supabaseAdmin
               .from("appointments")
               .insert({
                 user_id: lovableUserId,
                 service_id: session.metadata.service_id,
                 package_id: session.metadata.package_id || null,
-                full_name: session.customer_details?.name || session.metadata?.customer_name || "Customer",
-                email: session.customer_email || "",
+                full_name: customerName,
+                email: customerEmail,
                 phone: "",
                 appointment_date: new Date().toISOString().split("T")[0],
                 appointment_time: "TBD",
                 status: "pending",
                 project_status: "not_started",
-                notes: `Service: ${session.metadata?.service_name || "Unknown"}\nPackage: ${session.metadata?.package_name || "Unknown"}\nPayment: $${(session.amount_total || 0) / 100}`,
-              });
+                notes: `stripe_session:${session.id}\nService: ${serviceName}\nPackage: ${session.metadata?.package_name || "Unknown"}\nPayment: $${(session.amount_total || 0) / 100}`,
+              })
+              .select("id")
+              .single();
 
             if (bookingError) {
               logStep("ERROR: Failed to create booking", { error: bookingError });
             } else {
               logStep("Booking created for service purchase", { 
                 userId: lovableUserId, 
-                serviceId: session.metadata.service_id 
+                bookingId: newBooking.id 
               });
+
+              // Create project immediately linked to booking (client sees it right away)
+              const { error: projectError } = await supabaseAdmin
+                .from("projects")
+                .insert({
+                  user_id: lovableUserId,
+                  client_id: lovableUserId,
+                  workspace_id: lovableUserId,
+                  service_id: session.metadata.service_id,
+                  appointment_id: newBooking.id,
+                  name: serviceName,
+                  title: serviceName,
+                  description: `Project for ${customerName}`,
+                  status: "pending", // Client sees it immediately with pending status
+                  progress: 0,
+                  start_date: new Date().toISOString().split("T")[0],
+                });
+
+              if (projectError) {
+                // Ignore duplicate key errors
+                if (projectError.code !== "23505") {
+                  logStep("ERROR: Failed to create project", { error: projectError });
+                } else {
+                  logStep("Project already exists (duplicate key)", { bookingId: newBooking.id });
+                }
+              } else {
+                logStep("Project created for client", { 
+                  userId: lovableUserId, 
+                  bookingId: newBooking.id 
+                });
+              }
             }
           }
         } else {
