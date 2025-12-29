@@ -185,7 +185,7 @@ export function useProject(projectId: string | undefined) {
         commentsRes,
         filesRes,
         deliveriesRes,
-        invoicesRes,
+        projectInvoicesRes,
         ticketsRes,
       ] = await Promise.all([
         supabase
@@ -226,8 +226,44 @@ export function useProject(projectId: string | undefined) {
       setComments(commentsRes.data || []);
       setFiles((filesRes.data as ProjectFile[]) || []);
       setDeliveries(deliveriesRes.data || []);
-      setInvoices(invoicesRes.data || []);
       setTickets(ticketsRes.data || []);
+
+      // Fetch payments for this project - try by appointment_id (booking link)
+      let paymentsData: ProjectInvoice[] = [];
+      const appointmentId = projectData.appointment_id;
+      
+      if (appointmentId) {
+        const { data: payments } = await supabase
+          .from("payments")
+          .select("id, amount, currency, status, created_at, stripe_receipt_url")
+          .eq("appointment_id", appointmentId)
+          .order("created_at", { ascending: false });
+        
+        if (payments && payments.length > 0) {
+          paymentsData = payments.map(p => ({
+            id: p.id,
+            project_id: projectId,
+            amount: Number(p.amount),
+            currency: p.currency,
+            status: p.status === "paid" ? "paid" : p.status,
+            stripe_invoice_id: null,
+            pdf_url: p.stripe_receipt_url || null,
+            hosted_invoice_url: p.stripe_receipt_url || null,
+            created_at: p.created_at,
+          }));
+        }
+      }
+      
+      // Merge project_invoices with payments (payments as primary source)
+      const projectInvoices = projectInvoicesRes.data || [];
+      const allInvoices = [...paymentsData, ...projectInvoices];
+      
+      // Deduplicate by id
+      const uniqueInvoices = allInvoices.filter((inv, idx, arr) => 
+        arr.findIndex(i => i.id === inv.id) === idx
+      );
+      
+      setInvoices(uniqueInvoices);
     } catch (err: any) {
       console.error("Error loading project:", err);
       setError(err.message);
