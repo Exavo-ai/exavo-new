@@ -189,41 +189,93 @@ export function useAdminProject(projectId: string | undefined) {
       setDeliveries(deliveriesRes.data || []);
       setTickets(ticketsRes.data || []);
 
-      // Fetch payments for this project - try by appointment_id (booking link)
-      let paymentsData: ProjectInvoice[] = [];
+      // Fetch payments for this project (same source as main Billing: payments table)
+      // Note: some payment records don't have appointment_id set, so we use safe fallbacks.
+      const paymentsSelect =
+        "id, amount, currency, status, created_at, stripe_receipt_url, stripe_session_id";
+
+      const toInvoice = (p: any): ProjectInvoice => ({
+        id: p.id,
+        project_id: projectId,
+        amount: Number(p.amount),
+        currency: p.currency,
+        status: p.status,
+        stripe_invoice_id: null,
+        pdf_url: p.stripe_receipt_url || null,
+        hosted_invoice_url: p.stripe_receipt_url || null,
+        created_at: p.created_at,
+      });
+
       const appointmentId = projectData.appointment_id;
-      
+      let booking: { notes: string | null; created_at: string } | null = null;
+
+      // 1) Primary: by booking/appointment_id
+      let payments: any[] = [];
       if (appointmentId) {
-        const { data: payments } = await supabase
+        const res = await supabase
           .from("payments")
-          .select("id, amount, currency, status, created_at, stripe_receipt_url")
+          .select(paymentsSelect)
           .eq("appointment_id", appointmentId)
           .order("created_at", { ascending: false });
-        
-        if (payments && payments.length > 0) {
-          paymentsData = payments.map(p => ({
-            id: p.id,
-            project_id: projectId,
-            amount: Number(p.amount),
-            currency: p.currency,
-            status: p.status === "paid" ? "paid" : p.status,
-            stripe_invoice_id: null,
-            pdf_url: p.stripe_receipt_url || null,
-            hosted_invoice_url: p.stripe_receipt_url || null,
-            created_at: p.created_at,
-          }));
+        payments = res.data || [];
+      }
+
+      // 2) Fallback: extract stripe_session_id from booking notes then match payments
+      if (payments.length === 0 && appointmentId) {
+        const { data: bookingData } = await supabase
+          .from("appointments")
+          .select("notes, created_at")
+          .eq("id", appointmentId)
+          .maybeSingle();
+
+        booking = bookingData || null;
+
+        const sessionId = booking?.notes?.match(/stripe_session:([^\n]+)/)?.[1]?.trim();
+        if (sessionId) {
+          const res = await supabase
+            .from("payments")
+            .select(paymentsSelect)
+            .eq("stripe_session_id", sessionId)
+            .order("created_at", { ascending: false });
+          payments = res.data || [];
         }
       }
-      
+
+      // 3) Fallback: match by user + service within ±2 days of project/booking creation
+      if (payments.length === 0) {
+        const base = booking?.created_at || projectData.created_at;
+        const from = new Date(base);
+        from.setDate(from.getDate() - 2);
+        const to = new Date(base);
+        to.setDate(to.getDate() + 2);
+
+        let q = supabase
+          .from("payments")
+          .select(paymentsSelect)
+          .eq("user_id", projectData.user_id)
+          .gte("created_at", from.toISOString())
+          .lte("created_at", to.toISOString())
+          .order("created_at", { ascending: false });
+
+        if (projectData.service_id) {
+          q = q.eq("service_id", projectData.service_id);
+        }
+
+        const res = await q;
+        payments = res.data || [];
+      }
+
+      const paymentsInvoices: ProjectInvoice[] = payments.map(toInvoice);
+
       // Merge project_invoices with payments (payments as primary source)
       const projectInvoices = projectInvoicesRes.data || [];
-      const allInvoices = [...paymentsData, ...projectInvoices];
-      
+      const allInvoices = [...paymentsInvoices, ...projectInvoices];
+
       // Deduplicate by id
-      const uniqueInvoices = allInvoices.filter((inv, idx, arr) => 
-        arr.findIndex(i => i.id === inv.id) === idx
+      const uniqueInvoices = allInvoices.filter(
+        (inv, idx, arr) => arr.findIndex((i) => i.id === inv.id) === idx,
       );
-      
+
       setInvoices(uniqueInvoices);
     } catch (err: any) {
       console.error("Error loading project:", err);
