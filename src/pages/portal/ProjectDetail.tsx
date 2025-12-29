@@ -620,21 +620,15 @@ export default function ProjectDetailPage() {
                         >
                           {invoice.status}
                         </Badge>
-                        {invoice.pdf_url && (
-                          <Button variant="ghost" size="sm" asChild>
-                            <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
-                              <Download className="w-4 h-4" />
-                            </a>
-                          </Button>
-                        )}
-                        {invoice.hosted_invoice_url && (
-                          <Button variant="ghost" size="sm" asChild>
-                            <a
-                              href={invoice.hosted_invoice_url}
-                              target="_blank"
+                        {(invoice.pdf_url || invoice.hosted_invoice_url) && (
+                          <Button variant="outline" size="sm" asChild>
+                            <a 
+                              href={invoice.pdf_url || invoice.hosted_invoice_url || "#"} 
+                              target="_blank" 
                               rel="noopener noreferrer"
                             >
-                              <ExternalLink className="w-4 h-4" />
+                              <ExternalLink className="w-4 h-4 mr-1" />
+                              View Receipt
                             </a>
                           </Button>
                         )}
