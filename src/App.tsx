@@ -8,6 +8,8 @@ import Index from "./pages/Index";
 import About from "./pages/About";
 import Services from "./pages/Services";
 import ServiceDetail from "./pages/ServiceDetail";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
 
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
@@ -27,6 +29,7 @@ import AdminTickets from "@/pages/admin/Tickets";
 import AdminLeads from "@/pages/admin/Leads";
 import AdminSettings from "@/pages/admin/Settings";
 import AdminProjectDetail from "@/pages/admin/ProjectDetail";
+import AdminApprovals from "@/pages/admin/Approvals";
 import ClientDashboard from "./pages/ClientDashboard";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import Analytics from "./pages/Analytics";
@@ -53,6 +56,8 @@ const App = () => (
         <Route path="/services/:id" element={<ServiceDetail />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/client/invite/accept" element={<AcceptInvitation />} />
@@ -162,6 +167,16 @@ const App = () => (
                   <ProtectedRoute requireRole="admin">
                     <AdminLayout>
                       <AdminProjectDetail />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/approvals"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminApprovals />
                     </AdminLayout>
                   </ProtectedRoute>
                 }
