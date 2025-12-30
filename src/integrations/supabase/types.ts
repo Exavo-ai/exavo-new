@@ -1140,6 +1140,42 @@ export type Database = {
         }
         Relationships: []
       }
+      social_posts: {
+        Row: {
+          caption: string
+          created_at: string
+          feedback: string | null
+          id: string
+          image_url: string
+          platform: Database["public"]["Enums"]["social_platform"]
+          published_at: string | null
+          slug: string
+          status: Database["public"]["Enums"]["social_post_status"]
+        }
+        Insert: {
+          caption: string
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          image_url: string
+          platform: Database["public"]["Enums"]["social_platform"]
+          published_at?: string | null
+          slug: string
+          status?: Database["public"]["Enums"]["social_post_status"]
+        }
+        Update: {
+          caption?: string
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          image_url?: string
+          platform?: Database["public"]["Enums"]["social_platform"]
+          published_at?: string | null
+          slug?: string
+          status?: Database["public"]["Enums"]["social_post_status"]
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           current_period_end: string
@@ -1476,6 +1512,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "client"
+      social_platform: "Instagram" | "Facebook" | "LinkedIn"
+      social_post_status: "pending" | "approved" | "changes_requested"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1604,6 +1642,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "client"],
+      social_platform: ["Instagram", "Facebook", "LinkedIn"],
+      social_post_status: ["pending", "approved", "changes_requested"],
     },
   },
 } as const
