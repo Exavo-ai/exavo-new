@@ -27,7 +27,7 @@ const createServiceSchema = z.object({
   description_ar: z.string().trim().min(1, "Arabic description is required").max(5000, "Arabic description too long"),
   price: z.number().min(0, "Price must be non-negative").max(1000000, "Price exceeds maximum"),
   currency: z.string().length(3, "Currency must be 3 characters").default("USD"),
-  category: uuidSchema,
+  category: uuidSchema.nullable().optional(),
   active: z.boolean().default(true),
   image_url: z.string().url("Invalid image URL").nullable().optional(),
   payment_model: paymentModelSchema,
