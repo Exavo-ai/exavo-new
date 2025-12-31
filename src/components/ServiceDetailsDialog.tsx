@@ -22,6 +22,8 @@ interface ServicePackage {
   images?: string[];
   videos?: string[];
   stripe_price_id?: string | null;
+  build_cost?: number;
+  monthly_fee?: number;
 }
 
 interface Service {
@@ -29,6 +31,7 @@ interface Service {
   name: string;
   description: string;
   image_url?: string | null;
+  payment_model?: 'one_time' | 'subscription';
 }
 
 interface ServiceDetailsDialogProps {
@@ -115,6 +118,8 @@ export function ServiceDetailsDialog({
         images: Array.isArray(pkg.images) ? pkg.images.map(String) : undefined,
         videos: Array.isArray(pkg.videos) ? pkg.videos.map(String) : undefined,
         stripe_price_id: pkg.stripe_price_id || null,
+        build_cost: pkg.build_cost || 0,
+        monthly_fee: pkg.monthly_fee || 0,
       })));
     } catch (error: any) {
       console.error('Error fetching packages:', error);
@@ -183,6 +188,7 @@ export function ServiceDetailsDialog({
                   <ServicePackageCard
                     key={pkg.id}
                     packageData={pkg}
+                    paymentModel={service?.payment_model}
                     isPopular={index === 1}
                     onSelect={() => handleSelectPackage(pkg.id, pkg.package_name)}
                   />

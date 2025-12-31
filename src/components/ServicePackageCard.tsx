@@ -19,19 +19,32 @@ interface ServicePackage {
   images?: string[];
   videos?: string[];
   stripe_price_id?: string | null;
+  build_cost?: number;
+  monthly_fee?: number;
 }
 
 interface ServicePackageCardProps {
   packageData: ServicePackage;
+  paymentModel?: 'one_time' | 'subscription';
   isPopular?: boolean;
   onSelect: () => void;
   customerEmail?: string;
   customerName?: string;
 }
 
-export function ServicePackageCard({ packageData, isPopular, onSelect, customerEmail, customerName }: ServicePackageCardProps) {
+export function ServicePackageCard({ packageData, paymentModel = 'one_time', isPopular, onSelect, customerEmail, customerName }: ServicePackageCardProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  const isSubscription = paymentModel === 'subscription';
+  const buildCost = packageData.build_cost || 0;
+  const monthlyFee = packageData.monthly_fee || 0;
+  const oneTimePrice = packageData.price || 0;
+
+  // Determine if package has valid pricing
+  const hasValidPricing = isSubscription 
+    ? monthlyFee > 0 
+    : oneTimePrice > 0;
 
   const handleSelectPackage = async () => {
     // Always go directly to Stripe checkout
@@ -64,6 +77,8 @@ export function ServicePackageCard({ packageData, isPopular, onSelect, customerE
     }
   };
 
+  const currencySymbol = packageData.currency === 'USD' ? '$' : packageData.currency;
+
   return (
     <Card className={`relative ${isPopular ? 'border-primary shadow-lg scale-105' : ''}`}>
       {isPopular && (
@@ -77,11 +92,24 @@ export function ServicePackageCard({ packageData, isPopular, onSelect, customerE
         {packageData.description && (
           <p className="text-sm text-muted-foreground mt-2">{packageData.description}</p>
         )}
-        <CardDescription className="mt-3">
-          <span className="text-3xl font-bold text-foreground">
-            {packageData.currency === 'USD' ? '$' : packageData.currency}
-            {packageData.price}
-          </span>
+        <CardDescription className="mt-3 space-y-1">
+          {isSubscription ? (
+            <>
+              <div className="text-3xl font-bold text-foreground">
+                {currencySymbol}{monthlyFee.toLocaleString()}
+                <span className="text-base font-normal text-muted-foreground">/mo</span>
+              </div>
+              {buildCost > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  + {currencySymbol}{buildCost.toLocaleString()} setup (one-time)
+                </div>
+              )}
+            </>
+          ) : (
+            <span className="text-3xl font-bold text-foreground">
+              {currencySymbol}{oneTimePrice.toLocaleString()}
+            </span>
+          )}
         </CardDescription>
       </CardHeader>
 
@@ -115,7 +143,7 @@ export function ServicePackageCard({ packageData, isPopular, onSelect, customerE
           className="w-full" 
           variant={isPopular ? "default" : "outline"}
           onClick={handleSelectPackage}
-          disabled={loading}
+          disabled={loading || !hasValidPricing}
         >
           {loading ? (
             <>

@@ -23,6 +23,7 @@ interface Service {
   category: string;
   active: boolean;
   image_url?: string | null;
+  payment_model?: 'one_time' | 'subscription';
 }
 
 interface Category {
