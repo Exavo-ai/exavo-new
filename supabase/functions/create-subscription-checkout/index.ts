@@ -17,16 +17,17 @@ serve(async (req) => {
   }
 
   try {
-    const { priceId, successUrl, cancelUrl } = await req.json();
+    const { packageId, priceId, successUrl, cancelUrl } = await req.json();
 
-    if (!priceId) {
+    // Support both package-based and legacy priceId-based subscriptions
+    if (!packageId && !priceId) {
       return new Response(
-        JSON.stringify({ error: "Price ID is required" }),
+        JSON.stringify({ error: "Package ID or Price ID is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    logStep("Request received", { priceId });
+    logStep("Request received", { packageId, priceId });
 
     // Authenticate user
     const authHeader = req.headers.get("Authorization");
@@ -69,7 +70,100 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://exavo.ai";
 
-    // Create subscription checkout session
+    // If packageId is provided, fetch package details and build line items
+    if (packageId) {
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+
+      const { data: packageData, error: packageError } = await supabaseAdmin
+        .from('service_packages')
+        .select('*, services(id, name, payment_model)')
+        .eq('id', packageId)
+        .single();
+
+      if (packageError || !packageData) {
+        logStep("Package not found", { error: packageError?.message });
+        return new Response(
+          JSON.stringify({ error: "Package not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const service = packageData.services as { id: string; name: string; payment_model: string } | null;
+      const buildCost = packageData.build_cost || 0;
+      const monthlyFee = packageData.monthly_fee || 0;
+
+      if (monthlyFee <= 0) {
+        return new Response(
+          JSON.stringify({ error: "This package has no monthly fee configured" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+
+      // Add build cost as one-time line item if > 0
+      if (buildCost > 0) {
+        lineItems.push({
+          price_data: {
+            currency: packageData.currency?.toLowerCase() || 'usd',
+            product_data: {
+              name: `${service?.name || 'Service'} - ${packageData.package_name} (Build Cost)`,
+              description: 'One-time setup and build fee',
+            },
+            unit_amount: Math.round(buildCost * 100),
+          },
+          quantity: 1,
+        });
+      }
+
+      // Add monthly subscription
+      lineItems.push({
+        price_data: {
+          currency: packageData.currency?.toLowerCase() || 'usd',
+          product_data: {
+            name: `${service?.name || 'Service'} - ${packageData.package_name} (Monthly)`,
+            description: 'Monthly subscription fee including hosting & support',
+          },
+          unit_amount: Math.round(monthlyFee * 100),
+          recurring: {
+            interval: 'month',
+          },
+        },
+        quantity: 1,
+      });
+
+      logStep("Creating package-based subscription checkout", { buildCost, monthlyFee });
+
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        customer_email: customerId ? undefined : user.email,
+        client_reference_id: user.id,
+        line_items: lineItems,
+        mode: "subscription",
+        success_url: successUrl || `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: cancelUrl || `${origin}/client/billing`,
+        metadata: {
+          lovable_user_id: user.id,
+          package_id: packageId,
+          service_id: service?.id || '',
+          type: "subscription",
+          build_cost: buildCost.toString(),
+          monthly_fee: monthlyFee.toString(),
+        },
+      });
+
+      logStep("Package subscription checkout session created", { sessionId: session.id });
+
+      return new Response(
+        JSON.stringify({ sessionId: session.id, url: session.url }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Legacy: Use priceId directly
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,

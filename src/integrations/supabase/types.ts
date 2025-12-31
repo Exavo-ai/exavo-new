@@ -1038,6 +1038,7 @@ export type Database = {
       }
       service_packages: {
         Row: {
+          build_cost: number | null
           created_at: string
           currency: string
           delivery_time: string | null
@@ -1045,6 +1046,7 @@ export type Database = {
           features: Json
           id: string
           images: Json | null
+          monthly_fee: number | null
           notes: string | null
           package_name: string
           package_order: number
@@ -1055,6 +1057,7 @@ export type Database = {
           videos: Json | null
         }
         Insert: {
+          build_cost?: number | null
           created_at?: string
           currency?: string
           delivery_time?: string | null
@@ -1062,6 +1065,7 @@ export type Database = {
           features?: Json
           id?: string
           images?: Json | null
+          monthly_fee?: number | null
           notes?: string | null
           package_name: string
           package_order?: number
@@ -1072,6 +1076,7 @@ export type Database = {
           videos?: Json | null
         }
         Update: {
+          build_cost?: number | null
           created_at?: string
           currency?: string
           delivery_time?: string | null
@@ -1079,6 +1084,7 @@ export type Database = {
           features?: Json
           id?: string
           images?: Json | null
+          monthly_fee?: number | null
           notes?: string | null
           package_name?: string
           package_order?: number

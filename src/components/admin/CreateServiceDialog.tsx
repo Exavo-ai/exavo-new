@@ -36,6 +36,8 @@ interface Package {
   package_order: number;
   images: string[];
   videos: string[];
+  build_cost: number;
+  monthly_fee: number;
 }
 
 type PaymentModel = "one_time" | "subscription";
@@ -58,9 +60,9 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
     monthly_fee: 0,
   });
   const [packages, setPackages] = useState<Package[]>([
-    { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [] },
-    { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, images: [], videos: [] },
-    { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, images: [], videos: [] },
+    { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [], build_cost: 0, monthly_fee: 0 },
+    { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, images: [], videos: [], build_cost: 0, monthly_fee: 0 },
+    { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, images: [], videos: [], build_cost: 0, monthly_fee: 0 },
   ]);
 
   useEffect(() => {
@@ -95,6 +97,8 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
       package_order: packages.length,
       images: [],
       videos: [],
+      build_cost: 0,
+      monthly_fee: 0,
     }]);
   };
 
@@ -169,6 +173,26 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
       return;
     }
 
+    // Validate package pricing based on payment model
+    for (const pkg of validPackages) {
+      if (formData.payment_model === "one_time" && pkg.price <= 0) {
+        toast({
+          title: "Validation Error",
+          description: `Package "${pkg.package_name}" requires a one-time price greater than 0`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (formData.payment_model === "subscription" && pkg.monthly_fee <= 0) {
+        toast({
+          title: "Validation Error",
+          description: `Package "${pkg.package_name}" requires a monthly fee greater than 0`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase.functions.invoke('admin-create-service', {
@@ -188,6 +212,9 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
           packages: validPackages.map(pkg => ({
             ...pkg,
             features: pkg.features.filter(f => f.trim()),
+            // Pass the correct pricing fields based on payment model
+            build_cost: formData.payment_model === "subscription" ? pkg.build_cost : 0,
+            monthly_fee: formData.payment_model === "subscription" ? pkg.monthly_fee : 0,
           })),
         },
       });
@@ -214,9 +241,9 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
         monthly_fee: 0,
       });
       setPackages([
-        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [] },
-        { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, images: [], videos: [] },
-        { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, images: [], videos: [] },
+        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [], build_cost: 0, monthly_fee: 0 },
+        { package_name: "Standard", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 1, images: [], videos: [], build_cost: 0, monthly_fee: 0 },
+        { package_name: "Premium", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 2, images: [], videos: [], build_cost: 0, monthly_fee: 0 },
       ]);
     } catch (error: any) {
       console.error("Error creating service:", error);
@@ -434,26 +461,67 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Price</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={pkg.price}
-                        onChange={(e) => updatePackage(pkgIndex, 'price', parseFloat(e.target.value))}
-                      />
+                  {/* Conditional Pricing based on payment_model */}
+                  {formData.payment_model === "one_time" ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label>One-time Price <span className="text-destructive">*</span></Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={pkg.price}
+                          onChange={(e) => updatePackage(pkgIndex, 'price', parseFloat(e.target.value) || 0)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Currency</Label>
+                        <Input
+                          value={pkg.currency}
+                          onChange={(e) => updatePackage(pkgIndex, 'currency', e.target.value)}
+                          placeholder="USD"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Currency</Label>
-                      <Input
-                        value={pkg.currency}
-                        onChange={(e) => updatePackage(pkgIndex, 'currency', e.target.value)}
-                        placeholder="USD"
-                      />
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label>Build Cost</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={pkg.build_cost}
+                            onChange={(e) => updatePackage(pkgIndex, 'build_cost', parseFloat(e.target.value) || 0)}
+                            placeholder="0.00"
+                          />
+                          <p className="text-xs text-muted-foreground">One-time (optional)</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Monthly Fee <span className="text-destructive">*</span></Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={pkg.monthly_fee}
+                            onChange={(e) => updatePackage(pkgIndex, 'monthly_fee', parseFloat(e.target.value) || 0)}
+                            placeholder="0.00"
+                          />
+                          <p className="text-xs text-muted-foreground">Recurring</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Currency</Label>
+                        <Input
+                          value={pkg.currency}
+                          onChange={(e) => updatePackage(pkgIndex, 'currency', e.target.value)}
+                          placeholder="USD"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label>Delivery Time</Label>

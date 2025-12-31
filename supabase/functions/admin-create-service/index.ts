@@ -14,6 +14,8 @@ const packageSchema = z.object({
   package_order: z.number().int().min(0).max(100).default(0),
   images: z.array(z.string().url("Invalid image URL")).max(20, "Too many images").optional(),
   videos: z.array(z.string().url("Invalid video URL")).max(10, "Too many videos").optional(),
+  build_cost: z.number().min(0).max(1000000).default(0),
+  monthly_fee: z.number().min(0).max(1000000).default(0),
 });
 
 const paymentModelSchema = z.enum(["one_time", "subscription"]);
@@ -138,6 +140,8 @@ Deno.serve(async (req) => {
         package_order: pkg.package_order,
         images: pkg.images || [],
         videos: pkg.videos || [],
+        build_cost: pkg.build_cost || 0,
+        monthly_fee: pkg.monthly_fee || 0,
       }));
 
       const { error: packagesError } = await supabaseAdmin

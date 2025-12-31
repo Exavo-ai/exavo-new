@@ -7,6 +7,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const logStep = (step: string, details?: unknown) => {
+  console.log(`[CREATE-PACKAGE-CHECKOUT] ${step}`, details ? JSON.stringify(details) : "");
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -22,7 +26,9 @@ serve(async (req) => {
       );
     }
 
-    // Get package details including stripe_price_id
+    logStep("Request received", { packageId });
+
+    // Get package details with service payment_model
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -30,7 +36,7 @@ serve(async (req) => {
 
     const { data: packageData, error: packageError } = await supabase
       .from('service_packages')
-      .select('*, services(name)')
+      .select('*, services(id, name, payment_model)')
       .eq('id', packageId)
       .single();
 
@@ -42,25 +48,20 @@ serve(async (req) => {
       );
     }
 
-    // Check if package has a Stripe price ID
-    if (!packageData.stripe_price_id) {
-      console.error('Package has no Stripe price configured:', packageId);
-      return new Response(
-        JSON.stringify({ error: 'This package is not available for online payment. Please contact us for a custom quote.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const service = packageData.services as { id: string; name: string; payment_model: string } | null;
+    const paymentModel = service?.payment_model || 'one_time';
+    
+    logStep("Package found", { 
+      packageName: packageData.package_name, 
+      paymentModel,
+      price: packageData.price,
+      buildCost: packageData.build_cost,
+      monthlyFee: packageData.monthly_fee
+    });
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2025-08-27.basil',
     });
-
-    // Check for existing customer
-    let customerId: string | undefined;
-    if (customerEmail) {
-      const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
-      customerId = customers.data.length > 0 ? customers.data[0].id : undefined;
-    }
 
     // Get user from auth header - REQUIRED for booking creation
     const authHeader = req.headers.get('Authorization');
@@ -86,48 +87,174 @@ serve(async (req) => {
     }
     
     const userId = user.id;
+    logStep("User authenticated", { userId, email: user.email });
 
-    const serviceName = packageData.services?.name || 'Service';
+    // Check for existing Stripe customer
+    let customerId: string | undefined;
+    const email = customerEmail || user.email;
+    if (email) {
+      const customers = await stripe.customers.list({ email, limit: 1 });
+      customerId = customers.data.length > 0 ? customers.data[0].id : undefined;
+      if (customerId) {
+        logStep("Found existing customer", { customerId });
+      }
+    }
+
+    const serviceName = service?.name || 'Service';
     const origin = req.headers.get('origin') || 'https://exavo.ai';
 
-    // Create Stripe Checkout session
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      customer_email: customerId ? undefined : customerEmail,
-      client_reference_id: userId || undefined,
-      line_items: [
-        {
-          price: packageData.stripe_price_id,
+    // Handle based on payment model
+    if (paymentModel === 'subscription') {
+      // SUBSCRIPTION: Build cost (one-time) + Monthly fee (recurring)
+      const buildCost = packageData.build_cost || 0;
+      const monthlyFee = packageData.monthly_fee || 0;
+
+      if (monthlyFee <= 0) {
+        return new Response(
+          JSON.stringify({ error: 'This subscription package has no monthly fee configured' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+
+      // Add build cost as one-time line item if > 0
+      if (buildCost > 0) {
+        lineItems.push({
+          price_data: {
+            currency: packageData.currency?.toLowerCase() || 'usd',
+            product_data: {
+              name: `${serviceName} - ${packageData.package_name} (Build Cost)`,
+              description: 'One-time setup and build fee',
+            },
+            unit_amount: Math.round(buildCost * 100),
+          },
           quantity: 1,
+        });
+      }
+
+      // Add monthly subscription
+      lineItems.push({
+        price_data: {
+          currency: packageData.currency?.toLowerCase() || 'usd',
+          product_data: {
+            name: `${serviceName} - ${packageData.package_name} (Monthly)`,
+            description: 'Monthly subscription fee including hosting & support',
+          },
+          unit_amount: Math.round(monthlyFee * 100),
+          recurring: {
+            interval: 'month',
+          },
         },
-      ],
-      mode: 'payment',
-      success_url: successUrl || `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl || `${origin}/services`,
-      metadata: {
-        lovable_user_id: userId,
-        package_id: packageId,
-        service_id: packageData.service_id,
-        service_name: serviceName,
-        package_name: packageData.package_name,
-        customer_name: customerName || user.user_metadata?.full_name || '',
-      },
-    });
+        quantity: 1,
+      });
 
-    console.log(`Checkout session created for package ${packageData.package_name}: ${session.id}`);
+      logStep("Creating subscription checkout", { buildCost, monthlyFee, lineItemsCount: lineItems.length });
 
-    return new Response(
-      JSON.stringify({ 
-        sessionId: session.id, 
-        url: session.url,
-        package: {
-          name: packageData.package_name,
-          price: packageData.price,
-          currency: packageData.currency,
-        }
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        customer_email: customerId ? undefined : email,
+        client_reference_id: userId,
+        line_items: lineItems,
+        mode: 'subscription',
+        success_url: successUrl || `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: cancelUrl || `${origin}/services`,
+        metadata: {
+          lovable_user_id: userId,
+          package_id: packageId,
+          service_id: service?.id || '',
+          service_name: serviceName,
+          package_name: packageData.package_name,
+          customer_name: customerName || user.user_metadata?.full_name || '',
+          payment_model: 'subscription',
+          build_cost: buildCost.toString(),
+          monthly_fee: monthlyFee.toString(),
+        },
+      });
+
+      logStep("Subscription checkout session created", { sessionId: session.id });
+
+      return new Response(
+        JSON.stringify({ 
+          sessionId: session.id, 
+          url: session.url,
+          package: {
+            name: packageData.package_name,
+            build_cost: buildCost,
+            monthly_fee: monthlyFee,
+            currency: packageData.currency,
+            payment_model: 'subscription',
+          }
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } else {
+      // ONE-TIME PAYMENT
+      const price = packageData.price || 0;
+
+      if (price <= 0) {
+        return new Response(
+          JSON.stringify({ error: 'This package has no price configured. Please contact us for a custom quote.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      logStep("Creating one-time checkout", { price });
+
+      // Check if package has a Stripe price ID for one-time, otherwise use price_data
+      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = packageData.stripe_price_id 
+        ? [{
+            price: packageData.stripe_price_id,
+            quantity: 1,
+          }]
+        : [{
+            price_data: {
+              currency: packageData.currency?.toLowerCase() || 'usd',
+              product_data: {
+                name: `${serviceName} - ${packageData.package_name}`,
+                description: packageData.description || 'One-time purchase',
+              },
+              unit_amount: Math.round(price * 100),
+            },
+            quantity: 1,
+          }];
+
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        customer_email: customerId ? undefined : email,
+        client_reference_id: userId,
+        line_items: lineItems,
+        mode: 'payment',
+        success_url: successUrl || `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: cancelUrl || `${origin}/services`,
+        metadata: {
+          lovable_user_id: userId,
+          package_id: packageId,
+          service_id: service?.id || '',
+          service_name: serviceName,
+          package_name: packageData.package_name,
+          customer_name: customerName || user.user_metadata?.full_name || '',
+          payment_model: 'one_time',
+        },
+      });
+
+      logStep("One-time checkout session created", { sessionId: session.id });
+
+      return new Response(
+        JSON.stringify({ 
+          sessionId: session.id, 
+          url: session.url,
+          package: {
+            name: packageData.package_name,
+            price: price,
+            currency: packageData.currency,
+            payment_model: 'one_time',
+          }
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
   } catch (error: unknown) {
     console.error('Checkout error:', error);
