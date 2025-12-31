@@ -20,7 +20,13 @@ serve(async (req) => {
     logStep("Function started");
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    if (!stripeKey) {
+      logStep("ERROR", { message: "Stripe secret key not configured" });
+      return new Response(
+        JSON.stringify({ ok: false, error: "Stripe secret key not configured" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
@@ -75,7 +81,11 @@ serve(async (req) => {
     }
 
     if (!projectSub.stripe_subscription_id) {
-      throw new Error("No Stripe subscription ID found");
+      logStep("ERROR", { message: "Missing stripe_subscription_id" });
+      return new Response(
+        JSON.stringify({ ok: false, error: "No active Stripe subscription found for this project. Please contact support." }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
     }
 
     if (projectSub.status === "canceled") {
@@ -117,7 +127,9 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
-        success: true, 
+        ok: true, 
+        status: "canceled",
+        cancel_at_period_end: true,
         message: "Subscription will be canceled at period end",
         access_until: new Date(updatedSubscription.current_period_end * 1000).toISOString()
       }),

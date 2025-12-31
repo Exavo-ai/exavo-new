@@ -501,8 +501,10 @@ export function useProject(projectId: string | undefined) {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
 
-      if (error) throw new Error(error.message);
+      // Check for error in response body first (edge function returns JSON errors)
       if (data?.error) throw new Error(data.error);
+      // Then check for invoke-level error
+      if (error) throw new Error(error.message || "Failed to cancel subscription");
 
       toast({ 
         title: "Subscription canceled",
