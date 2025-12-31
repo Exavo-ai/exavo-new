@@ -160,11 +160,12 @@ serve(async (req) => {
 
     logStep("Payment recorded successfully", { paymentId: newPayment.id });
 
-    // Create a booking (appointment) AND project immediately for service purchases
-    if (session.mode === "payment" && session.metadata?.service_id) {
+    // Create a booking (appointment) AND project immediately for ALL service purchases
+    if (session.metadata?.service_id) {
       const customerName = session.customer_details?.name || session.metadata?.customer_name || "Customer";
       const customerEmail = session.customer_email || session.customer_details?.email || "";
       const serviceName = session.metadata?.service_name || "Service Project";
+      const paymentModel = session.metadata?.payment_model || (session.mode === "subscription" ? "subscription" : "one_time");
 
       // Check if booking already exists for this session (using stripe_session_id stored in notes)
       const { data: existingBooking } = await supabaseAdmin
@@ -190,7 +191,7 @@ serve(async (req) => {
             appointment_time: "TBD",
             status: "pending",
             project_status: "not_started",
-            notes: `stripe_session:${session_id}\nService: ${serviceName}\nPackage: ${session.metadata?.package_name || "Unknown"}\nPayment: $${(session.amount_total || 0) / 100}`,
+            notes: `stripe_session:${session_id}\nService: ${serviceName}\nPackage: ${session.metadata?.package_name || "Unknown"}\nPayment: $${(session.amount_total || 0) / 100}\nPayment Model: ${paymentModel}`,
           })
           .select("id")
           .single();
@@ -199,7 +200,7 @@ serve(async (req) => {
           logStep("ERROR: Failed to create booking", { error: bookingError });
         } else {
           bookingId = newBooking.id;
-          logStep("Booking created for service purchase", { userId, bookingId });
+          logStep("Booking created for service purchase", { userId, bookingId, mode: session.mode });
         }
       } else {
         bookingId = existingBooking.id;
@@ -216,7 +217,7 @@ serve(async (req) => {
           .maybeSingle();
 
         if (!existingProject) {
-          const { error: projectError } = await supabaseAdmin
+          const { data: newProject, error: projectError } = await supabaseAdmin
             .from("projects")
             .insert({
               user_id: userId,
@@ -227,10 +228,13 @@ serve(async (req) => {
               name: serviceName,
               title: serviceName,
               description: `Project for ${customerName}`,
-              status: "pending", // Client sees it immediately with pending status
+              status: "pending",
               progress: 0,
               start_date: new Date().toISOString().split("T")[0],
-            });
+              payment_model: paymentModel,
+            })
+            .select("id")
+            .single();
 
           if (projectError) {
             // Ignore duplicate key errors (project already exists)
@@ -240,7 +244,42 @@ serve(async (req) => {
               logStep("Project already exists (duplicate key)", { bookingId });
             }
           } else {
-            logStep("Project created for client", { userId, bookingId });
+            logStep("Project created for client", { userId, bookingId, projectId: newProject.id });
+
+            // For subscriptions: create project_subscription record
+            if (session.mode === "subscription" && session.subscription) {
+              const subscriptionId = typeof session.subscription === "string" 
+                ? session.subscription 
+                : (session.subscription as any).id;
+              
+              try {
+                const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+                const customerId = typeof session.customer === "string" 
+                  ? session.customer 
+                  : (session.customer as any)?.id || null;
+
+                const { error: subError } = await supabaseAdmin
+                  .from("project_subscriptions")
+                  .insert({
+                    project_id: newProject.id,
+                    stripe_subscription_id: subscriptionId,
+                    stripe_customer_id: customerId,
+                    status: subscription.status,
+                    next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
+                  });
+
+                if (subError) {
+                  logStep("ERROR: Failed to create project subscription", { error: subError });
+                } else {
+                  logStep("Project subscription created", { 
+                    projectId: newProject.id, 
+                    subscriptionId 
+                  });
+                }
+              } catch (e) {
+                logStep("ERROR: Failed to retrieve subscription details", { error: e });
+              }
+            }
           }
         } else {
           logStep("Project already exists for booking", { bookingId, projectId: existingProject.id });
