@@ -111,31 +111,8 @@ serve(async (req) => {
             }
           }
 
-          // Insert payment record
-          const { error: insertError } = await supabaseAdmin
-            .from("payments")
-            .insert({
-              user_id: lovableUserId,
-              stripe_session_id: session.id,
-              amount: (session.amount_total || 0) / 100,
-              currency: (session.currency || "usd").toUpperCase(),
-              status: "paid",
-              description,
-              customer_email: session.customer_email,
-              customer_name: session.customer_details?.name || null,
-              service_id: session.metadata?.service_id || null,
-              package_id: session.metadata?.package_id || null,
-              stripe_receipt_url: receiptUrl,
-              payment_method: session.payment_method_types?.[0] || "card",
-            });
-
-          if (insertError) {
-            logStep("ERROR: Failed to insert payment", { error: insertError });
-          } else {
-            logStep("Payment record created", { userId: lovableUserId, sessionId: session.id, receiptUrl });
-          }
-
-          // Create booking AND project for ALL service purchases (both one-time and subscription)
+          // Create booking first if service purchase (needed for payment linkage)
+          let appointmentId: string | null = null;
           if (session.metadata?.service_id) {
             const customerName = session.customer_details?.name || session.metadata?.customer_name || "Customer";
             const customerEmail = session.customer_email || "";
@@ -169,76 +146,118 @@ serve(async (req) => {
                 bookingId: newBooking.id,
                 mode: session.mode 
               });
+              appointmentId = newBooking.id;
+            }
+          }
 
-              // Create project immediately linked to booking (client sees it right away)
-              const { data: newProject, error: projectError } = await supabaseAdmin
-                .from("projects")
-                .insert({
-                  user_id: lovableUserId,
-                  client_id: lovableUserId,
-                  workspace_id: lovableUserId,
-                  service_id: session.metadata.service_id,
-                  appointment_id: newBooking.id,
-                  name: serviceName,
-                  title: serviceName,
-                  description: `Project for ${customerName}`,
-                  status: "pending", // Client sees it immediately with pending status
-                  progress: 0,
-                  start_date: new Date().toISOString().split("T")[0],
-                  payment_model: paymentModel,
-                })
-                .select("id")
-                .single();
+          // Insert payment record (with appointment_id if available)
+          const { error: insertError } = await supabaseAdmin
+            .from("payments")
+            .insert({
+              user_id: lovableUserId,
+              stripe_session_id: session.id,
+              amount: (session.amount_total || 0) / 100,
+              currency: (session.currency || "usd").toUpperCase(),
+              status: "paid",
+              description,
+              customer_email: session.customer_email,
+              customer_name: session.customer_details?.name || null,
+              service_id: session.metadata?.service_id || null,
+              package_id: session.metadata?.package_id || null,
+              stripe_receipt_url: receiptUrl,
+              payment_method: session.payment_method_types?.[0] || "card",
+              appointment_id: appointmentId,
+            });
 
-              if (projectError) {
-                // Ignore duplicate key errors
-                if (projectError.code !== "23505") {
-                  logStep("ERROR: Failed to create project", { error: projectError });
-                } else {
-                  logStep("Project already exists (duplicate key)", { bookingId: newBooking.id });
-                }
+          if (insertError) {
+            logStep("ERROR: Failed to insert payment", { error: insertError });
+          } else {
+            logStep("Payment record created", { userId: lovableUserId, sessionId: session.id, receiptUrl, appointmentId });
+          }
+
+          // Create project if booking was created
+          if (appointmentId && session.metadata?.service_id) {
+            const customerName = session.customer_details?.name || session.metadata?.customer_name || "Customer";
+            const serviceName = session.metadata?.service_name || "Service Project";
+            const paymentModel = session.metadata?.payment_model || (session.mode === "subscription" ? "subscription" : "one_time");
+
+            // Create project immediately linked to booking (client sees it right away)
+            const { data: newProject, error: projectError } = await supabaseAdmin
+              .from("projects")
+              .insert({
+                user_id: lovableUserId,
+                client_id: lovableUserId,
+                workspace_id: lovableUserId,
+                service_id: session.metadata.service_id,
+                appointment_id: appointmentId,
+                name: serviceName,
+                title: serviceName,
+                description: `Project for ${customerName}`,
+                status: "pending",
+                progress: 0,
+                start_date: new Date().toISOString().split("T")[0],
+                payment_model: paymentModel,
+              })
+              .select("id")
+              .single();
+
+            let finalProjectId: string | null = null;
+
+            if (projectError) {
+              if (projectError.code === "23505") {
+                logStep("Project already exists, fetching existing", { appointmentId });
+                const { data: existingProject } = await supabaseAdmin
+                  .from("projects")
+                  .select("id")
+                  .eq("appointment_id", appointmentId)
+                  .maybeSingle();
+                finalProjectId = existingProject?.id || null;
               } else {
-                logStep("Project created for client", { 
-                  userId: lovableUserId, 
-                  bookingId: newBooking.id,
-                  projectId: newProject.id 
-                });
+                logStep("ERROR: Failed to create project", { error: projectError });
+              }
+            } else {
+              logStep("Project created for client", { 
+                userId: lovableUserId, 
+                appointmentId,
+                projectId: newProject.id 
+              });
+              finalProjectId = newProject.id;
+            }
 
-                // For subscriptions: create project_subscription record
-                if (session.mode === "subscription" && session.subscription) {
-                  const subscriptionId = typeof session.subscription === "string" 
-                    ? session.subscription 
-                    : session.subscription.id;
-                  
-                  try {
-                    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-                    const customerId = typeof session.customer === "string" 
-                      ? session.customer 
-                      : session.customer?.id || null;
+            // For subscriptions: create/upsert project_subscription record
+            if (session.mode === "subscription" && session.subscription && finalProjectId) {
+              const subscriptionId = typeof session.subscription === "string" 
+                ? session.subscription 
+                : session.subscription.id;
+              
+              try {
+                const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+                const customerId = typeof session.customer === "string" 
+                  ? session.customer 
+                  : session.customer?.id || null;
 
-                    const { error: subError } = await supabaseAdmin
-                      .from("project_subscriptions")
-                      .insert({
-                        project_id: newProject.id,
-                        stripe_subscription_id: subscriptionId,
-                        stripe_customer_id: customerId,
-                        status: subscription.status,
-                        next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
-                      });
+                const { error: subError } = await supabaseAdmin
+                  .from("project_subscriptions")
+                  .upsert({
+                    project_id: finalProjectId,
+                    stripe_subscription_id: subscriptionId,
+                    stripe_customer_id: customerId,
+                    status: subscription.status,
+                    next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
+                  }, { onConflict: "project_id" });
 
-                    if (subError) {
-                      logStep("ERROR: Failed to create project subscription", { error: subError });
-                    } else {
-                      logStep("Project subscription created", { 
-                        projectId: newProject.id, 
-                        subscriptionId,
-                        nextRenewal: new Date(subscription.current_period_end * 1000).toISOString()
-                      });
-                    }
-                  } catch (e) {
-                    logStep("ERROR: Failed to retrieve subscription details", { error: e });
-                  }
+                if (subError) {
+                  logStep("ERROR: Failed to upsert project subscription", { error: subError });
+                } else {
+                  logStep("Project subscription upserted", { 
+                    projectId: finalProjectId, 
+                    subscriptionId,
+                    status: subscription.status,
+                    nextRenewal: new Date(subscription.current_period_end * 1000).toISOString()
+                  });
                 }
+              } catch (e) {
+                logStep("ERROR: Failed to retrieve subscription details", { error: e });
               }
             }
           }
