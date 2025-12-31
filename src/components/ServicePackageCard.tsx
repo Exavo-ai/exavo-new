@@ -34,44 +34,35 @@ export function ServicePackageCard({ packageData, isPopular, onSelect, customerE
   const { toast } = useToast();
 
   const handleSelectPackage = async () => {
-    // If package has a Stripe price, go directly to checkout
-    if (packageData.stripe_price_id && packageData.price > 0) {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase.functions.invoke('create-package-checkout', {
-          body: {
-            packageId: packageData.id,
-            customerEmail,
-            customerName,
-          }
-        });
-
-        if (error) throw error;
-
-        if (data?.url) {
-          window.open(data.url, '_blank');
-        } else {
-          throw new Error('No checkout URL returned');
+    // Always go directly to Stripe checkout
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-package-checkout', {
+        body: {
+          packageId: packageData.id,
+          customerEmail,
+          customerName,
         }
-      } catch (error: any) {
-        console.error('Checkout error:', error);
-        toast({
-          title: "Checkout Error",
-          description: error.message || "Failed to start checkout. Please try again.",
-          variant: "destructive",
-        });
-        // Fallback to booking form
-        onSelect();
-      } finally {
-        setLoading(false);
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      } else {
+        throw new Error('No checkout URL returned');
       }
-    } else {
-      // No Stripe price - use booking form for custom quote
-      onSelect();
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      toast({
+        title: "Checkout Error",
+        description: error.message || "Failed to start checkout. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
-
-  const hasStripeCheckout = packageData.stripe_price_id && packageData.price > 0;
 
   return (
     <Card className={`relative ${isPopular ? 'border-primary shadow-lg scale-105' : ''}`}>
@@ -87,14 +78,10 @@ export function ServicePackageCard({ packageData, isPopular, onSelect, customerE
           <p className="text-sm text-muted-foreground mt-2">{packageData.description}</p>
         )}
         <CardDescription className="mt-3">
-          {packageData.price > 0 ? (
-            <span className="text-3xl font-bold text-foreground">
-              {packageData.currency === 'USD' ? '$' : packageData.currency}
-              {packageData.price}
-            </span>
-          ) : (
-            <span className="text-xl font-semibold text-muted-foreground">Contact for Quote</span>
-          )}
+          <span className="text-3xl font-bold text-foreground">
+            {packageData.currency === 'USD' ? '$' : packageData.currency}
+            {packageData.price}
+          </span>
         </CardDescription>
       </CardHeader>
 
@@ -135,10 +122,8 @@ export function ServicePackageCard({ packageData, isPopular, onSelect, customerE
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Processing...
             </>
-          ) : hasStripeCheckout ? (
-            "Buy Now"
           ) : (
-            "Request Quote"
+            "Buy Now"
           )}
         </Button>
       </CardFooter>
