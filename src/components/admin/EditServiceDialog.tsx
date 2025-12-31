@@ -47,6 +47,8 @@ interface Package {
   package_order: number;
   images: string[];
   videos: string[];
+  build_cost: number;
+  monthly_fee: number;
 }
 
 interface EditServiceDialogProps {
@@ -116,10 +118,12 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
         package_order: pkg.package_order,
         images: Array.isArray(pkg.images) ? pkg.images as string[] : [],
         videos: Array.isArray(pkg.videos) ? pkg.videos as string[] : [],
+        build_cost: (pkg as any).build_cost || 0,
+        monthly_fee: (pkg as any).monthly_fee || 0,
       })));
     } else {
       setPackages([
-        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [] },
+        { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [], build_cost: 0, monthly_fee: 0 },
       ]);
     }
   };
@@ -151,6 +155,8 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
       package_order: packages.length,
       images: [],
       videos: [],
+      build_cost: 0,
+      monthly_fee: 0,
     }]);
   };
 
@@ -208,6 +214,26 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
       pkg.package_name.trim() && pkg.features.some(f => f.trim())
     );
 
+    // Validate package pricing based on payment model
+    for (const pkg of validPackages) {
+      if (paymentModel === "one_time" && pkg.price <= 0) {
+        toast({
+          title: "Validation Error",
+          description: `Package "${pkg.package_name}" requires a one-time price greater than 0`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (paymentModel === "subscription" && pkg.monthly_fee <= 0) {
+        toast({
+          title: "Validation Error",
+          description: `Package "${pkg.package_name}" requires a monthly fee greater than 0`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase.functions.invoke('admin-update-service', {
@@ -230,6 +256,9 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
           packages: validPackages.map(pkg => ({
             ...pkg,
             features: pkg.features.filter(f => f.trim()),
+            // Pass the correct pricing fields based on payment model
+            build_cost: paymentModel === "subscription" ? pkg.build_cost : 0,
+            monthly_fee: paymentModel === "subscription" ? pkg.monthly_fee : 0,
           })),
         },
       });
@@ -440,26 +469,67 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Price</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={pkg.price}
-                        onChange={(e) => updatePackage(pkgIndex, 'price', parseFloat(e.target.value))}
-                      />
+                  {/* Conditional Pricing based on payment_model */}
+                  {paymentModel === "one_time" ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label>One-time Price <span className="text-destructive">*</span></Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={pkg.price}
+                          onChange={(e) => updatePackage(pkgIndex, 'price', parseFloat(e.target.value) || 0)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Currency</Label>
+                        <Input
+                          value={pkg.currency}
+                          onChange={(e) => updatePackage(pkgIndex, 'currency', e.target.value)}
+                          placeholder="USD"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Currency</Label>
-                      <Input
-                        value={pkg.currency}
-                        onChange={(e) => updatePackage(pkgIndex, 'currency', e.target.value)}
-                        placeholder="USD"
-                      />
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label>Build Cost</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={pkg.build_cost}
+                            onChange={(e) => updatePackage(pkgIndex, 'build_cost', parseFloat(e.target.value) || 0)}
+                            placeholder="0.00"
+                          />
+                          <p className="text-xs text-muted-foreground">One-time (optional)</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Monthly Fee <span className="text-destructive">*</span></Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={pkg.monthly_fee}
+                            onChange={(e) => updatePackage(pkgIndex, 'monthly_fee', parseFloat(e.target.value) || 0)}
+                            placeholder="0.00"
+                          />
+                          <p className="text-xs text-muted-foreground">Recurring</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Currency</Label>
+                        <Input
+                          value={pkg.currency}
+                          onChange={(e) => updatePackage(pkgIndex, 'currency', e.target.value)}
+                          placeholder="USD"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label>Delivery Time</Label>
