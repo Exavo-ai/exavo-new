@@ -12,11 +12,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { serviceSchema } from "@/lib/validation";
-import { Plus, X } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, X, DollarSign, RefreshCw } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 interface CreateServiceDialogProps {
   open: boolean;
@@ -37,6 +38,8 @@ interface Package {
   videos: string[];
 }
 
+type PaymentModel = "one_time" | "subscription";
+
 export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateServiceDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -47,6 +50,12 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
     category: "",
     active: true,
     image_url: "",
+    payment_model: "one_time" as PaymentModel,
+    // One-time payment fields
+    price: 0,
+    // Subscription fields
+    build_cost: 0,
+    monthly_fee: 0,
   });
   const [packages, setPackages] = useState<Package[]>([
     { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [] },
@@ -122,10 +131,19 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!formData.payment_model) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a payment model",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const result = serviceSchema.safeParse({
       name: formData.name,
       description: formData.description,
-      price: 0, // Price is now at package level
+      price: formData.payment_model === "one_time" ? formData.price : formData.build_cost,
       currency: "USD",
     });
     
@@ -159,11 +177,14 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
           name_ar: formData.name,
           description: formData.description,
           description_ar: formData.description,
-          price: 0, // Price is now at package level
+          price: formData.payment_model === "one_time" ? formData.price : formData.build_cost,
           currency: "USD",
           category: formData.category,
           active: formData.active,
           image_url: formData.image_url || null,
+          payment_model: formData.payment_model,
+          build_cost: formData.payment_model === "subscription" ? formData.build_cost : 0,
+          monthly_fee: formData.payment_model === "subscription" ? formData.monthly_fee : 0,
           packages: validPackages.map(pkg => ({
             ...pkg,
             features: pkg.features.filter(f => f.trim()),
@@ -187,6 +208,10 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
         category: "",
         active: true,
         image_url: "",
+        payment_model: "one_time",
+        price: 0,
+        build_cost: 0,
+        monthly_fee: 0,
       });
       setPackages([
         { package_name: "Basic", description: "", price: 0, currency: "USD", features: [""], delivery_time: "", notes: "", package_order: 0, images: [], videos: [] },
@@ -235,6 +260,105 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
             />
           </div>
 
+          {/* Payment Model Selection - REQUIRED */}
+          <Card className="border-2 border-primary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <DollarSign className="w-5 h-5" />
+                Payment Model <span className="text-destructive">*</span>
+              </CardTitle>
+              <CardDescription>
+                Select the billing model for this service. This cannot be changed after creation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup
+                value={formData.payment_model}
+                onValueChange={(value: PaymentModel) => setFormData({ ...formData, payment_model: value })}
+                className="grid grid-cols-1 md:grid-cols-2 gap-4"
+              >
+                <div className="relative">
+                  <RadioGroupItem value="one_time" id="one_time" className="peer sr-only" />
+                  <Label
+                    htmlFor="one_time"
+                    className="flex flex-col gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 hover:bg-muted/50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-primary" />
+                      <span className="font-semibold">One-time Payment</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Client pays once, owns the system. No recurring fees.
+                    </p>
+                  </Label>
+                </div>
+                <div className="relative">
+                  <RadioGroupItem value="subscription" id="subscription" className="peer sr-only" />
+                  <Label
+                    htmlFor="subscription"
+                    className="flex flex-col gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 hover:bg-muted/50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="w-5 h-5 text-primary" />
+                      <span className="font-semibold">Subscription</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Build cost + monthly fee. Includes hosting & support.
+                    </p>
+                  </Label>
+                </div>
+              </RadioGroup>
+
+              {/* Conditional Pricing Fields */}
+              <div className="mt-6 space-y-4">
+                {formData.payment_model === "one_time" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="price">One-time Price (USD)</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                )}
+
+                {formData.payment_model === "subscription" && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="build_cost">Build Cost (USD)</Label>
+                      <Input
+                        id="build_cost"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.build_cost}
+                        onChange={(e) => setFormData({ ...formData, build_cost: parseFloat(e.target.value) || 0 })}
+                        placeholder="One-time build fee"
+                      />
+                      <p className="text-xs text-muted-foreground">Charged once at start</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="monthly_fee">Monthly Fee (USD)</Label>
+                      <Input
+                        id="monthly_fee"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.monthly_fee}
+                        onChange={(e) => setFormData({ ...formData, monthly_fee: parseFloat(e.target.value) || 0 })}
+                        placeholder="Recurring monthly fee"
+                      />
+                      <p className="text-xs text-muted-foreground">Recurring each month</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>

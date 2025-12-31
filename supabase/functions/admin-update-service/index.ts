@@ -29,6 +29,9 @@ const updateServiceSchema = z.object({
     category: uuidSchema,
     active: z.boolean(),
     image_url: z.string().url("Invalid image URL").nullable().optional(),
+    // Note: payment_model is intentionally excluded - it cannot be changed after creation
+    build_cost: z.number().min(0).max(1000000).default(0),
+    monthly_fee: z.number().min(0).max(1000000).default(0),
   }),
   packages: z.array(packageSchema).max(10, "Too many packages").optional(),
 });
