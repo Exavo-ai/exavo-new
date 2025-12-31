@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import ProjectFileUploadDialog from "@/components/portal/ProjectFileUploadDialog";
 import { CreateTicketDialog } from "@/components/portal/CreateTicketDialog";
+import { ProjectBillingTab } from "@/components/portal/ProjectBillingTab";
 
 const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
   switch (status.toLowerCase()) {
@@ -72,13 +73,17 @@ export default function ProjectDetailPage() {
     files,
     deliveries,
     invoices,
+    subscription,
+    monthlyFee,
     tickets,
     loading,
     error,
+    cancellingSubscription,
     refetch,
     addComment,
     requestRevision,
     deleteFile,
+    cancelSubscription,
   } = useProject(projectId);
 
   const [newComment, setNewComment] = useState("");
@@ -582,63 +587,29 @@ export default function ProjectDetailPage() {
 
         {/* Billing Tab */}
         <TabsContent value="billing">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Receipt className="w-5 h-5" />
-                Invoices
-              </CardTitle>
-              <CardDescription>Payment history for this project</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {invoices.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No invoices yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {invoices.map((invoice) => (
-                    <div
-                      key={invoice.id}
-                      className="flex items-center justify-between p-3 rounded-lg border"
-                    >
-                      <div>
-                        <p className="font-medium">
-                          {invoice.currency} {invoice.amount.toFixed(2)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(invoice.created_at), "MMM d, yyyy")}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant={
-                            invoice.status === "paid"
-                              ? "default"
-                              : invoice.status === "pending"
-                              ? "secondary"
-                              : "destructive"
-                          }
-                        >
-                          {invoice.status}
-                        </Badge>
-                        {(invoice.pdf_url || invoice.hosted_invoice_url || (invoice as any).stripe_receipt_url) && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a 
-                              href={(invoice as any).stripe_receipt_url || invoice.pdf_url || invoice.hosted_invoice_url || "#"} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="w-4 h-4 mr-1" />
-                              View Receipt
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ProjectBillingTab
+            paymentModel={project.payment_model as "one_time" | "subscription" | null}
+            invoices={invoices.map(inv => ({
+              id: inv.id,
+              amount: inv.amount,
+              currency: inv.currency,
+              status: inv.status,
+              created_at: inv.created_at,
+              pdf_url: inv.pdf_url,
+              hosted_invoice_url: inv.hosted_invoice_url,
+              stripe_receipt_url: inv.stripe_receipt_url,
+              description: inv.description,
+            }))}
+            subscription={subscription ? {
+              id: subscription.id,
+              status: subscription.status,
+              next_renewal_date: subscription.next_renewal_date,
+              stripe_subscription_id: subscription.stripe_subscription_id,
+            } : null}
+            monthlyFee={monthlyFee}
+            onCancelSubscription={cancelSubscription}
+            cancellingSubscription={cancellingSubscription}
+          />
         </TabsContent>
       </Tabs>
 

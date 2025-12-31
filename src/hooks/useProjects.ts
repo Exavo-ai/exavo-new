@@ -89,7 +89,20 @@ export interface ProjectInvoice {
   stripe_invoice_id: string | null;
   pdf_url: string | null;
   hosted_invoice_url: string | null;
+  stripe_receipt_url?: string | null;
+  description?: string | null;
   created_at: string;
+}
+
+export interface ProjectSubscription {
+  id: string;
+  project_id: string;
+  stripe_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  status: string;
+  next_renewal_date: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export function useProjects() {
@@ -151,15 +164,18 @@ export function useProjects() {
 }
 
 export function useProject(projectId: string | undefined) {
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<(Project & { payment_model?: string })| null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [comments, setComments] = useState<ProjectComment[]>([]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [invoices, setInvoices] = useState<ProjectInvoice[]>([]);
+  const [subscription, setSubscription] = useState<ProjectSubscription | null>(null);
+  const [monthlyFee, setMonthlyFee] = useState<number>(0);
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -242,8 +258,41 @@ export function useProject(projectId: string | undefined) {
         stripe_invoice_id: null,
         pdf_url: p.stripe_receipt_url || null,
         hosted_invoice_url: p.stripe_receipt_url || null,
+        stripe_receipt_url: p.stripe_receipt_url || null,
+        description: p.description || null,
         created_at: p.created_at,
       });
+
+      // Fetch subscription if this is a subscription project
+      if (projectData.payment_model === "subscription") {
+        const { data: subData } = await supabase
+          .from("project_subscriptions")
+          .select("*")
+          .eq("project_id", projectId)
+          .maybeSingle();
+        setSubscription(subData || null);
+
+        // Get monthly fee from booking's package or service
+        if (projectData.appointment_id) {
+          const { data: bookingData } = await supabase
+            .from("appointments")
+            .select("package_id")
+            .eq("id", projectData.appointment_id)
+            .maybeSingle();
+
+          if (bookingData?.package_id) {
+            const { data: pkgData } = await supabase
+              .from("service_packages")
+              .select("monthly_fee")
+              .eq("id", bookingData.package_id)
+              .maybeSingle();
+            setMonthlyFee(Number(pkgData?.monthly_fee) || 0);
+          }
+        }
+      } else {
+        setSubscription(null);
+        setMonthlyFee(0);
+      }
 
       const appointmentId = projectData.appointment_id;
       let booking: { notes: string | null; created_at: string } | null = null;
@@ -442,6 +491,37 @@ export function useProject(projectId: string | undefined) {
     }
   };
 
+  const cancelSubscription = async (): Promise<boolean> => {
+    if (!user || !projectId) return false;
+    setCancellingSubscription(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("cancel-subscription", {
+        body: { project_id: projectId },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      toast({ 
+        title: "Subscription canceled",
+        description: data?.message || "Your subscription will end at the current period." 
+      });
+      loadProject();
+      return true;
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to cancel subscription",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setCancellingSubscription(false);
+    }
+  };
+
   return {
     project,
     milestones,
@@ -449,12 +529,16 @@ export function useProject(projectId: string | undefined) {
     files,
     deliveries,
     invoices,
+    subscription,
+    monthlyFee,
     tickets,
     loading,
     error,
+    cancellingSubscription,
     refetch: loadProject,
     addComment,
     requestRevision,
     deleteFile,
+    cancelSubscription,
   };
 }
