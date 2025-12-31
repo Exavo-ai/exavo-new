@@ -66,11 +66,11 @@ const INTENTS: Record<string, {
   },
   pricing: {
     keywords: ['price', 'pricing', 'cost', 'how much', 'budget', 'money', 'payment', 'pay', 'expensive', 'cheap', 'affordable', 'fee', 'charge', 'rate'],
-    response: "Pricing is package-based and clearly shown per service. Each package has a fixed price depending on scope. Custom pricing is available for complex or enterprise projects. Check our packages for details.",
-    responseAr: "التسعير يعتمد على الباقات ويظهر بوضوح لكل خدمة. كل باقة لها سعر ثابت حسب النطاق. تسعير مخصص متاح للمشاريع المعقدة أو المؤسسية. تحقق من باقاتنا للتفاصيل.",
+    response: "Pricing is package-based and clearly shown per service. Each package has a fixed price. Select a package and proceed directly to checkout.",
+    responseAr: "التسعير يعتمد على الباقات ويظهر بوضوح لكل خدمة. كل باقة لها سعر ثابت. اختر باقة وانتقل مباشرة إلى الدفع.",
     buttons: [
       { label: 'View Packages', labelAr: 'عرض الباقات', action: 'navigate', url: '/services' },
-      { label: 'Request Quote', labelAr: 'طلب عرض سعر', action: 'navigate', url: '/contact' }
+      { label: 'Book a Demo', labelAr: 'احجز عرضًا', action: 'navigate', url: '/contact' }
     ]
   },
   timeline: {

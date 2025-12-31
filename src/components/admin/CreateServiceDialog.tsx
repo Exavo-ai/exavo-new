@@ -468,11 +468,11 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
                         <Label>One-time Price <span className="text-destructive">*</span></Label>
                         <Input
                           type="number"
-                          min="0"
+                          min="1"
                           step="0.01"
                           value={pkg.price}
                           onChange={(e) => updatePackage(pkgIndex, 'price', parseFloat(e.target.value) || 0)}
-                          placeholder="0.00"
+                          placeholder="Required - must be > 0"
                         />
                       </div>
                       <div className="space-y-2">
@@ -503,11 +503,11 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
                           <Label>Monthly Fee <span className="text-destructive">*</span></Label>
                           <Input
                             type="number"
-                            min="0"
+                            min="1"
                             step="0.01"
                             value={pkg.monthly_fee}
                             onChange={(e) => updatePackage(pkgIndex, 'monthly_fee', parseFloat(e.target.value) || 0)}
-                            placeholder="0.00"
+                            placeholder="Required - must be > 0"
                           />
                           <p className="text-xs text-muted-foreground">Recurring</p>
                         </div>

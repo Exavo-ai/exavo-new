@@ -195,7 +195,7 @@ serve(async (req) => {
 
       if (price <= 0) {
         return new Response(
-          JSON.stringify({ error: 'This package has no price configured. Please contact us for a custom quote.' }),
+          JSON.stringify({ error: 'This package requires a valid price. Please contact support.' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
