@@ -691,10 +691,10 @@ export default function AdminProjectDetailPage() {
                         >
                           {invoice.status}
                         </Badge>
-                        {(invoice.pdf_url || invoice.hosted_invoice_url) && (
+                        {(invoice.pdf_url || invoice.hosted_invoice_url || (invoice as any).stripe_receipt_url) && (
                           <Button variant="outline" size="sm" asChild>
                             <a 
-                              href={invoice.pdf_url || invoice.hosted_invoice_url || "#"} 
+                              href={(invoice as any).stripe_receipt_url || invoice.pdf_url || invoice.hosted_invoice_url || "#"} 
                               target="_blank" 
                               rel="noopener noreferrer"
                             >

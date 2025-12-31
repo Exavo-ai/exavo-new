@@ -31,6 +31,21 @@ serve(async (req) => {
 
     logStep("Event received", { type: event.type, id: event.id });
 
+    // Idempotency check - prevent duplicate processing
+    const { data: existingEvent } = await supabaseAdmin
+      .from("webhook_events")
+      .select("event_id")
+      .eq("event_id", event.id)
+      .maybeSingle();
+
+    if (existingEvent) {
+      logStep("Event already processed", { eventId: event.id });
+      return new Response(JSON.stringify({ received: true, duplicate: true }), { status: 200 });
+    }
+
+    // Record event for idempotency
+    await supabaseAdmin.from("webhook_events").insert({ event_id: event.id, type: event.type });
+
     // Handle checkout.session.completed (one-time and subscription initial payments)
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -42,6 +57,7 @@ serve(async (req) => {
         amount: session.amount_total,
         currency: session.currency,
         payment_status: session.payment_status,
+        metadata: session.metadata,
       });
 
       const lovableUserId = session.metadata?.lovable_user_id;
@@ -55,26 +71,47 @@ serve(async (req) => {
           .maybeSingle();
 
         if (!existingPayment) {
-          // Retrieve checkout session with line items for more details
-          const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-            expand: ["line_items", "line_items.data.price.product"],
-          });
-
           let description = session.metadata?.service_name || session.metadata?.package_name || "Payment";
           if (session.mode === "subscription") {
             description = `Subscription: ${description}`;
           }
 
-          // Get receipt URL from payment intent if available
+          // Get receipt URL based on payment mode
           let receiptUrl: string | null = null;
-          if (session.payment_intent && typeof session.payment_intent === "string") {
-            const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
-            if (paymentIntent.latest_charge && typeof paymentIntent.latest_charge === "string") {
-              const charge = await stripe.charges.retrieve(paymentIntent.latest_charge);
-              receiptUrl = charge.receipt_url || null;
+
+          if (session.mode === "payment" && session.payment_intent) {
+            // One-time payment: get receipt from charge
+            const paymentIntentId = typeof session.payment_intent === "string" 
+              ? session.payment_intent 
+              : session.payment_intent.id;
+            try {
+              const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+              if (paymentIntent.latest_charge && typeof paymentIntent.latest_charge === "string") {
+                const charge = await stripe.charges.retrieve(paymentIntent.latest_charge);
+                receiptUrl = charge.receipt_url || null;
+              }
+            } catch (e) {
+              logStep("Could not get receipt URL from payment intent", { error: e });
+            }
+          } else if (session.mode === "subscription" && session.subscription) {
+            // Subscription: get receipt from latest invoice
+            const subscriptionId = typeof session.subscription === "string" 
+              ? session.subscription 
+              : session.subscription.id;
+            try {
+              const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+                expand: ["latest_invoice"],
+              });
+              const invoice = subscription.latest_invoice as Stripe.Invoice | null;
+              if (invoice) {
+                receiptUrl = invoice.hosted_invoice_url || invoice.invoice_pdf || null;
+              }
+            } catch (e) {
+              logStep("Could not get receipt URL from subscription invoice", { error: e });
             }
           }
 
+          // Insert payment record
           const { error: insertError } = await supabaseAdmin
             .from("payments")
             .insert({
@@ -95,14 +132,15 @@ serve(async (req) => {
           if (insertError) {
             logStep("ERROR: Failed to insert payment", { error: insertError });
           } else {
-            logStep("Payment record created", { userId: lovableUserId, sessionId: session.id });
+            logStep("Payment record created", { userId: lovableUserId, sessionId: session.id, receiptUrl });
           }
 
-          // Create booking AND project immediately for service purchases
-          if (session.mode === "payment" && session.metadata?.service_id) {
+          // Create booking AND project for ALL service purchases (both one-time and subscription)
+          if (session.metadata?.service_id) {
             const customerName = session.customer_details?.name || session.metadata?.customer_name || "Customer";
             const customerEmail = session.customer_email || "";
             const serviceName = session.metadata?.service_name || "Service Project";
+            const paymentModel = session.metadata?.payment_model || (session.mode === "subscription" ? "subscription" : "one_time");
 
             // Create booking with status = pending
             const { data: newBooking, error: bookingError } = await supabaseAdmin
@@ -118,7 +156,7 @@ serve(async (req) => {
                 appointment_time: "TBD",
                 status: "pending",
                 project_status: "not_started",
-                notes: `stripe_session:${session.id}\nService: ${serviceName}\nPackage: ${session.metadata?.package_name || "Unknown"}\nPayment: $${(session.amount_total || 0) / 100}`,
+                notes: `stripe_session:${session.id}\nService: ${serviceName}\nPackage: ${session.metadata?.package_name || "Unknown"}\nPayment: $${(session.amount_total || 0) / 100}\nPayment Model: ${paymentModel}`,
               })
               .select("id")
               .single();
@@ -128,11 +166,12 @@ serve(async (req) => {
             } else {
               logStep("Booking created for service purchase", { 
                 userId: lovableUserId, 
-                bookingId: newBooking.id 
+                bookingId: newBooking.id,
+                mode: session.mode 
               });
 
               // Create project immediately linked to booking (client sees it right away)
-              const { error: projectError } = await supabaseAdmin
+              const { data: newProject, error: projectError } = await supabaseAdmin
                 .from("projects")
                 .insert({
                   user_id: lovableUserId,
@@ -146,7 +185,10 @@ serve(async (req) => {
                   status: "pending", // Client sees it immediately with pending status
                   progress: 0,
                   start_date: new Date().toISOString().split("T")[0],
-                });
+                  payment_model: paymentModel,
+                })
+                .select("id")
+                .single();
 
               if (projectError) {
                 // Ignore duplicate key errors
@@ -158,8 +200,45 @@ serve(async (req) => {
               } else {
                 logStep("Project created for client", { 
                   userId: lovableUserId, 
-                  bookingId: newBooking.id 
+                  bookingId: newBooking.id,
+                  projectId: newProject.id 
                 });
+
+                // For subscriptions: create project_subscription record
+                if (session.mode === "subscription" && session.subscription) {
+                  const subscriptionId = typeof session.subscription === "string" 
+                    ? session.subscription 
+                    : session.subscription.id;
+                  
+                  try {
+                    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+                    const customerId = typeof session.customer === "string" 
+                      ? session.customer 
+                      : session.customer?.id || null;
+
+                    const { error: subError } = await supabaseAdmin
+                      .from("project_subscriptions")
+                      .insert({
+                        project_id: newProject.id,
+                        stripe_subscription_id: subscriptionId,
+                        stripe_customer_id: customerId,
+                        status: subscription.status,
+                        next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
+                      });
+
+                    if (subError) {
+                      logStep("ERROR: Failed to create project subscription", { error: subError });
+                    } else {
+                      logStep("Project subscription created", { 
+                        projectId: newProject.id, 
+                        subscriptionId,
+                        nextRenewal: new Date(subscription.current_period_end * 1000).toISOString()
+                      });
+                    }
+                  } catch (e) {
+                    logStep("ERROR: Failed to retrieve subscription details", { error: e });
+                  }
+                }
               }
             }
           }
@@ -167,7 +246,7 @@ serve(async (req) => {
           logStep("Payment already exists for session", { sessionId: session.id });
         }
 
-        // Handle subscription creation
+        // Handle subscription creation in subscriptions table (for user-level subscription tracking)
         if (session.mode === "subscription" && session.subscription) {
           const subscriptionId = typeof session.subscription === "string" 
             ? session.subscription 
@@ -202,7 +281,7 @@ serve(async (req) => {
       const subscription = event.data.object as Stripe.Subscription;
       logStep("subscription.updated", { id: subscription.id, status: subscription.status });
 
-      // Find user by customer ID
+      // Update user-level subscription
       const { data: existingSub } = await supabaseAdmin
         .from("subscriptions")
         .select("user_id")
@@ -221,6 +300,15 @@ serve(async (req) => {
 
         logStep("Subscription updated", { subscriptionId: subscription.id });
       }
+
+      // Update project-level subscription
+      await supabaseAdmin
+        .from("project_subscriptions")
+        .update({
+          status: subscription.status,
+          next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
+        })
+        .eq("stripe_subscription_id", subscription.id);
     }
 
     // Handle subscription cancellation
@@ -233,6 +321,11 @@ serve(async (req) => {
         .update({ status: "canceled" })
         .eq("stripe_subscription_id", subscription.id);
 
+      await supabaseAdmin
+        .from("project_subscriptions")
+        .update({ status: "canceled" })
+        .eq("stripe_subscription_id", subscription.id);
+
       logStep("Subscription marked as canceled", { subscriptionId: subscription.id });
     }
 
@@ -240,7 +333,7 @@ serve(async (req) => {
     if (event.type === "invoice.payment_succeeded") {
       const invoice = event.data.object as Stripe.Invoice;
       
-      // Only process subscription invoices (not one-time payments)
+      // Only process subscription invoices (not one-time payments or initial subscription)
       if (invoice.subscription && invoice.billing_reason !== "subscription_create") {
         logStep("invoice.payment_succeeded (recurring)", { invoiceId: invoice.id });
 
@@ -258,6 +351,27 @@ serve(async (req) => {
             .maybeSingle();
 
           if (!existingPayment) {
+            // Get project subscription to link payment to correct service
+            const { data: projectSub } = await supabaseAdmin
+              .from("project_subscriptions")
+              .select("project_id")
+              .eq("stripe_subscription_id", invoice.subscription)
+              .maybeSingle();
+
+            let serviceId: string | null = null;
+            let appointmentId: string | null = null;
+
+            if (projectSub?.project_id) {
+              const { data: projectData } = await supabaseAdmin
+                .from("projects")
+                .select("service_id, appointment_id")
+                .eq("id", projectSub.project_id)
+                .maybeSingle();
+              
+              serviceId = projectData?.service_id || null;
+              appointmentId = projectData?.appointment_id || null;
+            }
+
             await supabaseAdmin
               .from("payments")
               .insert({
@@ -268,10 +382,11 @@ serve(async (req) => {
                 status: "paid",
                 description: `Subscription renewal`,
                 customer_email: invoice.customer_email,
-                stripe_receipt_url: invoice.hosted_invoice_url,
+                stripe_receipt_url: invoice.hosted_invoice_url || invoice.invoice_pdf || null,
                 payment_method: "card",
+                service_id: serviceId,
+                appointment_id: appointmentId,
               });
-
             logStep("Recurring payment recorded", { invoiceId: invoice.id });
           }
         }
