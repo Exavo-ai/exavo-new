@@ -522,6 +522,81 @@ export function useProject(projectId: string | undefined) {
     }
   };
 
+  const openBillingPortal = async (): Promise<boolean> => {
+    if (!user) return false;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("create-billing-portal", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      if (data?.url) {
+        window.open(data.url, "_blank");
+        return true;
+      }
+      throw new Error("No portal URL returned");
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to open billing portal",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const resubscribe = async (): Promise<boolean> => {
+    if (!user || !project) return false;
+    try {
+      // Get package_id from the appointment
+      let packageId: string | null = null;
+      if (project.appointment_id) {
+        const { data: booking } = await supabase
+          .from("appointments")
+          .select("package_id")
+          .eq("id", project.appointment_id)
+          .maybeSingle();
+        packageId = booking?.package_id || null;
+      }
+
+      if (!packageId) {
+        toast({
+          title: "Error",
+          description: "Cannot find the original package to resubscribe",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("create-subscription-checkout", {
+        body: { 
+          packageId,
+          successUrl: `${window.location.origin}/portal/projects/${projectId}?tab=billing`,
+          cancelUrl: `${window.location.origin}/portal/projects/${projectId}?tab=billing`,
+        },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      if (data?.url) {
+        window.location.href = data.url;
+        return true;
+      }
+      throw new Error("No checkout URL returned");
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to start resubscription",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     project,
     milestones,
@@ -540,5 +615,7 @@ export function useProject(projectId: string | undefined) {
     requestRevision,
     deleteFile,
     cancelSubscription,
+    openBillingPortal,
+    resubscribe,
   };
 }

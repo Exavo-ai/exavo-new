@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Receipt, ExternalLink, Calendar, DollarSign, RefreshCw, XCircle } from "lucide-react";
+import { Receipt, ExternalLink, Calendar, DollarSign, RefreshCw, XCircle, CreditCard, RotateCw } from "lucide-react";
 import { format } from "date-fns";
 
 interface Invoice {
@@ -30,6 +31,8 @@ interface ProjectBillingTabProps {
   monthlyFee?: number;
   onCancelSubscription?: () => void;
   cancellingSubscription?: boolean;
+  onOpenBillingPortal?: () => Promise<boolean>;
+  onResubscribe?: () => Promise<boolean>;
 }
 
 export function ProjectBillingTab({
@@ -39,10 +42,29 @@ export function ProjectBillingTab({
   monthlyFee = 0,
   onCancelSubscription,
   cancellingSubscription = false,
+  onOpenBillingPortal,
+  onResubscribe,
 }: ProjectBillingTabProps) {
+  const [openingPortal, setOpeningPortal] = useState(false);
+  const [resubscribing, setResubscribing] = useState(false);
+
   const isSubscription = paymentModel === "subscription";
   const isActive = subscription?.status === "active";
   const isCanceled = subscription?.status === "canceled";
+
+  const handleOpenBillingPortal = async () => {
+    if (!onOpenBillingPortal) return;
+    setOpeningPortal(true);
+    await onOpenBillingPortal();
+    setOpeningPortal(false);
+  };
+
+  const handleResubscribe = async () => {
+    if (!onResubscribe) return;
+    setResubscribing(true);
+    await onResubscribe();
+    setResubscribing(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -83,8 +105,20 @@ export function ProjectBillingTab({
               </div>
             </div>
 
-            {isActive && onCancelSubscription && (
-              <div className="pt-4 border-t">
+            {/* Action buttons */}
+            <div className="pt-4 border-t flex flex-wrap gap-3">
+              {isActive && onOpenBillingPortal && (
+                <Button
+                  variant="default"
+                  onClick={handleOpenBillingPortal}
+                  disabled={openingPortal}
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  {openingPortal ? "Opening..." : "Manage Billing"}
+                </Button>
+              )}
+
+              {isActive && onCancelSubscription && (
                 <Button
                   variant="outline"
                   className="text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -94,10 +128,24 @@ export function ProjectBillingTab({
                   <XCircle className="w-4 h-4 mr-2" />
                   {cancellingSubscription ? "Cancelling..." : "Cancel Subscription"}
                 </Button>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Cancelling will stop future renewals. Access continues until the current period ends.
-                </p>
-              </div>
+              )}
+
+              {isCanceled && onResubscribe && (
+                <Button
+                  variant="default"
+                  onClick={handleResubscribe}
+                  disabled={resubscribing}
+                >
+                  <RotateCw className="w-4 h-4 mr-2" />
+                  {resubscribing ? "Processing..." : "Resubscribe"}
+                </Button>
+              )}
+            </div>
+
+            {isActive && (
+              <p className="text-xs text-muted-foreground">
+                Use "Manage Billing" to update payment method or view billing details in Stripe.
+              </p>
             )}
 
             {isCanceled && (
