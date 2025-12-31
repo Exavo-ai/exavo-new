@@ -29,6 +29,8 @@ interface ServicePackage {
   delivery_time?: string;
   notes?: string;
   package_order: number;
+  build_cost?: number;
+  monthly_fee?: number;
 }
 
 const iconMap: Record<string, any> = {
@@ -121,6 +123,8 @@ const PortalServiceDetail = () => {
         delivery_time: pkg.delivery_time || undefined,
         notes: pkg.notes || undefined,
         package_order: pkg.package_order,
+        build_cost: pkg.build_cost || 0,
+        monthly_fee: pkg.monthly_fee || 0,
       })));
     }
     setPackagesLoading(false);
@@ -309,49 +313,75 @@ const PortalServiceDetail = () => {
               {language === 'ar' ? 'لا توجد باقات متاحة حاليًا' : 'No packages available currently'}
             </div>
           ) : (
-            <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
-              {packages.map((pkg, index) => (
-                <Card key={pkg.id} className={`p-4 sm:p-6 relative ${index === 1 ? 'border-primary shadow-glow md:scale-105' : ''}`}>
-                  {index === 1 && (
-                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary">
-                      {language === 'ar' ? 'الأكثر شيوعًا' : 'Most Popular'}
-                    </Badge>
-                  )}
-                  <h3 className="text-lg sm:text-xl font-bold mb-2">{pkg.package_name}</h3>
-                  {pkg.description && (
-                    <p className="text-sm text-muted-foreground mb-3">{pkg.description}</p>
-                  )}
-                  <div className="text-2xl sm:text-3xl font-bold text-primary mb-4">
-                    {pkg.currency === 'USD' ? '$' : pkg.currency}{pkg.price.toLocaleString()}
-                  </div>
-                  {pkg.delivery_time && (
-                    <Badge variant="outline" className="mb-4">
-                      ⏱️ {pkg.delivery_time}
-                    </Badge>
-                  )}
-                  <ul className="space-y-2 sm:space-y-3 mb-6">
-                    {pkg.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <Check className="w-4 sm:w-5 h-4 sm:h-5 text-primary flex-shrink-0 mt-0.5" />
-                        <span className="text-xs sm:text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {pkg.notes && (
-                    <p className="text-xs text-muted-foreground mb-4 border-t pt-3">
-                      {pkg.notes}
-                    </p>
-                  )}
-                  <Button 
-                    variant={index === 1 ? 'default' : 'outline'}
-                    className="w-full"
-                    onClick={() => handleSelectPackage(pkg)}
-                  >
-                    {language === 'ar' ? 'اختر الباقة' : 'Select Package'}
-                  </Button>
-                </Card>
-              ))}
-            </div>
+              <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
+                {packages.map((pkg, index) => {
+                  const isSubscription = service?.payment_model === 'subscription';
+                  const currencySymbol = pkg.currency === 'USD' ? '$' : pkg.currency;
+                  const buildCost = pkg.build_cost || 0;
+                  const monthlyFee = pkg.monthly_fee || 0;
+                  const oneTimePrice = pkg.price || 0;
+                  const hasValidPricing = isSubscription ? monthlyFee > 0 : oneTimePrice > 0;
+
+                  return (
+                    <Card key={pkg.id} className={`p-4 sm:p-6 relative ${index === 1 ? 'border-primary shadow-glow md:scale-105' : ''}`}>
+                      {index === 1 && (
+                        <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary">
+                          {language === 'ar' ? 'الأكثر شيوعًا' : 'Most Popular'}
+                        </Badge>
+                      )}
+                      <h3 className="text-lg sm:text-xl font-bold mb-2">{pkg.package_name}</h3>
+                      {pkg.description && (
+                        <p className="text-sm text-muted-foreground mb-3">{pkg.description}</p>
+                      )}
+                      <div className="mb-4">
+                        {isSubscription ? (
+                          <>
+                            <div className="text-2xl sm:text-3xl font-bold text-primary">
+                              {currencySymbol}{monthlyFee.toLocaleString()}
+                              <span className="text-base font-normal text-muted-foreground">/mo</span>
+                            </div>
+                            {buildCost > 0 && (
+                              <div className="text-sm text-muted-foreground mt-1">
+                                + {currencySymbol}{buildCost.toLocaleString()} setup (one-time)
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-2xl sm:text-3xl font-bold text-primary">
+                            {currencySymbol}{oneTimePrice.toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                      {pkg.delivery_time && (
+                        <Badge variant="outline" className="mb-4">
+                          ⏱️ {pkg.delivery_time}
+                        </Badge>
+                      )}
+                      <ul className="space-y-2 sm:space-y-3 mb-6">
+                        {pkg.features.map((feature, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <Check className="w-4 sm:w-5 h-4 sm:h-5 text-primary flex-shrink-0 mt-0.5" />
+                            <span className="text-xs sm:text-sm">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {pkg.notes && (
+                        <p className="text-xs text-muted-foreground mb-4 border-t pt-3">
+                          {pkg.notes}
+                        </p>
+                      )}
+                      <Button 
+                        variant={index === 1 ? 'default' : 'outline'}
+                        className="w-full"
+                        onClick={() => handleSelectPackage(pkg)}
+                        disabled={!hasValidPricing}
+                      >
+                        {language === 'ar' ? 'اشتري الآن' : 'Buy Now'}
+                      </Button>
+                    </Card>
+                  );
+                })}
+              </div>
           )}
         </section>
 
