@@ -84,6 +84,8 @@ export default function ProjectDetailPage() {
     requestRevision,
     deleteFile,
     cancelSubscription,
+    openBillingPortal,
+    resubscribe,
   } = useProject(projectId);
 
   const [newComment, setNewComment] = useState("");
@@ -609,6 +611,8 @@ export default function ProjectDetailPage() {
             monthlyFee={monthlyFee}
             onCancelSubscription={cancelSubscription}
             cancellingSubscription={cancellingSubscription}
+            onOpenBillingPortal={openBillingPortal}
+            onResubscribe={resubscribe}
           />
         </TabsContent>
       </Tabs>
