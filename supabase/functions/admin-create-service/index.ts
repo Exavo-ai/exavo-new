@@ -16,6 +16,8 @@ const packageSchema = z.object({
   videos: z.array(z.string().url("Invalid video URL")).max(10, "Too many videos").optional(),
 });
 
+const paymentModelSchema = z.enum(["one_time", "subscription"]);
+
 const createServiceSchema = z.object({
   name: z.string().trim().min(1, "Service name is required").max(200, "Service name too long"),
   name_ar: z.string().trim().min(1, "Arabic name is required").max(200, "Arabic name too long"),
@@ -26,6 +28,9 @@ const createServiceSchema = z.object({
   category: uuidSchema,
   active: z.boolean().default(true),
   image_url: z.string().url("Invalid image URL").nullable().optional(),
+  payment_model: paymentModelSchema,
+  build_cost: z.number().min(0).max(1000000).default(0),
+  monthly_fee: z.number().min(0).max(1000000).default(0),
   packages: z.array(packageSchema).max(10, "Too many packages").optional(),
 });
 
@@ -108,6 +113,9 @@ Deno.serve(async (req) => {
         category: validatedData.category,
         active: validatedData.active,
         image_url: validatedData.image_url,
+        payment_model: validatedData.payment_model,
+        build_cost: validatedData.build_cost,
+        monthly_fee: validatedData.monthly_fee,
       })
       .select()
       .single();

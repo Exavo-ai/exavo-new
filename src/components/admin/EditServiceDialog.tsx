@@ -12,11 +12,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { serviceSchema } from "@/lib/validation";
-import { Plus, X } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, X, DollarSign, RefreshCw, Lock } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 interface Service {
   id: string;
@@ -29,6 +30,9 @@ interface Service {
   category: string;
   active: boolean;
   image_url: string | null;
+  payment_model?: "one_time" | "subscription";
+  build_cost?: number;
+  monthly_fee?: number;
 }
 
 interface Package {
@@ -62,6 +66,9 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
     category: "",
     active: true,
     image_url: "",
+    price: 0,
+    build_cost: 0,
+    monthly_fee: 0,
   });
   const [packages, setPackages] = useState<Package[]>([]);
 
@@ -125,6 +132,9 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
         category: service.category || "",
         active: service.active ?? true,
         image_url: service.image_url || "",
+        price: service.price || 0,
+        build_cost: service.build_cost || 0,
+        monthly_fee: service.monthly_fee || 0,
       });
     }
   }, [service]);
@@ -181,7 +191,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
     const result = serviceSchema.safeParse({
       name: formData.name,
       description: formData.description,
-      price: 0,
+      price: service.payment_model === "one_time" ? formData.price : formData.build_cost,
       currency: "USD",
     });
     
@@ -208,11 +218,14 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
             name_ar: formData.name,
             description: formData.description,
             description_ar: formData.description,
-            price: 0,
+            price: service.payment_model === "one_time" ? formData.price : formData.build_cost,
             currency: "USD",
             category: formData.category,
             active: formData.active,
             image_url: formData.image_url || null,
+            // Note: payment_model is NOT included - it's locked after creation
+            build_cost: service.payment_model === "subscription" ? formData.build_cost : 0,
+            monthly_fee: service.payment_model === "subscription" ? formData.monthly_fee : 0,
           },
           packages: validPackages.map(pkg => ({
             ...pkg,
@@ -241,6 +254,8 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
       setLoading(false);
     }
   };
+
+  const paymentModel = service?.payment_model || "one_time";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -272,6 +287,84 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
             />
           </div>
 
+          {/* Payment Model Display - READ ONLY */}
+          <Card className="border-2 border-muted bg-muted/30">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                {paymentModel === "one_time" ? (
+                  <DollarSign className="w-5 h-5" />
+                ) : (
+                  <RefreshCw className="w-5 h-5" />
+                )}
+                Payment Model
+                <Lock className="w-4 h-4 text-muted-foreground" />
+              </CardTitle>
+              <CardDescription>
+                Payment model is locked after service creation and cannot be changed.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3 p-4 rounded-lg border bg-background">
+                <Badge variant={paymentModel === "subscription" ? "default" : "secondary"} className="text-sm">
+                  {paymentModel === "one_time" ? "One-time Payment" : "Subscription"}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  {paymentModel === "one_time" 
+                    ? "Client pays once, owns the system" 
+                    : "Build cost + monthly recurring fee"}
+                </span>
+              </div>
+
+              {/* Editable Pricing Fields */}
+              <div className="mt-4 space-y-4">
+                {paymentModel === "one_time" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="price">One-time Price (USD)</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                )}
+
+                {paymentModel === "subscription" && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="build_cost">Build Cost (USD)</Label>
+                      <Input
+                        id="build_cost"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.build_cost}
+                        onChange={(e) => setFormData({ ...formData, build_cost: parseFloat(e.target.value) || 0 })}
+                        placeholder="One-time build fee"
+                      />
+                      <p className="text-xs text-muted-foreground">Charged once at start</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="monthly_fee">Monthly Fee (USD)</Label>
+                      <Input
+                        id="monthly_fee"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.monthly_fee}
+                        onChange={(e) => setFormData({ ...formData, monthly_fee: parseFloat(e.target.value) || 0 })}
+                        placeholder="Recurring monthly fee"
+                      />
+                      <p className="text-xs text-muted-foreground">Recurring each month</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>

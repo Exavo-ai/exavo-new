@@ -872,6 +872,47 @@ export type Database = {
           },
         ]
       }
+      project_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          next_renewal_date: string | null
+          project_id: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          next_renewal_date?: string | null
+          project_id: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          next_renewal_date?: string | null
+          project_id?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_subscriptions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           appointment_id: string | null
@@ -883,6 +924,7 @@ export type Database = {
           id: string
           lead_id: string | null
           name: string
+          payment_model: Database["public"]["Enums"]["payment_model"] | null
           progress: number | null
           service_id: string | null
           start_date: string | null
@@ -902,6 +944,7 @@ export type Database = {
           id?: string
           lead_id?: string | null
           name: string
+          payment_model?: Database["public"]["Enums"]["payment_model"] | null
           progress?: number | null
           service_id?: string | null
           start_date?: string | null
@@ -921,6 +964,7 @@ export type Database = {
           id?: string
           lead_id?: string | null
           name?: string
+          payment_model?: Database["public"]["Enums"]["payment_model"] | null
           progress?: number | null
           service_id?: string | null
           start_date?: string | null
@@ -1057,6 +1101,7 @@ export type Database = {
       services: {
         Row: {
           active: boolean
+          build_cost: number | null
           category: string | null
           created_at: string
           currency: string
@@ -1065,13 +1110,16 @@ export type Database = {
           id: string
           image_url: string | null
           media: Json | null
+          monthly_fee: number | null
           name: string
           name_ar: string
+          payment_model: Database["public"]["Enums"]["payment_model"]
           price: number
           updated_at: string
         }
         Insert: {
           active?: boolean
+          build_cost?: number | null
           category?: string | null
           created_at?: string
           currency?: string
@@ -1080,13 +1128,16 @@ export type Database = {
           id?: string
           image_url?: string | null
           media?: Json | null
+          monthly_fee?: number | null
           name: string
           name_ar: string
+          payment_model?: Database["public"]["Enums"]["payment_model"]
           price: number
           updated_at?: string
         }
         Update: {
           active?: boolean
+          build_cost?: number | null
           category?: string | null
           created_at?: string
           currency?: string
@@ -1095,8 +1146,10 @@ export type Database = {
           id?: string
           image_url?: string | null
           media?: Json | null
+          monthly_fee?: number | null
           name?: string
           name_ar?: string
+          payment_model?: Database["public"]["Enums"]["payment_model"]
           price?: number
           updated_at?: string
         }
@@ -1512,6 +1565,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "client"
+      payment_model: "one_time" | "subscription"
       social_platform: "Instagram" | "Facebook" | "LinkedIn"
       social_post_status: "pending" | "approved" | "changes_requested"
     }
@@ -1642,6 +1696,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "client"],
+      payment_model: ["one_time", "subscription"],
       social_platform: ["Instagram", "Facebook", "LinkedIn"],
       social_post_status: ["pending", "approved", "changes_requested"],
     },
