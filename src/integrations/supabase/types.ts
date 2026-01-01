@@ -874,31 +874,43 @@ export type Database = {
       }
       project_subscriptions: {
         Row: {
+          cancel_at_period_end: boolean
+          cancel_reason: string | null
+          canceled_at: string | null
           created_at: string
           id: string
           next_renewal_date: string | null
           project_id: string
           status: string
+          stripe_checkout_session_id: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           updated_at: string
         }
         Insert: {
+          cancel_at_period_end?: boolean
+          cancel_reason?: string | null
+          canceled_at?: string | null
           created_at?: string
           id?: string
           next_renewal_date?: string | null
           project_id: string
           status?: string
+          stripe_checkout_session_id?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           updated_at?: string
         }
         Update: {
+          cancel_at_period_end?: boolean
+          cancel_reason?: string | null
+          canceled_at?: string | null
           created_at?: string
           id?: string
           next_renewal_date?: string | null
           project_id?: string
           status?: string
+          stripe_checkout_session_id?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           updated_at?: string

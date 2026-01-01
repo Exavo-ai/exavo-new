@@ -5,198 +5,483 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const logStep = (step: string, details?: unknown) => {
-  console.log(`[CANCEL-SUBSCRIPTION] ${step}`, details ? JSON.stringify(details) : "");
+type OkResponse = {
+  ok: true;
+  status: string;
+  subscription_id: string;
+  cancel_at_period_end: boolean;
+  canceled_at: string;
+  access_until: string;
+  stripe_status: string;
+  current_period_end: string;
+  requestId: string;
+  details?: unknown;
+};
+
+type ErrResponse = {
+  ok: false;
+  code: string;
+  message: string;
+  requestId: string;
+  details?: unknown;
+};
+
+const json = (body: OkResponse | ErrResponse, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const log = (requestId: string, step: string, details?: unknown) => {
+  console.log(
+    `[CANCEL-SUBSCRIPTION] ${step}`,
+    JSON.stringify({ requestId, ...(details ? { details } : {}) })
+  );
+};
+
+const safeStripeError = (err: unknown) => {
+  if (!err || typeof err !== "object") return { message: String(err) };
+  const anyErr = err as any;
+  return {
+    type: anyErr?.type,
+    code: anyErr?.code,
+    statusCode: anyErr?.statusCode,
+    message: anyErr?.message,
+    requestId: anyErr?.requestId,
+  };
 };
 
 serve(async (req) => {
+  const requestId = crypto.randomUUID();
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    logStep("Function started");
-
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) {
-      logStep("ERROR", { message: "Stripe secret key not configured" });
-      return new Response(
-        JSON.stringify({ ok: false, error: "Stripe secret key not configured" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
-    }
-
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
-
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user) throw new Error("User not authenticated");
-    logStep("User authenticated", { userId: user.id });
-
-    const { project_id } = await req.json();
-    if (!project_id) throw new Error("project_id is required");
-    logStep("Request body", { project_id });
-
-    // Verify user owns this project
-    const { data: project, error: projectError } = await supabaseClient
-      .from("projects")
-      .select("id, user_id, client_id, workspace_id")
-      .eq("id", project_id)
-      .single();
-
-    if (projectError || !project) {
-      throw new Error("Project not found");
-    }
-
-    const isOwner = 
-      project.user_id === user.id || 
-      project.client_id === user.id || 
-      project.workspace_id === user.id;
-
-    if (!isOwner) {
-      throw new Error("Not authorized to cancel this subscription");
-    }
-    logStep("Project ownership verified");
-
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-
-    // Get subscription from project_subscriptions
-    const { data: projectSub, error: subError } = await supabaseClient
-      .from("project_subscriptions")
-      .select("*")
-      .eq("project_id", project_id)
-      .single();
-
-    if (subError || !projectSub) {
-      throw new Error("No subscription found for this project");
-    }
-
-    let stripeSubscriptionId = projectSub.stripe_subscription_id;
-
-    // If stripe_subscription_id is missing, try to recover it from Stripe via session ID
-    if (!stripeSubscriptionId) {
-      logStep("stripe_subscription_id missing, attempting recovery from Stripe");
-
-      // Get the payment record to find the stripe_session_id
-      const { data: payment } = await supabaseClient
-        .from("payments")
-        .select("stripe_session_id")
-        .eq("user_id", user.id)
-        .not("stripe_session_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      let recoveredSubId: string | null = null;
-
-      if (payment && payment.length > 0) {
-        for (const p of payment) {
-          if (p.stripe_session_id) {
-            try {
-              const session = await stripe.checkout.sessions.retrieve(p.stripe_session_id);
-              if (session.subscription && session.mode === "subscription") {
-                recoveredSubId = typeof session.subscription === "string" 
-                  ? session.subscription 
-                  : session.subscription.id;
-                logStep("Recovered subscription ID from checkout session", { 
-                  sessionId: p.stripe_session_id, 
-                  subscriptionId: recoveredSubId 
-                });
-
-                // Update the project_subscriptions record with the recovered ID
-                const customerId = typeof session.customer === "string" 
-                  ? session.customer 
-                  : session.customer?.id || null;
-
-                await supabaseClient
-                  .from("project_subscriptions")
-                  .update({ 
-                    stripe_subscription_id: recoveredSubId,
-                    stripe_customer_id: customerId,
-                  })
-                  .eq("id", projectSub.id);
-
-                stripeSubscriptionId = recoveredSubId;
-                break;
-              }
-            } catch (e) {
-              logStep("Could not retrieve session", { sessionId: p.stripe_session_id, error: e });
-            }
-          }
-        }
-      }
-
-      if (!stripeSubscriptionId) {
-        logStep("ERROR", { message: "Could not recover stripe_subscription_id" });
-        return new Response(
-          JSON.stringify({ ok: false, error: "No active Stripe subscription found for this project. Please contact support." }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-        );
-      }
-    }
-
-    if (projectSub.status === "canceled") {
-      throw new Error("Subscription is already canceled");
-    }
-
-    logStep("Found subscription", { 
-      subscriptionId: stripeSubscriptionId,
-      status: projectSub.status 
-    });
-
-    // Cancel at period end via Stripe
-    const updatedSubscription = await stripe.subscriptions.update(
-      stripeSubscriptionId,
-      { cancel_at_period_end: true }
-    );
-
-    logStep("Stripe subscription updated", { 
-      id: updatedSubscription.id,
-      cancel_at_period_end: updatedSubscription.cancel_at_period_end,
-      current_period_end: updatedSubscription.current_period_end
-    });
-
-    // Update local record
-    const { error: updateError } = await supabaseClient
-      .from("project_subscriptions")
-      .update({
-        status: "canceled",
-        next_renewal_date: new Date(updatedSubscription.current_period_end * 1000).toISOString(),
-      })
-      .eq("id", projectSub.id);
-
-    if (updateError) {
-      logStep("ERROR updating local subscription", { error: updateError });
-    } else {
-      logStep("Local subscription updated to canceled");
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        ok: true, 
-        status: "canceled",
-        cancel_at_period_end: true,
-        message: "Subscription will be canceled at period end",
-        access_until: new Date(updatedSubscription.current_period_end * 1000).toISOString()
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-    );
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR", { message: errorMessage });
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+  if (req.method !== "POST") {
+    return json(
+      { ok: false, code: "METHOD_NOT_ALLOWED", message: "Method not allowed", requestId },
+      405
     );
   }
+
+  // Stripe config
+  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+  if (!stripeKey) {
+    return json(
+      {
+        ok: false,
+        code: "STRIPE_NOT_CONFIGURED",
+        message: "Stripe secret key not configured",
+        requestId,
+      },
+      500
+    );
+  }
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return json(
+      { ok: false, code: "UNAUTHORIZED", message: "Missing Authorization header", requestId },
+      401
+    );
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
+  );
+
+  const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+
+  // Parse body
+  let body: any = {};
+  try {
+    body = await req.json();
+  } catch {
+    // ignore
+  }
+
+  const projectId = body?.project_id as string | undefined;
+  const cancelAtPeriodEnd =
+    typeof body?.cancel_at_period_end === "boolean" ? body.cancel_at_period_end : true;
+  const cancelReason = typeof body?.cancel_reason === "string" ? body.cancel_reason : null;
+  const debugRequested = body?.debug === true;
+
+  log(requestId, "request", { projectId, cancelAtPeriodEnd, debugRequested });
+
+  if (!projectId) {
+    return json(
+      { ok: false, code: "VALIDATION_ERROR", message: "project_id is required", requestId },
+      400
+    );
+  }
+
+  // Auth user
+  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+  if (userError || !userData?.user) {
+    return json(
+      { ok: false, code: "UNAUTHORIZED", message: "User not authenticated", requestId },
+      401
+    );
+  }
+  const user = userData.user;
+  log(requestId, "auth", { userId: user.id });
+
+  // Debug only for admins
+  let isAdmin = false;
+  if (debugRequested) {
+    try {
+      const { data: isAdminData } = await supabaseAdmin.rpc("has_role", {
+        _user_id: user.id,
+        _role: "admin",
+      });
+      isAdmin = Boolean(isAdminData);
+    } catch {
+      isAdmin = false;
+    }
+
+    if (!isAdmin) {
+      return json(
+        {
+          ok: false,
+          code: "FORBIDDEN",
+          message: "Debug diagnostics are only available to admins",
+          requestId,
+        },
+        403
+      );
+    }
+  }
+
+  // Verify project ownership (authorization check uses the user JWT identity)
+  const { data: project, error: projectError } = await supabaseAdmin
+    .from("projects")
+    .select("id, user_id, client_id, workspace_id, appointment_id")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (projectError || !project) {
+    return json(
+      { ok: false, code: "NOT_FOUND", message: "Project not found", requestId },
+      404
+    );
+  }
+
+  const isOwner =
+    project.user_id === user.id || project.client_id === user.id || project.workspace_id === user.id;
+  if (!isOwner) {
+    return json(
+      { ok: false, code: "FORBIDDEN", message: "Not authorized for this project", requestId },
+      403
+    );
+  }
+
+  log(requestId, "authorization_ok", { projectId });
+
+  // Fetch active subscription row
+  const { data: projectSub, error: subError } = await supabaseAdmin
+    .from("project_subscriptions")
+    .select(
+      "id, project_id, status, stripe_subscription_id, stripe_customer_id, stripe_checkout_session_id, next_renewal_date"
+    )
+    .eq("project_id", projectId)
+    .in("status", ["active", "trialing"])
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  log(requestId, "db_subscription_lookup", {
+    found: Boolean(projectSub),
+    status: projectSub?.status,
+    stripe_subscription_id: projectSub?.stripe_subscription_id,
+    stripe_customer_id: projectSub?.stripe_customer_id,
+    stripe_checkout_session_id: projectSub?.stripe_checkout_session_id,
+  });
+
+  if (subError) {
+    return json(
+      {
+        ok: false,
+        code: "DB_ERROR",
+        message: "Failed to load subscription record",
+        requestId,
+        ...(isAdmin ? { details: { subError } } : {}),
+      },
+      500
+    );
+  }
+
+  if (!projectSub) {
+    return json(
+      {
+        ok: false,
+        code: "NO_ACTIVE_SUBSCRIPTION",
+        message: "No active subscription for this project",
+        requestId,
+      },
+      400
+    );
+  }
+
+  // Stripe ID recovery
+  let stripeSubscriptionId: string | null = projectSub.stripe_subscription_id ?? null;
+  let stripeCustomerId: string | null = projectSub.stripe_customer_id ?? null;
+  let checkoutSessionId: string | null = projectSub.stripe_checkout_session_id ?? null;
+
+  // 1) Prefer saved checkout session id; otherwise infer from payments for this project
+  if (!checkoutSessionId && project.appointment_id) {
+    const { data: payment } = await supabaseAdmin
+      .from("payments")
+      .select("stripe_session_id")
+      .eq("appointment_id", project.appointment_id)
+      .not("stripe_session_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    checkoutSessionId = (payment?.stripe_session_id as string | null) ?? null;
+
+    if (checkoutSessionId) {
+      log(requestId, "inferred_checkout_session", { checkoutSessionId });
+      await supabaseAdmin
+        .from("project_subscriptions")
+        .update({ stripe_checkout_session_id: checkoutSessionId })
+        .eq("id", projectSub.id);
+    }
+  }
+
+  // 2) If subscription_id missing and we have checkout_session_id, recover from Stripe session
+  if (!stripeSubscriptionId && checkoutSessionId) {
+    try {
+      log(requestId, "stripe_checkout_session_retrieve", { checkoutSessionId });
+      const session = await stripe.checkout.sessions.retrieve(checkoutSessionId, {
+        expand: ["subscription", "customer"],
+      });
+
+      const recoveredSubId = session.subscription
+        ? typeof session.subscription === "string"
+          ? session.subscription
+          : session.subscription.id
+        : null;
+
+      const recoveredCustomerId = session.customer
+        ? typeof session.customer === "string"
+          ? session.customer
+          : session.customer.id
+        : null;
+
+      log(requestId, "stripe_checkout_session_retrieve_ok", {
+        recoveredSubId,
+        recoveredCustomerId,
+      });
+
+      if (recoveredSubId) {
+        stripeSubscriptionId = recoveredSubId;
+      }
+      if (recoveredCustomerId) {
+        stripeCustomerId = recoveredCustomerId;
+      }
+
+      await supabaseAdmin
+        .from("project_subscriptions")
+        .update({
+          stripe_subscription_id: stripeSubscriptionId,
+          stripe_customer_id: stripeCustomerId,
+          stripe_checkout_session_id: checkoutSessionId,
+        })
+        .eq("id", projectSub.id);
+    } catch (e) {
+      log(requestId, "stripe_checkout_session_retrieve_error", safeStripeError(e));
+    }
+  }
+
+  // 3) If still missing subscription_id, try listing subscriptions by customer_id
+  if (!stripeSubscriptionId) {
+    // Try workspace customer id as an additional fallback ("users.stripe_customer_id" equivalent)
+    if (!stripeCustomerId) {
+      const { data: workspace } = await supabaseAdmin
+        .from("workspaces")
+        .select("stripe_customer_id")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+      stripeCustomerId = (workspace?.stripe_customer_id as string | null) ?? null;
+      if (stripeCustomerId) {
+        log(requestId, "stripe_customer_from_workspace", { stripeCustomerId });
+      }
+    }
+
+    // Try searching Stripe by email
+    if (!stripeCustomerId && user.email) {
+      try {
+        const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+        if (customers.data.length > 0) {
+          stripeCustomerId = customers.data[0].id;
+          log(requestId, "stripe_customer_from_email", { stripeCustomerId });
+          await supabaseAdmin
+            .from("project_subscriptions")
+            .update({ stripe_customer_id: stripeCustomerId })
+            .eq("id", projectSub.id);
+        }
+      } catch (e) {
+        log(requestId, "stripe_customer_search_error", safeStripeError(e));
+      }
+    }
+
+    if (stripeCustomerId) {
+      try {
+        log(requestId, "stripe_list_subscriptions", { stripeCustomerId });
+        const subs = await stripe.subscriptions.list({
+          customer: stripeCustomerId,
+          status: "all",
+          limit: 10,
+        });
+
+        const active = subs.data
+          .filter((s) => s.status === "active" || s.status === "trialing")
+          .sort((a, b) => (b.created ?? 0) - (a.created ?? 0))[0];
+
+        if (active) {
+          stripeSubscriptionId = active.id;
+          log(requestId, "stripe_subscription_recovered_from_customer", {
+            stripeSubscriptionId,
+            status: active.status,
+          });
+
+          await supabaseAdmin
+            .from("project_subscriptions")
+            .update({
+              stripe_subscription_id: stripeSubscriptionId,
+              stripe_customer_id: stripeCustomerId,
+            })
+            .eq("id", projectSub.id);
+        }
+      } catch (e) {
+        log(requestId, "stripe_list_subscriptions_error", safeStripeError(e));
+      }
+    }
+  }
+
+  log(requestId, "stripe_ids_final", {
+    stripeCustomerId,
+    stripeSubscriptionId,
+    checkoutSessionId,
+  });
+
+  if (!stripeSubscriptionId) {
+    return json(
+      {
+        ok: false,
+        code: "MISSING_STRIPE_SUBSCRIPTION_ID",
+        message: "Missing Stripe subscription id and cannot recover",
+        requestId,
+        ...(isAdmin
+          ? {
+              details: {
+                projectSub,
+                stripeCustomerId,
+                checkoutSessionId,
+              },
+            }
+          : {}),
+      },
+      400
+    );
+  }
+
+  // Stripe cancel behavior
+  let updated: Stripe.Subscription;
+  try {
+    if (cancelAtPeriodEnd) {
+      log(requestId, "stripe_subscriptions_update_cancel_at_period_end", { stripeSubscriptionId });
+      updated = await stripe.subscriptions.update(stripeSubscriptionId, {
+        cancel_at_period_end: true,
+      });
+    } else {
+      // Immediate cancel
+      log(requestId, "stripe_subscriptions_cancel_immediate", { stripeSubscriptionId });
+      updated = await stripe.subscriptions.cancel(stripeSubscriptionId);
+    }
+  } catch (e) {
+    const stripeErr = safeStripeError(e);
+    log(requestId, "stripe_cancel_error", stripeErr);
+    return json(
+      {
+        ok: false,
+        code: "STRIPE_ERROR",
+        message: "Stripe cancellation failed",
+        requestId,
+        ...(isAdmin ? { details: stripeErr } : {}),
+      },
+      502
+    );
+  }
+
+  log(requestId, "stripe_cancel_ok", {
+    subscription_id: updated.id,
+    status: updated.status,
+    cancel_at_period_end: updated.cancel_at_period_end,
+    current_period_end: updated.current_period_end,
+  });
+
+  const nowIso = new Date().toISOString();
+  const accessUntilIso = new Date(updated.current_period_end * 1000).toISOString();
+
+  // DB consistency update
+  const { error: updateError } = await supabaseAdmin
+    .from("project_subscriptions")
+    .update({
+      status: "canceled",
+      cancel_at_period_end: Boolean(updated.cancel_at_period_end),
+      canceled_at: nowIso,
+      cancel_reason: cancelReason,
+      stripe_subscription_id: updated.id,
+      stripe_customer_id: stripeCustomerId,
+      stripe_checkout_session_id: checkoutSessionId,
+      next_renewal_date: accessUntilIso,
+    })
+    .eq("id", projectSub.id);
+
+  if (updateError) {
+    log(requestId, "db_update_error", { message: updateError.message, code: updateError.code });
+    return json(
+      {
+        ok: false,
+        code: "DB_UPDATE_FAILED",
+        message: "Subscription canceled in Stripe but failed to update local record",
+        requestId,
+        ...(isAdmin ? { details: { updateError } } : {}),
+      },
+      500
+    );
+  }
+
+  const response: OkResponse = {
+    ok: true,
+    status: "canceled",
+    subscription_id: updated.id,
+    cancel_at_period_end: Boolean(updated.cancel_at_period_end),
+    canceled_at: nowIso,
+    access_until: accessUntilIso,
+    stripe_status: updated.status,
+    current_period_end: accessUntilIso,
+    requestId,
+    ...(isAdmin
+      ? {
+          details: {
+            projectId,
+            stripeCustomerId,
+            checkoutSessionId,
+          },
+        }
+      : {}),
+  };
+
+  return json(response, 200);
 });

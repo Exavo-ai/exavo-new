@@ -494,36 +494,66 @@ export function useProject(projectId: string | undefined) {
   const cancelSubscription = async (): Promise<boolean> => {
     if (!user || !projectId) return false;
     setCancellingSubscription(true);
+
+    const extractMessage = (err: any): string | null => {
+      const body = err?.context?.body;
+      if (!body) return null;
+      if (typeof body === "string") {
+        try {
+          const parsed = JSON.parse(body);
+          return parsed?.message || parsed?.error || null;
+        } catch {
+          return body;
+        }
+      }
+      if (typeof body === "object") {
+        return body?.message || body?.error || null;
+      }
+      return null;
+    };
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       const response = await supabase.functions.invoke("cancel-subscription", {
-        body: { project_id: projectId },
+        body: {
+          project_id: projectId,
+          cancel_at_period_end: true,
+        },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
 
-      // Handle edge function errors - check data first since error body is in data for non-2xx
-      if (response.data?.error) {
-        throw new Error(response.data.error);
-      }
+      // Non-2xx errors come back in response.error; try to parse JSON message from context
       if (response.error) {
-        // Try to extract error message from FunctionsHttpError context
-        const errorMessage = response.error.message || "Failed to cancel subscription";
-        throw new Error(errorMessage);
-      }
-      if (!response.data?.ok) {
-        throw new Error(response.data?.error || "Failed to cancel subscription");
+        const msg = extractMessage(response.error) || response.error.message || "Failed to cancel subscription";
+        throw new Error(msg);
       }
 
-      const accessUntil = response.data?.access_until 
-        ? new Date(response.data.access_until).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      if (!response.data) {
+        throw new Error("No response from server");
+      }
+
+      if (response.data.ok === false) {
+        throw new Error(response.data.message || "Failed to cancel subscription");
+      }
+
+      const accessUntil = response.data?.access_until
+        ? new Date(response.data.access_until).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })
         : null;
-      
-      toast({ 
+
+      toast({
         title: "Subscription canceled",
-        description: accessUntil 
+        description: accessUntil
           ? `Your subscription has been canceled. You will have access until ${accessUntil}.`
-          : response.data?.message || "Your subscription will end at the current period."
+          : "Your subscription has been canceled.",
       });
+
       loadProject();
       return true;
     } catch (err: any) {
