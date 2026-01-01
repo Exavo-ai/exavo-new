@@ -69,6 +69,8 @@ serve(async (req) => {
     }
     logStep("Project ownership verified");
 
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+
     // Get subscription from project_subscriptions
     const { data: projectSub, error: subError } = await supabaseClient
       .from("project_subscriptions")
@@ -80,12 +82,67 @@ serve(async (req) => {
       throw new Error("No subscription found for this project");
     }
 
-    if (!projectSub.stripe_subscription_id) {
-      logStep("ERROR", { message: "Missing stripe_subscription_id" });
-      return new Response(
-        JSON.stringify({ ok: false, error: "No active Stripe subscription found for this project. Please contact support." }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
+    let stripeSubscriptionId = projectSub.stripe_subscription_id;
+
+    // If stripe_subscription_id is missing, try to recover it from Stripe via session ID
+    if (!stripeSubscriptionId) {
+      logStep("stripe_subscription_id missing, attempting recovery from Stripe");
+
+      // Get the payment record to find the stripe_session_id
+      const { data: payment } = await supabaseClient
+        .from("payments")
+        .select("stripe_session_id")
+        .eq("user_id", user.id)
+        .not("stripe_session_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      let recoveredSubId: string | null = null;
+
+      if (payment && payment.length > 0) {
+        for (const p of payment) {
+          if (p.stripe_session_id) {
+            try {
+              const session = await stripe.checkout.sessions.retrieve(p.stripe_session_id);
+              if (session.subscription && session.mode === "subscription") {
+                recoveredSubId = typeof session.subscription === "string" 
+                  ? session.subscription 
+                  : session.subscription.id;
+                logStep("Recovered subscription ID from checkout session", { 
+                  sessionId: p.stripe_session_id, 
+                  subscriptionId: recoveredSubId 
+                });
+
+                // Update the project_subscriptions record with the recovered ID
+                const customerId = typeof session.customer === "string" 
+                  ? session.customer 
+                  : session.customer?.id || null;
+
+                await supabaseClient
+                  .from("project_subscriptions")
+                  .update({ 
+                    stripe_subscription_id: recoveredSubId,
+                    stripe_customer_id: customerId,
+                  })
+                  .eq("id", projectSub.id);
+
+                stripeSubscriptionId = recoveredSubId;
+                break;
+              }
+            } catch (e) {
+              logStep("Could not retrieve session", { sessionId: p.stripe_session_id, error: e });
+            }
+          }
+        }
+      }
+
+      if (!stripeSubscriptionId) {
+        logStep("ERROR", { message: "Could not recover stripe_subscription_id" });
+        return new Response(
+          JSON.stringify({ ok: false, error: "No active Stripe subscription found for this project. Please contact support." }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
     }
 
     if (projectSub.status === "canceled") {
@@ -93,14 +150,13 @@ serve(async (req) => {
     }
 
     logStep("Found subscription", { 
-      subscriptionId: projectSub.stripe_subscription_id,
+      subscriptionId: stripeSubscriptionId,
       status: projectSub.status 
     });
 
     // Cancel at period end via Stripe
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const updatedSubscription = await stripe.subscriptions.update(
-      projectSub.stripe_subscription_id,
+      stripeSubscriptionId,
       { cancel_at_period_end: true }
     );
 
