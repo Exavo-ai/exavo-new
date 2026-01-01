@@ -496,19 +496,27 @@ export function useProject(projectId: string | undefined) {
     setCancellingSubscription(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke("cancel-subscription", {
+      const response = await supabase.functions.invoke("cancel-subscription", {
         body: { project_id: projectId },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
 
-      // Check for error in response body first (edge function returns JSON errors)
-      if (data?.error) throw new Error(data.error);
-      // Then check for invoke-level error
-      if (error) throw new Error(error.message || "Failed to cancel subscription");
+      // Handle edge function errors - check data first since error body is in data for non-2xx
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+      if (response.error) {
+        // Try to extract error message from FunctionsHttpError context
+        const errorMessage = response.error.message || "Failed to cancel subscription";
+        throw new Error(errorMessage);
+      }
+      if (!response.data?.ok) {
+        throw new Error(response.data?.error || "Failed to cancel subscription");
+      }
 
       toast({ 
         title: "Subscription canceled",
-        description: data?.message || "Your subscription will end at the current period." 
+        description: response.data?.message || "Your subscription will end at the current period." 
       });
       loadProject();
       return true;
