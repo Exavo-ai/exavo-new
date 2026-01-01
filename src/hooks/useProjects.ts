@@ -514,9 +514,15 @@ export function useProject(projectId: string | undefined) {
         throw new Error(response.data?.error || "Failed to cancel subscription");
       }
 
+      const accessUntil = response.data?.access_until 
+        ? new Date(response.data.access_until).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : null;
+      
       toast({ 
         title: "Subscription canceled",
-        description: response.data?.message || "Your subscription will end at the current period." 
+        description: accessUntil 
+          ? `Your subscription has been canceled. You will have access until ${accessUntil}.`
+          : response.data?.message || "Your subscription will end at the current period."
       });
       loadProject();
       return true;

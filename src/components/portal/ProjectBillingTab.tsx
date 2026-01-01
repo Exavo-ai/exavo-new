@@ -2,6 +2,16 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Receipt, ExternalLink, Calendar, DollarSign, RefreshCw, XCircle, CreditCard, RotateCw } from "lucide-react";
 import { format } from "date-fns";
 
@@ -29,7 +39,7 @@ interface ProjectBillingTabProps {
   invoices: Invoice[];
   subscription?: Subscription | null;
   monthlyFee?: number;
-  onCancelSubscription?: () => void;
+  onCancelSubscription?: () => Promise<boolean>;
   cancellingSubscription?: boolean;
   onOpenBillingPortal?: () => Promise<boolean>;
   onResubscribe?: () => Promise<boolean>;
@@ -47,6 +57,7 @@ export function ProjectBillingTab({
 }: ProjectBillingTabProps) {
   const [openingPortal, setOpeningPortal] = useState(false);
   const [resubscribing, setResubscribing] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const isSubscription = paymentModel === "subscription";
   const isActive = subscription?.status === "active";
@@ -64,6 +75,12 @@ export function ProjectBillingTab({
     setResubscribing(true);
     await onResubscribe();
     setResubscribing(false);
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!onCancelSubscription) return;
+    setShowCancelDialog(false);
+    await onCancelSubscription();
   };
 
   return (
@@ -122,7 +139,7 @@ export function ProjectBillingTab({
                 <Button
                   variant="outline"
                   className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={onCancelSubscription}
+                  onClick={() => setShowCancelDialog(true)}
                   disabled={cancellingSubscription}
                 >
                   <XCircle className="w-4 h-4 mr-2" />
@@ -225,6 +242,32 @@ export function ProjectBillingTab({
           )}
         </CardContent>
       </Card>
+      {/* Cancel Subscription Confirmation Dialog */}
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Subscription?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel your subscription? You will still have access until{" "}
+              <strong>
+                {subscription?.next_renewal_date
+                  ? format(new Date(subscription.next_renewal_date), "MMMM d, yyyy")
+                  : "the end of the current billing period"}
+              </strong>
+              . After that, you will lose access to this service.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelSubscription}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, Cancel Subscription
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
