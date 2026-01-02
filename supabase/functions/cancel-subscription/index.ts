@@ -344,8 +344,8 @@ serve(async (req) => {
         });
 
         const active = subs.data
-          .filter((s) => s.status === "active" || s.status === "trialing")
-          .sort((a, b) => (b.created ?? 0) - (a.created ?? 0))[0];
+          .filter((s: Stripe.Subscription) => s.status === "active" || s.status === "trialing")
+          .sort((a: Stripe.Subscription, b: Stripe.Subscription) => (b.created ?? 0) - (a.created ?? 0))[0];
 
         if (active) {
           stripeSubscriptionId = active.id;
