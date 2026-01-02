@@ -113,6 +113,7 @@ serve(async (req) => {
         client_reference_id: user.id,
         line_items: [{ price: priceId, quantity: 1 }],
         mode: "subscription",
+        allow_promotion_codes: true,
         success_url: `${req.headers.get("origin")}/client/subscriptions?checkout=success`,
         cancel_url: `${req.headers.get("origin")}/client/subscriptions`,
         metadata: {
@@ -162,6 +163,7 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
+      allow_promotion_codes: true,
       success_url: `${req.headers.get("origin")}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get("origin")}/client`,
       customer_email: user.email,
