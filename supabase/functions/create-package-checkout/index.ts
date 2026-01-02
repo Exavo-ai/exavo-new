@@ -157,6 +157,7 @@ serve(async (req) => {
         client_reference_id: userId,
         line_items: lineItems,
         mode: 'subscription',
+        allow_promotion_codes: true,
         success_url: successUrl || `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: cancelUrl || `${origin}/services`,
         metadata: {
@@ -226,6 +227,7 @@ serve(async (req) => {
         client_reference_id: userId,
         line_items: lineItems,
         mode: 'payment',
+        allow_promotion_codes: true,
         success_url: successUrl || `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: cancelUrl || `${origin}/services`,
         metadata: {
