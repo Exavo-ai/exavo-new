@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
-import ClientOrderDialog from "@/components/portal/ClientOrderDialog";
 import { PremiumServiceCard } from "@/components/PremiumServiceCard";
 import { PremiumServiceFilters } from "@/components/PremiumServiceFilters";
 import { ServiceDetailsDialog } from "@/components/ServiceDetailsDialog";
@@ -60,9 +59,6 @@ const BrowseServices = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [selectedPackageId, setSelectedPackageId] = useState<string>('');
-  const [selectedPackageName, setSelectedPackageName] = useState<string>('');
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -108,18 +104,11 @@ const BrowseServices = () => {
     setDetailsDialogOpen(true);
   };
 
-  const handleSelectPackage = (serviceId: string, serviceName: string, packageId: string, packageName: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (service) {
-      setSelectedService(service);
-      setSelectedPackageId(packageId);
-      setSelectedPackageName(packageName);
-      setDialogOpen(true);
-      toast({
-        title: "Package Selected",
-        description: "Please complete the booking form",
-      });
-    }
+  // Package selection now handled by ServicePackageCard's internal checkout
+  const handleSelectPackage = async (serviceId: string, serviceName: string, packageId: string, packageName: string) => {
+    // Checkout is handled internally by ServicePackageCard component
+    // This callback is optional for tracking/analytics
+    console.log('Package selected for checkout:', { serviceId, serviceName, packageId, packageName });
   };
 
   const handleCategoryToggle = (category: string) => {
@@ -336,23 +325,12 @@ const BrowseServices = () => {
       </div>
 
       {selectedService && (
-        <>
-          <ClientOrderDialog
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-            serviceId={selectedService.id}
-            serviceName={selectedService.name}
-            packageId={selectedPackageId}
-            packageName={selectedPackageName}
-          />
-          
-          <ServiceDetailsDialog
-            service={selectedService}
-            open={detailsDialogOpen}
-            onOpenChange={setDetailsDialogOpen}
-            onSelectPackage={handleSelectPackage}
-          />
-        </>
+        <ServiceDetailsDialog
+          service={selectedService}
+          open={detailsDialogOpen}
+          onOpenChange={setDetailsDialogOpen}
+          onSelectPackage={handleSelectPackage}
+        />
       )}
     </div>
   );

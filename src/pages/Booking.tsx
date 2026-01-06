@@ -7,10 +7,10 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import BookingDialog from '@/components/BookingDialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Bot, Workflow, LineChart, Mail, FileText, BarChart3, Search, ChevronDown } from 'lucide-react';
+import { Bot, Workflow, LineChart, Mail, FileText, BarChart3, Search, ChevronDown, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import type { LucideIcon } from 'lucide-react';
 
 const iconMap: Record<string, LucideIcon> = {
@@ -36,12 +36,12 @@ const Booking = () => {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [services, setServices] = useState<any[]>([]);
   const [filteredServices, setFilteredServices] = useState<any[]>([]);
-  const [selectedService, setSelectedService] = useState<{ name: string; id: string } | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [emailAlert, setEmailAlert] = useState('');
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -76,12 +76,52 @@ const Booking = () => {
     }
   }, [searchQuery, services, language]);
 
-  const handleBookService = (service: any) => {
-    setSelectedService({
-      name: language === 'ar' ? service.name_ar : service.name,
-      id: service.id
-    });
-    setDialogOpen(true);
+  const handleBookService = async (service: any) => {
+    // Navigate to service detail page which has packages for checkout
+    navigate(`/services/${service.id}`);
+  };
+
+  const handleDirectCheckout = async (serviceId: string) => {
+    setCheckoutLoading(serviceId);
+    try {
+      // Fetch packages for this service and checkout with first one
+      const { data: packages, error: pkgError } = await supabase
+        .from('service_packages')
+        .select('id')
+        .eq('service_id', serviceId)
+        .order('package_order', { ascending: true })
+        .limit(1);
+
+      if (pkgError) throw pkgError;
+      if (!packages || packages.length === 0) {
+        // No packages, redirect to service details
+        navigate(`/services/${serviceId}`);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-package-checkout', {
+        body: {
+          packageId: packages[0].id,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      toast({
+        title: "Checkout Error",
+        description: error.message || "Failed to start checkout. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCheckoutLoading(null);
+    }
   };
 
   return (
@@ -254,16 +294,20 @@ const Booking = () => {
                           >
                             {language === 'ar' ? 'التفاصيل' : 'Details'}
                           </Button>
-                          <Button 
+                        <Button 
                             variant="default"
                             size="default"
                             className="flex-1 h-10 font-semibold shadow-glow"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleBookService(service);
+                              handleDirectCheckout(service.id);
                             }}
+                            disabled={checkoutLoading !== null}
                           >
-                            {language === 'ar' ? 'احجز الآن' : 'Book now'}
+                            {checkoutLoading === service.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            ) : null}
+                            {language === 'ar' ? 'اشتري الآن' : 'Buy Now'}
                           </Button>
                         </div>
                       </div>
@@ -291,15 +335,6 @@ const Booking = () => {
         </div>
       </main>
       <Footer />
-
-      {selectedService && (
-        <BookingDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          serviceName={selectedService.name}
-          serviceId={selectedService.id}
-        />
-      )}
     </div>
   );
 };
