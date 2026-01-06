@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
-import BookingDialog from "@/components/BookingDialog";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Bot, Workflow, LineChart, Mail, FileText, BarChart3, 
   Check, ArrowLeft, Star, Loader2
@@ -46,12 +46,11 @@ const ServiceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { language } = useLanguage();
+  const { toast } = useToast();
   const [service, setService] = useState<any>(null);
   const [packages, setPackages] = useState<ServicePackage[]>([]);
   const [packagesLoading, setPackagesLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedPackageId, setSelectedPackageId] = useState<string>('');
-  const [selectedPackageName, setSelectedPackageName] = useState<string>('');
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -129,10 +128,32 @@ const ServiceDetail = () => {
     setPackagesLoading(false);
   };
 
-  const handleSelectPackage = (pkg: ServicePackage) => {
-    setSelectedPackageId(pkg.id);
-    setSelectedPackageName(pkg.package_name);
-    setDialogOpen(true);
+  const handleSelectPackage = async (pkg: ServicePackage) => {
+    setCheckoutLoading(pkg.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-package-checkout', {
+        body: {
+          packageId: pkg.id,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      toast({
+        title: language === 'ar' ? 'خطأ في الدفع' : 'Checkout Error',
+        description: error.message || (language === 'ar' ? 'فشل في بدء الدفع. يرجى المحاولة مرة أخرى.' : 'Failed to start checkout. Please try again.'),
+        variant: "destructive",
+      });
+    } finally {
+      setCheckoutLoading(null);
+    }
   };
 
   if (loading) {
@@ -274,9 +295,17 @@ const ServiceDetail = () => {
               <Button 
                 size="lg" 
                 className="w-full sm:w-auto"
-                onClick={() => setDialogOpen(true)}
+                onClick={() => {
+                  if (packages.length > 0) {
+                    handleSelectPackage(packages[0]);
+                  }
+                }}
+                disabled={checkoutLoading !== null || packages.length === 0}
               >
-                {language === 'ar' ? 'احجز الآن' : 'Book Now'}
+                {checkoutLoading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : null}
+                {language === 'ar' ? 'اشتري الآن' : 'Buy Now'}
               </Button>
             </div>
           </div>
@@ -372,8 +401,11 @@ const ServiceDetail = () => {
                         variant={index === 1 ? 'default' : 'outline'}
                         className="w-full"
                         onClick={() => handleSelectPackage(pkg)}
-                        disabled={!hasValidPricing}
+                        disabled={!hasValidPricing || checkoutLoading !== null}
                       >
+                        {checkoutLoading === pkg.id && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
                         {language === 'ar' ? 'اشتري الآن' : 'Buy Now'}
                       </Button>
                     </Card>
@@ -428,14 +460,6 @@ const ServiceDetail = () => {
       </main>
       <Footer />
 
-      <BookingDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        serviceName={serviceName}
-        serviceId={service.id}
-        packageId={selectedPackageId}
-        packageName={selectedPackageName}
-      />
     </div>
   );
 };
