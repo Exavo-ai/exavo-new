@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import ClientOrderDialog from "@/components/portal/ClientOrderDialog";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Bot, Workflow, LineChart, Mail, FileText, BarChart3, 
@@ -51,10 +50,8 @@ const PortalServiceDetail = () => {
   const [service, setService] = useState<any>(null);
   const [packages, setPackages] = useState<ServicePackage[]>([]);
   const [packagesLoading, setPackagesLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedPackageId, setSelectedPackageId] = useState<string>('');
-  const [selectedPackageName, setSelectedPackageName] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -130,14 +127,32 @@ const PortalServiceDetail = () => {
     setPackagesLoading(false);
   };
 
-  const handleSelectPackage = (pkg: ServicePackage) => {
-    setSelectedPackageId(pkg.id);
-    setSelectedPackageName(pkg.package_name);
-    setDialogOpen(true);
-    toast({
-      title: "Package Selected",
-      description: "Please complete the booking form",
-    });
+  const handleSelectPackage = async (pkg: ServicePackage) => {
+    setCheckoutLoading(pkg.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-package-checkout', {
+        body: {
+          packageId: pkg.id,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      toast({
+        title: "Checkout Error",
+        description: error.message || "Failed to start checkout. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCheckoutLoading(null);
+    }
   };
 
   if (loading) {
@@ -374,8 +389,11 @@ const PortalServiceDetail = () => {
                         variant={index === 1 ? 'default' : 'outline'}
                         className="w-full"
                         onClick={() => handleSelectPackage(pkg)}
-                        disabled={!hasValidPricing}
+                        disabled={!hasValidPricing || checkoutLoading !== null}
                       >
+                        {checkoutLoading === pkg.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : null}
                         {language === 'ar' ? 'اشتري الآن' : 'Buy Now'}
                       </Button>
                     </Card>
@@ -428,16 +446,6 @@ const PortalServiceDetail = () => {
         </section>
       </div>
 
-      {service && (
-        <ClientOrderDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          serviceId={service.id}
-          serviceName={serviceName}
-          packageId={selectedPackageId}
-          packageName={selectedPackageName}
-        />
-      )}
     </div>
   );
 };
