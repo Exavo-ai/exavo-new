@@ -3,6 +3,31 @@ import { corsHeaders, successResponse, errors, handleCors } from "../_shared/res
 import { z, validateBody, formatZodError, uuidSchema } from "../_shared/validation.ts";
 import { checkRateLimit, createRateLimitKey, RateLimitPresets } from "../_shared/rate-limit.ts";
 
+// Allowlist of updatable fields
+const ALLOWED_UPDATE_FIELDS = [
+  "name",
+  "name_ar", 
+  "description",
+  "description_ar",
+  "price",
+  "currency",
+  "category",
+  "active",
+  "image_url",
+  "build_cost",
+  "monthly_fee",
+  "media",
+] as const;
+
+// Forbidden fields that should never be updated
+const FORBIDDEN_FIELDS = [
+  "id",
+  "created_at",
+  "payment_model",
+  "stripe_price_id",
+  "stripe_product_id",
+] as const;
+
 const packageSchema = z.object({
   id: uuidSchema.optional(),
   package_name: z.string().trim().min(1, "Package name is required").max(100, "Package name too long"),
@@ -19,22 +44,23 @@ const packageSchema = z.object({
   monthly_fee: z.number().min(0).max(1000000).default(0),
 });
 
+// Partial update schema - all fields optional
 const updateServiceSchema = z.object({
   serviceId: uuidSchema,
   updates: z.object({
-    name: z.string().trim().min(1, "Service name is required").max(200, "Service name too long"),
-    name_ar: z.string().trim().min(1, "Arabic name is required").max(200, "Arabic name too long"),
-    description: z.string().trim().min(1, "Description is required").max(5000, "Description too long"),
-    description_ar: z.string().trim().min(1, "Arabic description is required").max(5000, "Arabic description too long"),
-    price: z.number().min(0, "Price must be non-negative").max(1000000, "Price exceeds maximum"),
-    currency: z.string().length(3, "Currency must be 3 characters").default("USD"),
-    category: uuidSchema,
-    active: z.boolean(),
+    name: z.string().trim().min(1, "Service name is required").max(200, "Service name too long").optional(),
+    name_ar: z.string().trim().min(1, "Arabic name is required").max(200, "Arabic name too long").optional(),
+    description: z.string().trim().min(1, "Description is required").max(5000, "Description too long").optional(),
+    description_ar: z.string().trim().min(1, "Arabic description is required").max(5000, "Arabic description too long").optional(),
+    price: z.number().min(0, "Price must be non-negative").max(1000000, "Price exceeds maximum").optional(),
+    currency: z.string().length(3, "Currency must be 3 characters").optional(),
+    category: uuidSchema.optional(),
+    active: z.boolean().optional(),
     image_url: z.string().url("Invalid image URL").nullable().optional(),
-    // Note: payment_model is intentionally excluded - it cannot be changed after creation
-    build_cost: z.number().min(0).max(1000000).default(0),
-    monthly_fee: z.number().min(0).max(1000000).default(0),
-  }),
+    build_cost: z.number().min(0).max(1000000).optional(),
+    monthly_fee: z.number().min(0).max(1000000).optional(),
+    media: z.any().optional(),
+  }).partial(),
   packages: z.array(packageSchema).max(10, "Too many packages").optional(),
 });
 
@@ -92,12 +118,32 @@ Deno.serve(async (req) => {
       return errors.validationError(formatted.message, formatted.details);
     }
 
+    // Check for forbidden fields
+    const forbiddenFound = FORBIDDEN_FIELDS.filter(field => field in validatedData.updates);
+    if (forbiddenFound.length > 0) {
+      console.log("[ADMIN-UPDATE-SERVICE] Rejected forbidden fields:", forbiddenFound);
+      return errors.badRequest(`Cannot update protected fields: ${forbiddenFound.join(", ")}`);
+    }
+
+    // Filter to only allowed fields
+    const filteredUpdates: Record<string, unknown> = {};
+    for (const field of ALLOWED_UPDATE_FIELDS) {
+      if (field in validatedData.updates) {
+        filteredUpdates[field] = validatedData.updates[field as keyof typeof validatedData.updates];
+      }
+    }
+
+    // Check if there's anything to update
+    if (Object.keys(filteredUpdates).length === 0 && !validatedData.packages) {
+      return errors.badRequest("No valid fields to update");
+    }
+
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     // Check if service exists
     const { data: existingService, error: fetchError } = await supabaseAdmin
       .from("services")
-      .select("id")
+      .select("id, name")
       .eq("id", validatedData.serviceId)
       .maybeSingle();
 
@@ -105,26 +151,31 @@ Deno.serve(async (req) => {
       return errors.notFound("Service");
     }
 
-    // Check for duplicate name (excluding current service)
-    const { data: duplicateService } = await supabaseAdmin
-      .from("services")
-      .select("id")
-      .eq("name", validatedData.updates.name)
-      .neq("id", validatedData.serviceId)
-      .maybeSingle();
+    // Check for duplicate name only if name is being updated
+    if (filteredUpdates.name) {
+      const { data: duplicateService } = await supabaseAdmin
+        .from("services")
+        .select("id")
+        .eq("name", filteredUpdates.name as string)
+        .neq("id", validatedData.serviceId)
+        .maybeSingle();
 
-    if (duplicateService) {
-      return errors.conflict("A service with this name already exists");
+      if (duplicateService) {
+        return errors.conflict("A service with this name already exists");
+      }
     }
 
-    const { error: serviceError } = await supabaseAdmin
-      .from("services")
-      .update(validatedData.updates)
-      .eq("id", validatedData.serviceId);
+    // Only update if there are fields to update
+    if (Object.keys(filteredUpdates).length > 0) {
+      const { error: serviceError } = await supabaseAdmin
+        .from("services")
+        .update(filteredUpdates)
+        .eq("id", validatedData.serviceId);
 
-    if (serviceError) {
-      console.error("[ADMIN-UPDATE-SERVICE] Update error:", serviceError);
-      return errors.internal("Failed to update service");
+      if (serviceError) {
+        console.error("[ADMIN-UPDATE-SERVICE] Update error:", serviceError);
+        return errors.internal("Failed to update service");
+      }
     }
 
     if (validatedData.packages) {
