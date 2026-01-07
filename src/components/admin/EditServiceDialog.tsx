@@ -236,30 +236,65 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
 
     setLoading(true);
     try {
+      // Normalize updates: omit empty strings, convert "" to null, only include meaningful values
+      const normalizeValue = (val: any): any => {
+        if (val === "" || val === undefined) return undefined;
+        if (Array.isArray(val)) {
+          const filtered = val.filter(v => v !== "" && v !== null && v !== undefined);
+          return filtered.length > 0 ? filtered : undefined;
+        }
+        return val;
+      };
+
+      const rawUpdates: Record<string, any> = {
+        name: formData.name,
+        name_ar: formData.name,
+        description: formData.description,
+        description_ar: formData.description,
+        price: service.payment_model === "one_time" ? formData.price : formData.build_cost,
+        currency: "USD",
+        category: formData.category || null,
+        active: formData.active,
+        image_url: formData.image_url || null,
+        build_cost: service.payment_model === "subscription" ? formData.build_cost : 0,
+        monthly_fee: service.payment_model === "subscription" ? formData.monthly_fee : 0,
+      };
+
+      // Filter out undefined values
+      const updates: Record<string, any> = {};
+      for (const [key, value] of Object.entries(rawUpdates)) {
+        const normalized = normalizeValue(value);
+        if (normalized !== undefined) {
+          updates[key] = normalized;
+        }
+      }
+
+      // Normalize packages
+      const normalizedPackages = validPackages.map(pkg => {
+        const normalizedPkg: Record<string, any> = {
+          id: pkg.id,
+          package_name: pkg.package_name,
+          price: pkg.price,
+          currency: pkg.currency || "USD",
+          package_order: pkg.package_order,
+          features: pkg.features.filter(f => f.trim()),
+          build_cost: paymentModel === "subscription" ? pkg.build_cost : 0,
+          monthly_fee: paymentModel === "subscription" ? pkg.monthly_fee : 0,
+        };
+        // Only include optional fields if they have meaningful values
+        if (pkg.description?.trim()) normalizedPkg.description = pkg.description.trim();
+        if (pkg.delivery_time?.trim()) normalizedPkg.delivery_time = pkg.delivery_time.trim();
+        if (pkg.notes?.trim()) normalizedPkg.notes = pkg.notes.trim();
+        if (pkg.images?.length > 0) normalizedPkg.images = pkg.images.filter(Boolean);
+        if (pkg.videos?.length > 0) normalizedPkg.videos = pkg.videos.filter(Boolean);
+        return normalizedPkg;
+      });
+
       const { error } = await supabase.functions.invoke('admin-update-service', {
         body: {
           serviceId: service.id,
-          updates: {
-            name: formData.name,
-            name_ar: formData.name,
-            description: formData.description,
-            description_ar: formData.description,
-            price: service.payment_model === "one_time" ? formData.price : formData.build_cost,
-            currency: "USD",
-            category: formData.category,
-            active: formData.active,
-            image_url: formData.image_url || null,
-            // Note: payment_model is NOT included - it's locked after creation
-            build_cost: service.payment_model === "subscription" ? formData.build_cost : 0,
-            monthly_fee: service.payment_model === "subscription" ? formData.monthly_fee : 0,
-          },
-          packages: validPackages.map(pkg => ({
-            ...pkg,
-            features: pkg.features.filter(f => f.trim()),
-            // Pass the correct pricing fields based on payment model
-            build_cost: paymentModel === "subscription" ? pkg.build_cost : 0,
-            monthly_fee: paymentModel === "subscription" ? pkg.monthly_fee : 0,
-          })),
+          updates,
+          packages: normalizedPackages,
         },
       });
 
