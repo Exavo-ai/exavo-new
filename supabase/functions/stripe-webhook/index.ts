@@ -6,6 +6,27 @@ const logStep = (step: string, details?: unknown) => {
   console.log(`[STRIPE-WEBHOOK] ${step}`, details ? JSON.stringify(details) : "");
 };
 
+// Helper to extract client notes from Stripe custom_fields
+const extractClientNotes = (session: Stripe.Checkout.Session): string | null => {
+  try {
+    if (!session.custom_fields || !Array.isArray(session.custom_fields)) {
+      return null;
+    }
+    const notesField = session.custom_fields.find((f: any) => f.key === 'notes');
+    if (notesField && notesField.text && typeof notesField.text.value === 'string') {
+      const notes = notesField.text.value.trim();
+      if (notes.length > 0 && notes.length <= 255) {
+        logStep("Client notes received", { preview: notes.substring(0, 50) });
+        return notes;
+      }
+    }
+    return null;
+  } catch (e) {
+    logStep("Could not extract client notes (non-blocking)", { error: e });
+    return null;
+  }
+};
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -222,6 +243,26 @@ serve(async (req) => {
                 projectId: newProject.id 
               });
               finalProjectId = newProject.id;
+            }
+
+            // Save client notes to project if provided (non-blocking)
+            if (finalProjectId) {
+              const clientNotes = extractClientNotes(session);
+              if (clientNotes) {
+                const { error: notesError } = await supabaseAdmin
+                  .from("projects")
+                  .update({ 
+                    client_notes: clientNotes, 
+                    client_notes_updated_at: new Date().toISOString() 
+                  })
+                  .eq("id", finalProjectId);
+                
+                if (notesError) {
+                  logStep("WARN: Failed to save client notes (non-blocking)", { error: notesError });
+                } else {
+                  logStep("Client notes saved to project", { projectId: finalProjectId });
+                }
+              }
             }
 
             // For subscriptions: create/upsert project_subscription record

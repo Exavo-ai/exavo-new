@@ -7,6 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Feature flag: set to false to disable client notes collection
+const ENABLE_CLIENT_NOTES = true;
+
 const logStep = (step: string, details?: unknown) => {
   console.log(`[CREATE-PACKAGE-CHECKOUT] ${step}`, details ? JSON.stringify(details) : "");
 };
@@ -151,7 +154,8 @@ serve(async (req) => {
 
       logStep("Creating subscription checkout", { buildCost, monthlyFee, lineItemsCount: lineItems.length });
 
-      const session = await stripe.checkout.sessions.create({
+      // Build session options
+      const sessionOptions: Stripe.Checkout.SessionCreateParams = {
         customer: customerId,
         customer_email: customerId ? undefined : email,
         client_reference_id: userId,
@@ -171,7 +175,26 @@ serve(async (req) => {
           build_cost: buildCost.toString(),
           monthly_fee: monthlyFee.toString(),
         },
-      });
+      };
+
+      // Add optional client notes field (feature-flagged)
+      if (ENABLE_CLIENT_NOTES) {
+        try {
+          sessionOptions.custom_fields = [
+            {
+              key: 'notes',
+              label: { type: 'custom', custom: 'Notes / Requirements (optional)' },
+              type: 'text',
+              optional: true,
+              text: { maximum_length: 255 },
+            },
+          ];
+        } catch (e) {
+          logStep("Could not add custom_fields (feature not supported)", { error: e });
+        }
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionOptions);
 
       logStep("Subscription checkout session created", { sessionId: session.id });
 
@@ -221,7 +244,8 @@ serve(async (req) => {
             quantity: 1,
           }];
 
-      const session = await stripe.checkout.sessions.create({
+      // Build session options
+      const paymentSessionOptions: Stripe.Checkout.SessionCreateParams = {
         customer: customerId,
         customer_email: customerId ? undefined : email,
         client_reference_id: userId,
@@ -239,7 +263,26 @@ serve(async (req) => {
           customer_name: customerName || user.user_metadata?.full_name || '',
           payment_model: 'one_time',
         },
-      });
+      };
+
+      // Add optional client notes field (feature-flagged)
+      if (ENABLE_CLIENT_NOTES) {
+        try {
+          paymentSessionOptions.custom_fields = [
+            {
+              key: 'notes',
+              label: { type: 'custom', custom: 'Notes / Requirements (optional)' },
+              type: 'text',
+              optional: true,
+              text: { maximum_length: 255 },
+            },
+          ];
+        } catch (e) {
+          logStep("Could not add custom_fields for payment (feature not supported)", { error: e });
+        }
+      }
+
+      const session = await stripe.checkout.sessions.create(paymentSessionOptions);
 
       logStep("One-time checkout session created", { sessionId: session.id });
 
