@@ -275,7 +275,7 @@ export default function ProjectDetailPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground whitespace-pre-wrap">
-                {(project as any).client_notes || "No notes provided."}
+                {project.client_notes || "No notes provided."}
               </p>
             </CardContent>
           </Card>

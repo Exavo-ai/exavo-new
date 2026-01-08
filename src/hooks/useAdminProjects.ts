@@ -20,6 +20,8 @@ export interface AdminProject {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  client_notes: string | null;
+  client_notes_updated_at: string | null;
   service?: {
     name: string;
     image_url: string | null;
