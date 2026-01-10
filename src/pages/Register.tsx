@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -10,6 +10,7 @@ import { registerSchema } from '@/lib/validation';
 import { PasswordStrengthMeter } from '@/components/PasswordStrengthMeter';
 import { GoogleAuthButton } from '@/components/GoogleAuthButton';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -17,7 +18,11 @@ const Register = () => {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useLanguage();
+  
+  // Get return URL for post-registration redirect
+  const returnUrl = searchParams.get('returnUrl');
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,9 +78,13 @@ const Register = () => {
 
       toast.success("Account created successfully! Welcome to Exavo AI.");
       
-      // Redirect to client portal since auto-confirm is enabled
+      // Redirect to return URL if provided, otherwise to client portal
       setTimeout(() => {
-        navigate('/client');
+        if (returnUrl) {
+          navigate(decodeURIComponent(returnUrl));
+        } else {
+          navigate('/client');
+        }
       }, 1500);
     } catch (error: any) {
       toast.error(error.message || t('auth.registerError'));
@@ -98,6 +107,15 @@ const Register = () => {
               </h1>
               <p className="text-muted-foreground">{t('auth.registerSubtitle')}</p>
             </div>
+
+            {/* Show helpful message when redirected from checkout */}
+            {returnUrl && (
+              <Alert className="mb-6 border-primary/20 bg-primary/5">
+                <AlertDescription className="text-sm text-muted-foreground">
+                  You'll need an account to continue — it's free and takes 10 seconds.
+                </AlertDescription>
+              </Alert>
+            )}
 
             <form onSubmit={handleRegister} className="space-y-6">
               <div>
@@ -188,7 +206,10 @@ const Register = () => {
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">
                 {t('auth.hasAccount')}{' '}
-                <a href="/login" className="text-primary hover:underline">
+                <a 
+                  href={returnUrl ? `/login?returnUrl=${encodeURIComponent(returnUrl)}` : "/login"} 
+                  className="text-primary hover:underline"
+                >
                   {t('auth.signIn')}
                 </a>
               </p>

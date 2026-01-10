@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useGuestCheckoutGuard } from "@/hooks/useGuestCheckoutGuard";
 
 interface ServicePackage {
   id: string;
@@ -35,6 +36,7 @@ interface ServicePackageCardProps {
 export function ServicePackageCard({ packageData, paymentModel = 'one_time', isPopular, onSelect, customerEmail, customerName }: ServicePackageCardProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { guardCheckout } = useGuestCheckoutGuard();
 
   const isSubscription = paymentModel === 'subscription';
   const buildCost = packageData.build_cost || 0;
@@ -47,7 +49,12 @@ export function ServicePackageCard({ packageData, paymentModel = 'one_time', isP
     : oneTimePrice > 0;
 
   const handleSelectPackage = async () => {
-    // Always go directly to Stripe checkout
+    // Guard: redirect guest users to register first
+    if (!guardCheckout({ packageId: packageData.id })) {
+      return;
+    }
+
+    // Proceed to Stripe checkout
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-package-checkout', {
