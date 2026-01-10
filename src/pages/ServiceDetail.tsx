@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useGuestCheckoutGuard } from "@/hooks/useGuestCheckoutGuard";
 import { 
   Bot, Workflow, LineChart, Mail, FileText, BarChart3, 
   Check, ArrowLeft, Star, Loader2
@@ -47,6 +48,7 @@ const ServiceDetail = () => {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const { toast } = useToast();
+  const { guardCheckout } = useGuestCheckoutGuard();
   const [service, setService] = useState<any>(null);
   const [packages, setPackages] = useState<ServicePackage[]>([]);
   const [packagesLoading, setPackagesLoading] = useState(true);
@@ -129,6 +131,11 @@ const ServiceDetail = () => {
   };
 
   const handleSelectPackage = async (pkg: ServicePackage) => {
+    // Guard: redirect guest users to register first
+    if (!guardCheckout({ packageId: pkg.id })) {
+      return;
+    }
+
     setCheckoutLoading(pkg.id);
     try {
       const { data, error } = await supabase.functions.invoke('create-package-checkout', {

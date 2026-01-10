@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, Mail, Lock } from 'lucide-react';
 import { GoogleAuthButton } from '@/components/GoogleAuthButton';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,6 +19,7 @@ const Login = () => {
   const { user, userRole, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('inviteToken');
+  const returnUrl = searchParams.get('returnUrl');
 
   // Show a message if already logged in, but don't force redirect
   // This allows users to navigate freely between portal and main site
@@ -102,9 +104,15 @@ const Login = () => {
         console.error('[LOGIN] Role check failed:', roleError);
       }
 
-      const targetPath = isAdmin ? '/admin' : '/client';
-      console.log("[LOGIN] Redirecting to:", targetPath);
-      navigate(targetPath, { replace: true });
+      // Redirect to returnUrl if provided, otherwise to dashboard based on role
+      if (returnUrl) {
+        console.log("[LOGIN] Redirecting to returnUrl:", returnUrl);
+        navigate(decodeURIComponent(returnUrl), { replace: true });
+      } else {
+        const targetPath = isAdmin ? '/admin' : '/client';
+        console.log("[LOGIN] Redirecting to:", targetPath);
+        navigate(targetPath, { replace: true });
+      }
     } catch (error: any) {
       console.error("[LOGIN] Login error:", error);
       toast.error(error.message || t('auth.loginError'));
@@ -160,6 +168,15 @@ const Login = () => {
                 {inviteToken ? 'Sign in to join your team' : t('auth.loginSubtitle')}
               </p>
             </div>
+
+            {/* Show helpful message when redirected from checkout */}
+            {returnUrl && !inviteToken && (
+              <Alert className="mb-6 border-primary/20 bg-primary/5">
+                <AlertDescription className="text-sm text-muted-foreground">
+                  Sign in to continue with your purchase — it only takes a moment.
+                </AlertDescription>
+              </Alert>
+            )}
 
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
@@ -234,7 +251,10 @@ const Login = () => {
               </button>
               <p className="text-sm text-muted-foreground">
                 {t('auth.noAccount')}{' '}
-                <a href="/register" className="text-primary hover:underline">
+                <a 
+                  href={returnUrl ? `/register?returnUrl=${encodeURIComponent(returnUrl)}` : "/register"} 
+                  className="text-primary hover:underline"
+                >
                   {t('auth.signUp')}
                 </a>
               </p>
