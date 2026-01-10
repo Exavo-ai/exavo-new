@@ -127,7 +127,7 @@ const Register = () => {
                   <Input
                     id="fullName"
                     type="text"
-                    placeholder="Ahmed"
+                    placeholder="Your full name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="pl-10"
@@ -145,7 +145,7 @@ const Register = () => {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="ahmed@exavoai.io"
+                    placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
@@ -163,6 +163,7 @@ const Register = () => {
                   <Input
                     id="password"
                     type="password"
+                    placeholder="Minimum 8 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10"
