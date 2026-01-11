@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { serviceSchema } from "@/lib/validation";
 import { Plus, X, DollarSign, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ServiceImageUpload, MultiImageUpload } from "./ServiceImageUpload";
 
 interface CreateServiceDialogProps {
   open: boolean;
@@ -406,15 +407,11 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="image_url">Image URL (Optional)</Label>
-            <Input
-              id="image_url"
-              value={formData.image_url}
-              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              placeholder="https://example.com/image.jpg"
-            />
-          </div>
+          <ServiceImageUpload
+            value={formData.image_url}
+            onChange={(url) => setFormData({ ...formData, image_url: url })}
+            label="Service Image"
+          />
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -565,14 +562,11 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
                     ))}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Image URLs (Optional, comma-separated)</Label>
-                    <Input
-                      value={pkg.images.join(', ')}
-                      onChange={(e) => updatePackage(pkgIndex, 'images', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                      placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg"
-                    />
-                  </div>
+                  <MultiImageUpload
+                    values={pkg.images}
+                    onChange={(urls) => updatePackage(pkgIndex, 'images', urls)}
+                    label="Package Images"
+                  />
 
                   <div className="space-y-2">
                     <Label>Video URLs (Optional, comma-separated)</Label>
