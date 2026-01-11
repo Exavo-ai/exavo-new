@@ -306,6 +306,7 @@ Deno.serve(async (req) => {
     }
 
     // Update packages if provided (tolerant normalization; no URL/Stripe validation here)
+    // Use smart upsert: update existing packages, insert new ones, delete removed ones
     if (validatedData.packages) {
       const normalizedPackages = validatedData.packages.map((pkg) => {
         const images = normalizeStringArray((pkg as Record<string, unknown>).images) ?? [];
@@ -318,18 +319,71 @@ Deno.serve(async (req) => {
         };
       });
 
-      const { error: deleteError } = await supabaseAdmin
+      // Fetch existing packages for this service
+      const { data: existingPackages, error: fetchPackagesError } = await supabaseAdmin
         .from("service_packages")
-        .delete()
+        .select("id")
         .eq("service_id", validatedData.serviceId);
 
-      if (deleteError) {
-        console.error("[ADMIN-UPDATE-SERVICE] Delete packages error:", deleteError);
-        return errors.internal("Failed to update service packages");
+      if (fetchPackagesError) {
+        console.error("[ADMIN-UPDATE-SERVICE] Fetch packages error:", fetchPackagesError);
+        return errors.internal("Failed to fetch existing packages");
       }
 
-      if (normalizedPackages.length > 0) {
-        const packagesToInsert = normalizedPackages.map((pkg) => ({
+      const existingPackageIds = new Set((existingPackages || []).map((p) => p.id));
+      const incomingPackageIds = new Set(
+        normalizedPackages.filter((pkg) => pkg.id).map((pkg) => pkg.id as string)
+      );
+
+      // Determine which packages to delete (exist in DB but not in incoming)
+      const packageIdsToDelete = [...existingPackageIds].filter((id) => !incomingPackageIds.has(id));
+
+      // Delete removed packages
+      if (packageIdsToDelete.length > 0) {
+        const { error: deleteError } = await supabaseAdmin
+          .from("service_packages")
+          .delete()
+          .in("id", packageIdsToDelete);
+
+        if (deleteError) {
+          console.error("[ADMIN-UPDATE-SERVICE] Delete packages error:", deleteError);
+          return errors.internal("Failed to delete removed packages");
+        }
+      }
+
+      // Separate packages into updates (have id) and inserts (no id)
+      const packagesToUpdate = normalizedPackages.filter((pkg) => pkg.id && existingPackageIds.has(pkg.id as string));
+      const packagesToInsert = normalizedPackages.filter((pkg) => !pkg.id);
+
+      // Update existing packages one by one
+      for (const pkg of packagesToUpdate) {
+        const { error: updateError } = await supabaseAdmin
+          .from("service_packages")
+          .update({
+            package_name: pkg.package_name,
+            description: pkg.description,
+            price: pkg.price,
+            currency: pkg.currency,
+            features: pkg.features,
+            delivery_time: pkg.delivery_time,
+            notes: pkg.notes,
+            package_order: pkg.package_order,
+            images: pkg.images ?? [],
+            videos: pkg.videos ?? [],
+            build_cost: pkg.build_cost ?? 0,
+            monthly_fee: pkg.monthly_fee ?? 0,
+          })
+          .eq("id", pkg.id as string);
+
+        if (updateError) {
+          console.error("[ADMIN-UPDATE-SERVICE] Update package error:", updateError, pkg.id);
+          return errors.internal("Failed to update package");
+        }
+      }
+
+      // Insert new packages
+      if (packagesToInsert.length > 0) {
+        const insertData = packagesToInsert.map((pkg) => ({
           service_id: validatedData.serviceId,
           package_name: pkg.package_name,
           description: pkg.description,
@@ -339,17 +393,17 @@ Deno.serve(async (req) => {
           delivery_time: pkg.delivery_time,
           notes: pkg.notes,
           package_order: pkg.package_order,
-          images: (pkg as unknown as { images?: string[] }).images ?? [],
-          videos: (pkg as unknown as { videos?: string[] }).videos ?? [],
+          images: pkg.images ?? [],
+          videos: pkg.videos ?? [],
           build_cost: pkg.build_cost ?? 0,
           monthly_fee: pkg.monthly_fee ?? 0,
         }));
 
-        const { error: packagesError } = await supabaseAdmin.from("service_packages").insert(packagesToInsert);
+        const { error: insertError } = await supabaseAdmin.from("service_packages").insert(insertData);
 
-        if (packagesError) {
-          console.error("[ADMIN-UPDATE-SERVICE] Insert packages error:", packagesError);
-          return errors.internal("Failed to create service packages");
+        if (insertError) {
+          console.error("[ADMIN-UPDATE-SERVICE] Insert packages error:", insertError);
+          return errors.internal("Failed to create new packages");
         }
       }
     }
