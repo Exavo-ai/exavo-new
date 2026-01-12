@@ -1139,6 +1139,7 @@ export type Database = {
           name_ar: string
           payment_model: Database["public"]["Enums"]["payment_model"]
           price: number
+          slug: string | null
           updated_at: string
         }
         Insert: {
@@ -1157,6 +1158,7 @@ export type Database = {
           name_ar: string
           payment_model?: Database["public"]["Enums"]["payment_model"]
           price: number
+          slug?: string | null
           updated_at?: string
         }
         Update: {
@@ -1175,6 +1177,7 @@ export type Database = {
           name_ar?: string
           payment_model?: Database["public"]["Enums"]["payment_model"]
           price?: number
+          slug?: string | null
           updated_at?: string
         }
         Relationships: [
