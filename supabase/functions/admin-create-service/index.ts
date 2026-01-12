@@ -20,6 +20,17 @@ const packageSchema = z.object({
 
 const paymentModelSchema = z.enum(["one_time", "subscription"]);
 
+// Generate URL-friendly slug from service name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .replace(/^-+|-+$/g, ''); // Trim hyphens from start/end
+}
+
 const createServiceSchema = z.object({
   name: z.string().trim().min(1, "Service name is required").max(200, "Service name too long"),
   name_ar: z.string().trim().min(1, "Arabic name is required").max(200, "Arabic name too long"),
@@ -103,6 +114,25 @@ Deno.serve(async (req) => {
       return errors.conflict("A service with this name already exists");
     }
 
+    // Generate slug from service name
+    const baseSlug = generateSlug(validatedData.name);
+    let slug = baseSlug;
+    let slugSuffix = 1;
+
+    // Check for duplicate slugs and generate unique one
+    while (true) {
+      const { data: existingSlug } = await supabaseAdmin
+        .from("services")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (!existingSlug) break;
+      
+      slug = `${baseSlug}-${slugSuffix}`;
+      slugSuffix++;
+    }
+
     const { data: service, error: serviceError } = await supabaseAdmin
       .from("services")
       .insert({
@@ -118,6 +148,7 @@ Deno.serve(async (req) => {
         payment_model: validatedData.payment_model,
         build_cost: validatedData.build_cost,
         monthly_fee: validatedData.monthly_fee,
+        slug: slug,
       })
       .select()
       .single();
