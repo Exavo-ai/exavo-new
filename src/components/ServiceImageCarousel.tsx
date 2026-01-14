@@ -27,8 +27,8 @@ export function ServiceImageCarousel({
   // If no images, show fallback
   if (validImages.length === 0) {
     return (
-      <div className={cn("relative h-96 rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden", className)}>
-        <div className="w-full h-full flex items-center justify-center">
+      <div className={cn("relative h-96 max-w-full rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden", className)}>
+        <div className="absolute inset-0 w-full h-full flex items-center justify-center">
           {fallbackIcon}
         </div>
       </div>
@@ -38,11 +38,11 @@ export function ServiceImageCarousel({
   // If only one image, show it without carousel controls
   if (validImages.length === 1) {
     return (
-      <div className={cn("relative h-96 rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden", className)}>
+      <div className={cn("relative h-96 max-w-full rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden", className)}>
         <img 
           src={validImages[0]} 
           alt={serviceName}
-          className="w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
         />
       </div>
     );
@@ -70,9 +70,9 @@ export function ServiceImageCarousel({
   };
 
   return (
-    <div className={cn("relative h-96 rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden group", className)}>
+    <div className={cn("relative h-96 max-w-full rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden group", className)}>
       {/* Main image */}
-      <div className="relative w-full h-full">
+      <div className="absolute inset-0 w-full h-full">
         {validImages.map((url, index) => (
           <img
             key={url}
