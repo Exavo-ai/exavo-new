@@ -39,7 +39,7 @@ interface Service {
   description_ar: string;
   price: number;
   currency: string;
-  category: string;
+  category: string | null;
   active: boolean;
   image_url: string | null;
   created_at: string;
@@ -223,6 +223,13 @@ export default function Services() {
     return services.filter(service => service.category === categoryId);
   };
 
+  // Permanent rule: admin visibility is existence-based.
+  // Anything not assigned to a known category MUST still be listed.
+  const getUncategorizedServices = () => {
+    const categoryIds = new Set(categories.map(c => c.id));
+    return services.filter(service => !service.category || !categoryIds.has(service.category));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -252,7 +259,101 @@ export default function Services() {
         </div>
       </div>
 
-      <Accordion type="multiple" className="space-y-4" defaultValue={categories.map(c => c.id)}>
+      <Accordion
+        type="multiple"
+        className="space-y-4"
+        defaultValue={["uncategorized", ...categories.map(c => c.id)]}
+      >
+        {(() => {
+          const uncategorizedServices = getUncategorizedServices();
+
+          return (
+            <AccordionItem key="uncategorized" value="uncategorized" className="border rounded-lg">
+              <AccordionTrigger className="px-6 hover:no-underline">
+                <div className="flex items-center justify-between w-full pr-4">
+                  <div className="flex items-center gap-8 flex-1">
+                    <div className="text-left">
+                      <h3 className="font-semibold text-lg">Uncategorized</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {uncategorizedServices.length} service{uncategorizedServices.length !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                {uncategorizedServices.length === 0 ? (
+                  <Card>
+                    <CardContent className="pt-6">
+                      <p className="text-center text-muted-foreground">All services are categorized</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Price</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {uncategorizedServices.map((service) => (
+                          <TableRow key={service.id}>
+                            <TableCell className="font-medium">{service.name}</TableCell>
+                            <TableCell className="max-w-md truncate">{service.description}</TableCell>
+                            <TableCell>
+                              {service.currency} {service.price.toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={service.active ? "default" : "secondary"}>
+                                {service.active ? "Active" : "Inactive"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => toggleServiceStatus(service.id, service.active)}
+                                  title={service.active ? "Deactivate" : "Activate"}
+                                >
+                                  {service.active ? (
+                                    <PowerOff className="w-4 h-4" />
+                                  ) : (
+                                    <Power className="w-4 h-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEditService(service)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteService(service.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Card>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          );
+        })()}
+
         {categories.map((category) => {
           const categoryServices = getServicesByCategory(category.id);
           const categoryAnalytics = analytics.find(a => a.categoryId === category.id);
