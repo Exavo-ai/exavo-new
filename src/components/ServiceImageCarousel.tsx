@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,21 +9,40 @@ interface ServiceImageCarouselProps {
   serviceName: string;
   fallbackIcon?: React.ReactNode;
   className?: string;
+  autoPlayInterval?: number;
 }
 
 export function ServiceImageCarousel({ 
   images, 
   serviceName, 
   fallbackIcon,
-  className 
+  className,
+  autoPlayInterval = 5000
 }: ServiceImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Filter valid URLs
   const validImages = images.filter(
     url => url && (url.startsWith('http://') || url.startsWith('https://'))
   );
+
+  const goToNext = useCallback(() => {
+    setDirection(1);
+    setCurrentIndex((prev) => (prev + 1) % validImages.length);
+  }, [validImages.length]);
+
+  // Auto-play effect
+  useEffect(() => {
+    if (validImages.length <= 1 || isPaused) return;
+
+    const interval = setInterval(() => {
+      goToNext();
+    }, autoPlayInterval);
+
+    return () => clearInterval(interval);
+  }, [validImages.length, isPaused, autoPlayInterval, goToNext]);
 
   // If no images, show fallback
   if (validImages.length === 0) {
@@ -48,11 +67,6 @@ export function ServiceImageCarousel({
       </div>
     );
   }
-
-  const goToNext = () => {
-    setDirection(1);
-    setCurrentIndex((prev) => (prev + 1) % validImages.length);
-  };
 
   const goToPrevious = () => {
     setDirection(-1);
@@ -92,7 +106,13 @@ export function ServiceImageCarousel({
   };
 
   return (
-    <div className={cn("relative h-96 max-w-full rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden group touch-pan-y", className)}>
+    <div 
+      className={cn("relative h-96 max-w-full rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden group touch-pan-y", className)}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={() => setIsPaused(true)}
+      onTouchEnd={() => setIsPaused(false)}
+    >
       {/* Main image with swipe */}
       <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.img
@@ -135,20 +155,31 @@ export function ServiceImageCarousel({
         <ChevronRight className="h-6 w-6" />
       </Button>
 
-      {/* Dot indicators */}
+      {/* Dot indicators with progress */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
         {validImages.map((_, index) => (
           <button
             key={index}
             className={cn(
-              "w-2.5 h-2.5 rounded-full transition-all",
-              index === currentIndex 
-                ? "bg-white w-6" 
-                : "bg-white/50 hover:bg-white/75"
+              "relative h-2.5 rounded-full transition-all overflow-hidden",
+              index === currentIndex ? "w-6 bg-white/30" : "w-2.5 bg-white/50 hover:bg-white/75"
             )}
             onClick={() => goToIndex(index)}
             aria-label={`Go to image ${index + 1}`}
-          />
+          >
+            {index === currentIndex && !isPaused && (
+              <motion.div
+                className="absolute inset-0 bg-white rounded-full origin-left"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: autoPlayInterval / 1000, ease: "linear" }}
+                key={`progress-${currentIndex}`}
+              />
+            )}
+            {index === currentIndex && isPaused && (
+              <div className="absolute inset-0 bg-white rounded-full" />
+            )}
+          </button>
         ))}
       </div>
 
