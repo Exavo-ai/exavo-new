@@ -258,6 +258,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
         return val;
       };
 
+      // Always include images array (even if empty) to ensure proper sync
       const rawUpdates: Record<string, any> = {
         name: formData.name,
         name_ar: formData.name,
@@ -267,14 +268,20 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
         currency: "USD",
         category: formData.category || null,
         active: formData.active,
-        image_url: formData.image_url || null,
+        image_url: formData.images[0] || null,
+        images: formData.images || [], // Always include images array
         build_cost: service.payment_model === "subscription" ? formData.build_cost : 0,
         monthly_fee: service.payment_model === "subscription" ? formData.monthly_fee : 0,
       };
 
-      // Filter out undefined values
+      // Filter out undefined values but ALWAYS keep images array
       const updates: Record<string, any> = {};
       for (const [key, value] of Object.entries(rawUpdates)) {
+        // Always include images array regardless of content
+        if (key === "images") {
+          updates[key] = Array.isArray(value) ? value : [];
+          continue;
+        }
         const normalized = normalizeValue(value);
         if (normalized !== undefined) {
           updates[key] = normalized;
