@@ -1133,6 +1133,7 @@ export type Database = {
           description_ar: string
           id: string
           image_url: string | null
+          images: Json | null
           media: Json | null
           monthly_fee: number | null
           name: string
@@ -1152,6 +1153,7 @@ export type Database = {
           description_ar: string
           id?: string
           image_url?: string | null
+          images?: Json | null
           media?: Json | null
           monthly_fee?: number | null
           name: string
@@ -1171,6 +1173,7 @@ export type Database = {
           description_ar?: string
           id?: string
           image_url?: string | null
+          images?: Json | null
           media?: Json | null
           monthly_fee?: number | null
           name?: string

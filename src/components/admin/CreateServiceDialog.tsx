@@ -19,6 +19,7 @@ import { serviceSchema } from "@/lib/validation";
 import { Plus, X, DollarSign, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ServiceImageUpload, MultiImageUpload } from "./ServiceImageUpload";
+import { ServiceMultiImageUpload } from "./ServiceMultiImageUpload";
 
 interface CreateServiceDialogProps {
   open: boolean;
@@ -53,6 +54,7 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
     category: "",
     active: true,
     image_url: "",
+    images: [] as string[],
     payment_model: "one_time" as PaymentModel,
     // One-time payment fields
     price: 0,
@@ -236,6 +238,7 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
         category: "",
         active: true,
         image_url: "",
+        images: [],
         payment_model: "one_time",
         price: 0,
         build_cost: 0,
@@ -407,10 +410,11 @@ export function CreateServiceDialog({ open, onOpenChange, onSuccess }: CreateSer
             </Select>
           </div>
 
-          <ServiceImageUpload
-            value={formData.image_url}
-            onChange={(url) => setFormData({ ...formData, image_url: url })}
-            label="Service Image"
+          <ServiceMultiImageUpload
+            values={formData.images}
+            onChange={(urls) => setFormData({ ...formData, images: urls, image_url: urls[0] || "" })}
+            label="Service Images"
+            maxImages={10}
           />
 
           <div className="space-y-4">

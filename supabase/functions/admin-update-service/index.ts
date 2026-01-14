@@ -14,6 +14,7 @@ const ALLOWED_UPDATE_FIELDS = [
   "category",
   "active",
   "image_url",
+  "images",
   "build_cost",
   "monthly_fee",
   "media",
@@ -63,6 +64,20 @@ function normalizeUpdates(input: Record<string, unknown>): Record<AllowedUpdateF
       val = emptyStringToNull(val);
       if (val === undefined) continue;
       out[field] = val;
+      continue;
+    }
+
+    // Handle images array
+    if (field === "images") {
+      if (Array.isArray(val)) {
+        // Filter to valid URL strings only
+        const validImages = val.filter(
+          (v) => typeof v === "string" && (v.startsWith("http://") || v.startsWith("https://"))
+        );
+        out[field] = validImages;
+      } else {
+        out[field] = [];
+      }
       continue;
     }
 
