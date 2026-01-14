@@ -9,6 +9,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useGuestCheckoutGuard } from "@/hooks/useGuestCheckoutGuard";
+import { ServiceImageCarousel } from "@/components/ServiceImageCarousel";
 import { 
   Bot, Workflow, LineChart, Mail, FileText, BarChart3, 
   Check, ArrowLeft, Star, Loader2
@@ -272,22 +273,26 @@ const ServiceBySlug = () => {
           {/* Hero Section */}
           <div className="grid lg:grid-cols-2 gap-8 mb-12">
             {/* Left: Image/Icon */}
-            <div className="relative h-96 rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden">
-              {service.image_url ? (
-                <img 
-                  src={service.image_url} 
-                  alt={serviceName}
-                  className="w-full h-full object-cover"
+            {(() => {
+              // Build images array: prefer 'images' column, fallback to image_url
+              const rawImages = (service as any).images;
+              const imagesArray: string[] = Array.isArray(rawImages) && rawImages.length > 0
+                ? rawImages.filter((url: string) => url && typeof url === 'string')
+                : service.image_url 
+                  ? [service.image_url] 
+                  : [];
+
+              return (
+                <ServiceImageCarousel
+                  images={imagesArray}
+                  serviceName={serviceName}
+                  fallbackIcon={<Icon className="w-32 h-32 text-primary" strokeWidth={1} />}
                 />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Icon className="w-32 h-32 text-primary" strokeWidth={1} />
-                </div>
-              )}
+              );
+            })()}
               
-              <div className="absolute top-6 left-6 w-16 h-16 rounded-lg bg-primary shadow-glow flex items-center justify-center">
-                <Icon className="w-8 h-8 text-primary-foreground" strokeWidth={2} />
-              </div>
+            <div className="absolute top-6 left-6 w-16 h-16 rounded-lg bg-primary shadow-glow flex items-center justify-center">
+              <Icon className="w-8 h-8 text-primary-foreground" strokeWidth={2} />
             </div>
 
             {/* Right: Info */}

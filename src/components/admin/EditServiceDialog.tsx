@@ -19,6 +19,7 @@ import { serviceSchema } from "@/lib/validation";
 import { Plus, X, DollarSign, RefreshCw, Lock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ServiceImageUpload, MultiImageUpload } from "./ServiceImageUpload";
+import { ServiceMultiImageUpload } from "./ServiceMultiImageUpload";
 
 interface Service {
   id: string;
@@ -69,6 +70,7 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
     category: "",
     active: true,
     image_url: "",
+    images: [] as string[],
     price: 0,
     build_cost: 0,
     monthly_fee: 0,
@@ -131,12 +133,21 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
 
   useEffect(() => {
     if (service) {
+      // Handle images: prefer new images array, fallback to image_url
+      const existingImages = (service as any).images;
+      const imagesArray: string[] = Array.isArray(existingImages) && existingImages.length > 0
+        ? existingImages.filter((url: string) => url && typeof url === 'string')
+        : service.image_url 
+          ? [service.image_url] 
+          : [];
+      
       setFormData({
         name: service.name || "",
         description: service.description || "",
         category: service.category || "",
         active: service.active ?? true,
         image_url: service.image_url || "",
+        images: imagesArray,
         price: service.price || 0,
         build_cost: service.build_cost || 0,
         monthly_fee: service.monthly_fee || 0,
@@ -450,10 +461,11 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
             </Select>
           </div>
 
-          <ServiceImageUpload
-            value={formData.image_url}
-            onChange={(url) => setFormData({ ...formData, image_url: url })}
-            label="Service Image"
+          <ServiceMultiImageUpload
+            values={formData.images}
+            onChange={(urls) => setFormData({ ...formData, images: urls, image_url: urls[0] || "" })}
+            label="Service Images"
+            maxImages={10}
           />
 
           <div className="space-y-4">
