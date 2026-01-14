@@ -29,7 +29,7 @@ interface Service {
   description_ar: string;
   price: number;
   currency: string;
-  category: string;
+  category: string | null;
   active: boolean;
   image_url: string | null;
   payment_model?: "one_time" | "subscription";
@@ -266,7 +266,8 @@ export function EditServiceDialog({ service, open, onOpenChange, onSuccess }: Ed
         description_ar: formData.description,
         price: service.payment_model === "one_time" ? formData.price : formData.build_cost,
         currency: "USD",
-        category: formData.category || null,
+        // IMPORTANT: never clear category implicitly (missing/unknown category must not break listing)
+        category: formData.category !== "" ? formData.category : (service.category ?? null),
         active: formData.active,
         image_url: formData.images[0] || null,
         images: formData.images || [], // Always include images array
