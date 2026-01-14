@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence, PanInfo } from "framer-motion";
 
 interface ServiceImageCarouselProps {
   images: string[];
@@ -17,7 +18,7 @@ export function ServiceImageCarousel({
   className 
 }: ServiceImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [direction, setDirection] = useState(0);
 
   // Filter valid URLs
   const validImages = images.filter(
@@ -49,50 +50,78 @@ export function ServiceImageCarousel({
   }
 
   const goToNext = () => {
-    if (isTransitioning) return;
-    setIsTransitioning(true);
+    setDirection(1);
     setCurrentIndex((prev) => (prev + 1) % validImages.length);
-    setTimeout(() => setIsTransitioning(false), 300);
   };
 
   const goToPrevious = () => {
-    if (isTransitioning) return;
-    setIsTransitioning(true);
+    setDirection(-1);
     setCurrentIndex((prev) => (prev - 1 + validImages.length) % validImages.length);
-    setTimeout(() => setIsTransitioning(false), 300);
   };
 
   const goToIndex = (index: number) => {
-    if (isTransitioning || index === currentIndex) return;
-    setIsTransitioning(true);
+    if (index === currentIndex) return;
+    setDirection(index > currentIndex ? 1 : -1);
     setCurrentIndex(index);
-    setTimeout(() => setIsTransitioning(false), 300);
+  };
+
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const swipeThreshold = 50;
+    const velocityThreshold = 500;
+
+    if (info.offset.x < -swipeThreshold || info.velocity.x < -velocityThreshold) {
+      goToNext();
+    } else if (info.offset.x > swipeThreshold || info.velocity.x > velocityThreshold) {
+      goToPrevious();
+    }
+  };
+
+  const variants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? "100%" : "-100%",
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      x: direction < 0 ? "100%" : "-100%",
+      opacity: 0,
+    }),
   };
 
   return (
-    <div className={cn("relative h-96 max-w-full rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden group", className)}>
-      {/* Main image */}
-      <div className="absolute inset-0 w-full h-full">
-        {validImages.map((url, index) => (
-          <img
-            key={url}
-            src={url}
-            alt={`${serviceName} - Image ${index + 1}`}
-            className={cn(
-              "absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
-              index === currentIndex ? "opacity-100" : "opacity-0"
-            )}
-          />
-        ))}
-      </div>
+    <div className={cn("relative h-96 max-w-full rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden group touch-pan-y", className)}>
+      {/* Main image with swipe */}
+      <AnimatePresence initial={false} custom={direction} mode="popLayout">
+        <motion.img
+          key={currentIndex}
+          src={validImages[currentIndex]}
+          alt={`${serviceName} - Image ${currentIndex + 1}`}
+          custom={direction}
+          variants={variants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{
+            x: { type: "spring", stiffness: 300, damping: 30 },
+            opacity: { duration: 0.2 },
+          }}
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.1}
+          onDragEnd={handleDragEnd}
+          className="absolute inset-0 w-full h-full object-cover cursor-grab active:cursor-grabbing"
+        />
+      </AnimatePresence>
 
       {/* Navigation arrows */}
       <Button
         variant="ghost"
         size="icon"
-        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity h-10 w-10 rounded-full"
+        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity h-10 w-10 rounded-full z-10"
         onClick={goToPrevious}
-        disabled={isTransitioning}
       >
         <ChevronLeft className="h-6 w-6" />
       </Button>
@@ -100,15 +129,14 @@ export function ServiceImageCarousel({
       <Button
         variant="ghost"
         size="icon"
-        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity h-10 w-10 rounded-full"
+        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity h-10 w-10 rounded-full z-10"
         onClick={goToNext}
-        disabled={isTransitioning}
       >
         <ChevronRight className="h-6 w-6" />
       </Button>
 
       {/* Dot indicators */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
         {validImages.map((_, index) => (
           <button
             key={index}
@@ -125,7 +153,7 @@ export function ServiceImageCarousel({
       </div>
 
       {/* Image counter */}
-      <div className="absolute top-4 right-4 px-3 py-1.5 bg-black/60 text-white text-sm rounded-full">
+      <div className="absolute top-4 right-4 px-3 py-1.5 bg-black/60 text-white text-sm rounded-full z-10">
         {currentIndex + 1} / {validImages.length}
       </div>
     </div>
