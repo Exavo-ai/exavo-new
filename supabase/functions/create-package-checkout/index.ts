@@ -20,7 +20,7 @@ serve(async (req) => {
   }
 
   try {
-    const { packageId, customerEmail, customerName, successUrl, cancelUrl } = await req.json();
+    const { packageId, customerEmail, customerName, successUrl, cancelUrl, clientNotes } = await req.json();
 
     if (!packageId) {
       return new Response(
@@ -174,6 +174,7 @@ serve(async (req) => {
           payment_model: 'subscription',
           build_cost: buildCost.toString(),
           monthly_fee: monthlyFee.toString(),
+          client_notes: clientNotes || '',
         },
       };
 
@@ -262,6 +263,7 @@ serve(async (req) => {
           package_name: packageData.package_name,
           customer_name: customerName || user.user_metadata?.full_name || '',
           payment_model: 'one_time',
+          client_notes: clientNotes || '',
         },
       };
 

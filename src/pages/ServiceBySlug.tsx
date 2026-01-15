@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useGuestCheckoutGuard } from "@/hooks/useGuestCheckoutGuard";
 import { ServiceImageCarousel } from "@/components/ServiceImageCarousel";
+import { PreCheckoutDialog } from "@/components/PreCheckoutDialog";
 import { 
   Bot, Workflow, LineChart, Mail, FileText, BarChart3, 
   Check, ArrowLeft, Star, Loader2
@@ -55,6 +56,8 @@ const ServiceBySlug = () => {
   const [packagesLoading, setPackagesLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [preCheckoutOpen, setPreCheckoutOpen] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<ServicePackage | null>(null);
 
   useEffect(() => {
     if (slug) {
@@ -136,17 +139,25 @@ const ServiceBySlug = () => {
     setPackagesLoading(false);
   };
 
-  const handleSelectPackage = async (pkg: ServicePackage) => {
+  const handleSelectPackage = (pkg: ServicePackage) => {
     // Guard: redirect guest users to register first
     if (!guardCheckout({ packageId: pkg.id })) {
       return;
     }
+    // Open pre-checkout dialog
+    setSelectedPackage(pkg);
+    setPreCheckoutOpen(true);
+  };
 
-    setCheckoutLoading(pkg.id);
+  const handlePreCheckoutConfirm = async (clientNotes: string) => {
+    if (!selectedPackage) return;
+
+    setCheckoutLoading(selectedPackage.id);
     try {
       const { data, error } = await supabase.functions.invoke('create-package-checkout', {
         body: {
-          packageId: pkg.id,
+          packageId: selectedPackage.id,
+          clientNotes: clientNotes || undefined,
         }
       });
 
@@ -166,6 +177,8 @@ const ServiceBySlug = () => {
       });
     } finally {
       setCheckoutLoading(null);
+      setPreCheckoutOpen(false);
+      setSelectedPackage(null);
     }
   };
 
@@ -476,6 +489,16 @@ const ServiceBySlug = () => {
         </div>
       </main>
       <Footer />
+
+      {/* Pre-Checkout Dialog */}
+      <PreCheckoutDialog
+        open={preCheckoutOpen}
+        onOpenChange={setPreCheckoutOpen}
+        onConfirm={handlePreCheckoutConfirm}
+        isLoading={checkoutLoading !== null}
+        packageName={selectedPackage?.package_name}
+        language={language as 'en' | 'ar'}
+      />
     </div>
   );
 };

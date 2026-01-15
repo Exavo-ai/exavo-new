@@ -6,9 +6,19 @@ const logStep = (step: string, details?: unknown) => {
   console.log(`[STRIPE-WEBHOOK] ${step}`, details ? JSON.stringify(details) : "");
 };
 
-// Helper to extract client notes from Stripe custom_fields
+// Helper to extract client notes from Stripe custom_fields or metadata
 const extractClientNotes = (session: Stripe.Checkout.Session): string | null => {
   try {
+    // First, check metadata for client_notes (pre-checkout dialog flow)
+    if (session.metadata?.client_notes && typeof session.metadata.client_notes === 'string') {
+      const notes = session.metadata.client_notes.trim();
+      if (notes.length > 0 && notes.length <= 500) {
+        logStep("Client notes from metadata", { preview: notes.substring(0, 50) });
+        return notes;
+      }
+    }
+    
+    // Fallback: check custom_fields (legacy Stripe UI flow)
     if (!session.custom_fields || !Array.isArray(session.custom_fields)) {
       return null;
     }
@@ -16,7 +26,7 @@ const extractClientNotes = (session: Stripe.Checkout.Session): string | null => 
     if (notesField && notesField.text && typeof notesField.text.value === 'string') {
       const notes = notesField.text.value.trim();
       if (notes.length > 0 && notes.length <= 255) {
-        logStep("Client notes received", { preview: notes.substring(0, 50) });
+        logStep("Client notes from custom_fields", { preview: notes.substring(0, 50) });
         return notes;
       }
     }
