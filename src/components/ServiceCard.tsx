@@ -14,6 +14,7 @@ interface ServiceCardProps {
   price: number;
   currency: string;
   image_url?: string | null;
+  images?: unknown;
   Icon: LucideIcon;
   onBook: () => void;
 }
@@ -27,6 +28,7 @@ export const ServiceCard = ({
   price,
   currency,
   image_url,
+  images,
   Icon,
   onBook,
 }: ServiceCardProps) => {
@@ -35,14 +37,18 @@ export const ServiceCard = ({
   
   const serviceName = language === 'ar' ? name_ar : name;
   const serviceDescription = language === 'ar' ? description_ar : description;
+  
+  // Use image_url if exists, otherwise fallback to first image from images array
+  const imagesArray = Array.isArray(images) ? images : null;
+  const displayImage = image_url || (imagesArray && imagesArray.length > 0 ? String(imagesArray[0]) : null);
 
   return (
     <Card className="overflow-hidden bg-card hover:shadow-glow transition-all duration-300 group">
       {/* Image Section */}
       <div className="relative h-48 bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden">
-        {image_url ? (
+        {displayImage ? (
           <img 
-            src={image_url} 
+            src={displayImage} 
             alt={serviceName}
             className="w-full h-full object-cover"
           />
