@@ -23,6 +23,7 @@ interface Service {
   category: string;
   active: boolean;
   image_url?: string | null;
+  images?: unknown;
   payment_model?: 'one_time' | 'subscription';
 }
 
@@ -248,6 +249,9 @@ const Services = () => {
                     const category = categories.find(c => c.id === service.category);
                     const categoryName = category?.name || '';
                     const IconComponent = iconMap[service.name] || iconMap[categoryName] || Brain;
+                    // Use image_url if exists, otherwise fallback to first image from images array
+                    const imagesArray = Array.isArray(service.images) ? service.images : null;
+                    const displayImage = service.image_url || (imagesArray && imagesArray.length > 0 ? String(imagesArray[0]) : null);
                     
                     return (
                       <PremiumServiceCard
@@ -259,7 +263,7 @@ const Services = () => {
                         description_ar={service.description_ar}
                         price={service.price}
                         currency={service.currency}
-                        image_url={service.image_url}
+                        image_url={displayImage}
                         Icon={IconComponent}
                         onBook={() => handleOpenServiceDetails(service)}
                       />
