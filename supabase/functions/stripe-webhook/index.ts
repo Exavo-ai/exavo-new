@@ -81,6 +81,9 @@ serve(async (req) => {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
 
+      // Log client notes early for debugging
+      const hasClientNotes = !!(session.metadata?.client_notes && session.metadata.client_notes.trim().length > 0);
+      
       logStep("checkout.session.completed", {
         id: session.id,
         email: session.customer_email,
@@ -89,6 +92,8 @@ serve(async (req) => {
         currency: session.currency,
         payment_status: session.payment_status,
         metadata: session.metadata,
+        has_client_notes: hasClientNotes,
+        client_notes_preview: hasClientNotes ? session.metadata.client_notes.substring(0, 50) : null,
       });
 
       const lovableUserId = session.metadata?.lovable_user_id;
