@@ -76,6 +76,7 @@ export default function AdminProjectDetailPage() {
     project,
     milestones,
     comments,
+    setComments,
     files,
     deliveries,
     invoices,
@@ -104,9 +105,16 @@ export default function AdminProjectDetailPage() {
   const handlePostComment = async () => {
     if (!newComment.trim()) return;
     setSubmittingComment(true);
-    const success = await addComment(newComment.trim(), "team");
-    if (success) {
-      setNewComment("");
+    const commentText = newComment.trim();
+    setNewComment(""); // Clear input immediately for better UX
+    
+    const newCommentData = await addComment(commentText, "team");
+    if (newCommentData) {
+      // Optimistically prepend the new comment to the list
+      setComments((prev) => [newCommentData, ...prev]);
+    } else {
+      // Restore the comment text if posting failed
+      setNewComment(commentText);
     }
     setSubmittingComment(false);
   };

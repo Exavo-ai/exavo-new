@@ -415,26 +415,26 @@ export function useProject(projectId: string | undefined) {
     };
   }, [loadProject, projectId]);
 
-  const addComment = async (body: string, authorRole: string = "client") => {
-    if (!user || !projectId) return false;
+  const addComment = async (body: string, authorRole: string = "client"): Promise<ProjectComment | null> => {
+    if (!user || !projectId) return null;
 
     try {
-      const { error } = await supabase.from("project_comments").insert({
+      const { data, error } = await supabase.from("project_comments").insert({
         project_id: projectId,
         author_id: user.id,
         author_role: authorRole,
         body,
-      });
+      }).select().single();
 
       if (error) throw error;
-      return true;
+      return data as ProjectComment;
     } catch (err: any) {
       toast({
         title: "Error",
         description: "Failed to post comment",
         variant: "destructive",
       });
-      return false;
+      return null;
     }
   };
 
@@ -649,6 +649,7 @@ export function useProject(projectId: string | undefined) {
     project,
     milestones,
     comments,
+    setComments,
     files,
     deliveries,
     invoices,
