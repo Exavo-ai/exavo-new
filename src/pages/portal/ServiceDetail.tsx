@@ -7,6 +7,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ServiceImageCarousel } from "@/components/ServiceImageCarousel";
 import { 
   Bot, Workflow, LineChart, Mail, FileText, BarChart3, 
   Check, ArrowLeft, Star, Loader2
@@ -251,30 +252,29 @@ const PortalServiceDetail = () => {
 
         {/* Hero Section */}
         <div className="grid lg:grid-cols-2 gap-8 mb-12">
-          {/* Left: Image/Icon */}
-          <div className="relative h-64 sm:h-96 rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden">
-            {(() => {
-              // Use image_url if exists, otherwise fallback to first image from images array
-              const imagesArray = Array.isArray(service.images) ? service.images : null;
-              const displayImage = service.image_url || (imagesArray && imagesArray.length > 0 ? String(imagesArray[0]) : null);
-              
-              return displayImage ? (
-                <img 
-                  src={displayImage} 
-                  alt={serviceName}
-                  className="w-full h-full object-cover"
+          {/* Left: Image Carousel */}
+          {(() => {
+            // Build images array: prefer 'images' column, fallback to image_url
+            const rawImages = (service as any).images;
+            const imagesArray: string[] = Array.isArray(rawImages) && rawImages.length > 0
+              ? rawImages.filter((url: string) => url && typeof url === 'string')
+              : service.image_url 
+                ? [service.image_url] 
+                : [];
+
+            return (
+              <div className="relative">
+                <ServiceImageCarousel
+                  images={imagesArray}
+                  serviceName={serviceName}
+                  fallbackIcon={<Icon className="w-24 sm:w-32 h-24 sm:h-32 text-primary" strokeWidth={1} />}
                 />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Icon className="w-24 sm:w-32 h-24 sm:h-32 text-primary" strokeWidth={1} />
+                <div className="absolute top-4 sm:top-6 left-4 sm:left-6 w-12 sm:w-16 h-12 sm:h-16 rounded-lg bg-primary shadow-glow flex items-center justify-center z-20">
+                  <Icon className="w-6 sm:w-8 h-6 sm:h-8 text-primary-foreground" strokeWidth={2} />
                 </div>
-              );
-            })()}
-            
-            <div className="absolute top-4 sm:top-6 left-4 sm:left-6 w-12 sm:w-16 h-12 sm:h-16 rounded-lg bg-primary shadow-glow flex items-center justify-center">
-              <Icon className="w-6 sm:w-8 h-6 sm:h-8 text-primary-foreground" strokeWidth={2} />
-            </div>
-          </div>
+              </div>
+            );
+          })()}
 
           {/* Right: Info */}
           <div className="flex flex-col justify-center">
