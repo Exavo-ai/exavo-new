@@ -272,21 +272,23 @@ export default function ProjectDetailPage() {
             </Card>
           </div>
 
-          {/* Client Notes Card - Read only */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5" />
-                Client Notes
-              </CardTitle>
-              <CardDescription>Requirements submitted during checkout</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground whitespace-pre-wrap">
-                {project.client_notes || "No notes provided."}
-              </p>
-            </CardContent>
-          </Card>
+          {/* Client Notes Card - Only show if notes exist */}
+          {project.client_notes && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Client Notes
+                </CardTitle>
+                <CardDescription>Requirements submitted during checkout</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground whitespace-pre-wrap">
+                  {project.client_notes}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Milestones Tab */}
