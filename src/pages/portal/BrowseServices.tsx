@@ -25,6 +25,7 @@ interface Service {
   category?: string | null;
   active: boolean;
   image_url?: string | null;
+  images?: unknown;
   payment_model?: 'one_time' | 'subscription';
 }
 
@@ -287,6 +288,9 @@ const BrowseServices = () => {
                 const category = categories.find(c => c.id === service.category);
                 const categoryName = category?.name || '';
                 const ServiceIcon = iconMap[service.name] || iconMap[categoryName] || Bot;
+                // Use image_url if exists, otherwise fallback to first image from images array
+                const imagesArray = Array.isArray(service.images) ? service.images : null;
+                const displayImage = service.image_url || (imagesArray && imagesArray.length > 0 ? String(imagesArray[0]) : null);
                 return (
                   <PremiumServiceCard
                     key={service.id}
@@ -297,7 +301,7 @@ const BrowseServices = () => {
                     description_ar={service.description_ar}
                     price={service.price}
                     currency={service.currency}
-                    image_url={service.image_url}
+                    image_url={displayImage}
                     Icon={ServiceIcon}
                     onBook={() => handleBookService(service)}
                     onDetails={() => navigate(`/client/services/${service.id}`)}
