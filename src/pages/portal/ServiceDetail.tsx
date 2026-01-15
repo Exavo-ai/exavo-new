@@ -253,17 +253,23 @@ const PortalServiceDetail = () => {
         <div className="grid lg:grid-cols-2 gap-8 mb-12">
           {/* Left: Image/Icon */}
           <div className="relative h-64 sm:h-96 rounded-lg bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 overflow-hidden">
-            {service.image_url ? (
-              <img 
-                src={service.image_url} 
-                alt={serviceName}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Icon className="w-24 sm:w-32 h-24 sm:h-32 text-primary" strokeWidth={1} />
-              </div>
-            )}
+            {(() => {
+              // Use image_url if exists, otherwise fallback to first image from images array
+              const imagesArray = Array.isArray(service.images) ? service.images : null;
+              const displayImage = service.image_url || (imagesArray && imagesArray.length > 0 ? String(imagesArray[0]) : null);
+              
+              return displayImage ? (
+                <img 
+                  src={displayImage} 
+                  alt={serviceName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Icon className="w-24 sm:w-32 h-24 sm:h-32 text-primary" strokeWidth={1} />
+                </div>
+              );
+            })()}
             
             <div className="absolute top-4 sm:top-6 left-4 sm:left-6 w-12 sm:w-16 h-12 sm:h-16 rounded-lg bg-primary shadow-glow flex items-center justify-center">
               <Icon className="w-6 sm:w-8 h-6 sm:h-8 text-primary-foreground" strokeWidth={2} />
