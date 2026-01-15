@@ -98,7 +98,11 @@ serve(async (req) => {
 
       const lovableUserId = session.metadata?.lovable_user_id;
 
-      if (session.payment_status === "paid" && lovableUserId) {
+      // Handle both paid purchases AND 100% discounted purchases (no_payment_required)
+      // This ensures bookings/projects are created regardless of payment amount
+      const isSuccessfulCheckout = session.payment_status === "paid" || session.payment_status === "no_payment_required";
+
+      if (isSuccessfulCheckout && lovableUserId) {
         // Check if payment already exists
         const { data: existingPayment } = await supabaseAdmin
           .from("payments")
@@ -346,8 +350,13 @@ serve(async (req) => {
             logStep("Subscription upserted", { subscriptionId });
           }
         }
-      } else if (session.payment_status === "paid" && !lovableUserId) {
+      } else if (isSuccessfulCheckout && !lovableUserId) {
         logStep("WARN: Payment completed but no lovable_user_id in metadata", { sessionId: session.id });
+      } else if (!isSuccessfulCheckout) {
+        logStep("WARN: Checkout completed with unexpected payment_status", { 
+          sessionId: session.id, 
+          paymentStatus: session.payment_status 
+        });
       }
     }
 
