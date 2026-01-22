@@ -1,3 +1,6 @@
+import { ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
 interface BlogVideoEmbedProps {
   uploadedVideo?: string | null;
   videoUrl?: string | null;
@@ -26,24 +29,42 @@ export function BlogVideoEmbed({ uploadedVideo, videoUrl }: BlogVideoEmbedProps)
     const lowerUrl = url.toLowerCase();
     if (lowerUrl.includes('.webm')) return 'video/webm';
     if (lowerUrl.includes('.mp4')) return 'video/mp4';
-    // Default to mp4 if extension can't be determined
+    if (lowerUrl.includes('.mov')) return 'video/quicktime';
     return 'video/mp4';
   };
 
   if (uploadedVideo) {
     const mimeType = getVideoMimeType(uploadedVideo);
-    
+    const cleanUrl = uploadedVideo.trim();
+
     return (
-      <div className="my-8">
+      <div className="my-8 space-y-3">
         <video
           controls
-          className="w-full rounded-xl shadow-lg"
+          className="w-full rounded-xl shadow-lg bg-black"
           preload="metadata"
           playsInline
+          style={{ minHeight: '200px' }}
         >
-          <source src={uploadedVideo} type={mimeType} />
-          Your browser does not support the video tag.
+          <source src={cleanUrl} type={mimeType} />
+          <p className="text-center p-4">
+            Your browser doesn't support HTML video.
+          </p>
         </video>
+        
+        {/* Always show direct link as backup */}
+        <div className="flex justify-center">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            asChild
+          >
+            <a href={cleanUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Open video in new tab
+            </a>
+          </Button>
+        </div>
       </div>
     );
   }

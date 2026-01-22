@@ -360,11 +360,13 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
           <div className="space-y-2">
             <Label>Video (Optional)</Label>
             {uploadedVideo ? (
-              <div className="relative">
+              <div className="relative space-y-2">
                 <video
+                  key={uploadedVideo}
                   className="w-full max-w-md rounded-lg"
                   controls
                   playsInline
+                  preload="metadata"
                 >
                   <source 
                     src={uploadedVideo} 
@@ -372,14 +374,24 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
                   />
                   Your browser does not support the video tag.
                 </video>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2"
-                  onClick={() => setUploadedVideo(null)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setUploadedVideo(null)}
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    Remove
+                  </Button>
+                  <a 
+                    href={uploadedVideo} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground hover:text-primary underline"
+                  >
+                    Open video in new tab
+                  </a>
+                </div>
               </div>
             ) : (
               <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
