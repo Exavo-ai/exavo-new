@@ -11,6 +11,7 @@ import {
   Layers,
   MessageSquare,
   CheckSquare,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import exavoLogo from "@/assets/exavo-logo.png";
@@ -23,6 +24,7 @@ const navigation = [
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
   { name: "Tickets", href: "/admin/tickets", icon: LifeBuoy },
   { name: "Consultations", href: "/admin/leads", icon: MessageSquare },
+  { name: "Blog", href: "/admin/blog", icon: FileText },
   { name: "Approvals", href: "/admin/approvals", icon: CheckSquare },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];

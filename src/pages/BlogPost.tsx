@@ -3,36 +3,29 @@ import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Instagram, Linkedin, Facebook, ArrowLeft, Calendar } from "lucide-react";
+import { Loader2, ArrowLeft, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { BlogContent } from "@/components/BlogContent";
+import { BlogGallery } from "@/components/BlogGallery";
+import { BlogVideoEmbed } from "@/components/BlogVideoEmbed";
 
-type SocialPost = {
+type BlogPost = {
   id: string;
-  platform: "Instagram" | "Facebook" | "LinkedIn";
-  caption: string;
-  image_url: string;
-  status: "pending" | "approved" | "changes_requested";
-  created_at: string;
-  published_at: string | null;
+  title: string;
   slug: string;
+  excerpt: string | null;
+  content: string | null;
+  featured_image: string | null;
+  gallery_images: string[];
+  uploaded_video: string | null;
+  video_url: string | null;
+  status: string;
+  created_at: string;
 };
 
-const platformIcons = {
-  Instagram: Instagram,
-  Facebook: Facebook,
-  LinkedIn: Linkedin,
-};
-
-const platformColors = {
-  Instagram: "bg-gradient-to-r from-purple-500 to-pink-500",
-  Facebook: "bg-blue-600",
-  LinkedIn: "bg-blue-700",
-};
-
-export default function BlogPost() {
+export default function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>();
   const { language } = useLanguage();
 
@@ -40,14 +33,14 @@ export default function BlogPost() {
     queryKey: ["blog-post", slug],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("social_posts")
+        .from("blog_posts")
         .select("*")
         .eq("slug", slug)
-        .eq("status", "approved")
+        .eq("status", "published")
         .single();
 
       if (error) throw error;
-      return data as SocialPost;
+      return data as BlogPost;
     },
     enabled: !!slug,
   });
@@ -85,9 +78,6 @@ export default function BlogPost() {
     );
   }
 
-  const PlatformIcon = platformIcons[post.platform];
-  const publishDate = post.published_at || post.created_at;
-
   return (
     <div className="min-h-screen" dir={language === "ar" ? "rtl" : "ltr"}>
       <Navigation />
@@ -105,35 +95,41 @@ export default function BlogPost() {
         {/* Article */}
         <article className="container mx-auto px-4 sm:px-6 lg:px-8 pb-20">
           <div className="max-w-3xl mx-auto">
-            {/* Image */}
-            <div className="relative rounded-2xl overflow-hidden mb-8 shadow-card">
-              <img
-                src={post.image_url}
-                alt="Post image"
-                className="w-full aspect-video object-cover"
-              />
-              <Badge
-                className={`absolute top-4 left-4 ${platformColors[post.platform]} text-white border-0 text-sm px-3 py-1`}
-              >
-                <PlatformIcon className="w-4 h-4 mr-1.5" />
-                {post.platform}
-              </Badge>
-            </div>
+            {/* Featured Image */}
+            {post.featured_image && (
+              <div className="relative rounded-2xl overflow-hidden mb-8 shadow-card">
+                <img
+                  src={post.featured_image}
+                  alt={post.title}
+                  className="w-full aspect-video object-cover"
+                />
+              </div>
+            )}
+
+            {/* Title */}
+            <h1 className="text-3xl sm:text-4xl font-bold mb-4">
+              {post.title}
+            </h1>
 
             {/* Meta */}
-            <div className="flex items-center gap-3 text-muted-foreground mb-6">
+            <div className="flex items-center gap-3 text-muted-foreground mb-8">
               <Calendar className="w-4 h-4" />
-              <time dateTime={publishDate}>
-                {format(new Date(publishDate), "MMMM d, yyyy")}
+              <time dateTime={post.created_at}>
+                {format(new Date(post.created_at), "MMMM d, yyyy")}
               </time>
             </div>
 
             {/* Content */}
-            <div className="prose prose-lg dark:prose-invert max-w-none">
-              <p className="text-lg leading-relaxed whitespace-pre-wrap">
-                {post.caption}
-              </p>
-            </div>
+            {post.content && <BlogContent content={post.content} />}
+
+            {/* Video */}
+            <BlogVideoEmbed
+              uploadedVideo={post.uploaded_video}
+              videoUrl={post.video_url}
+            />
+
+            {/* Gallery */}
+            <BlogGallery images={post.gallery_images || []} />
 
             {/* Share / CTA section */}
             <div className="mt-12 pt-8 border-t border-border">
