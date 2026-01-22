@@ -3,56 +3,37 @@ import { supabase } from "@/integrations/supabase/client";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Instagram, Linkedin, Facebook, Newspaper } from "lucide-react";
+import { Loader2, Newspaper } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-type SocialPost = {
+type BlogPost = {
   id: string;
-  platform: "Instagram" | "Facebook" | "LinkedIn";
-  caption: string;
-  image_url: string;
-  status: "pending" | "approved" | "changes_requested";
-  created_at: string;
-  published_at: string | null;
+  title: string;
   slug: string;
-};
-
-const platformIcons = {
-  Instagram: Instagram,
-  Facebook: Facebook,
-  LinkedIn: Linkedin,
-};
-
-const platformColors = {
-  Instagram: "bg-gradient-to-r from-purple-500 to-pink-500",
-  Facebook: "bg-blue-600",
-  LinkedIn: "bg-blue-700",
+  excerpt: string | null;
+  featured_image: string | null;
+  status: string;
+  created_at: string;
 };
 
 export default function Blog() {
   const { language } = useLanguage();
 
   const { data: posts, isLoading, error } = useQuery({
-    queryKey: ["blog-posts"],
+    queryKey: ["public-blog-posts"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("social_posts")
-        .select("*")
-        .eq("status", "approved")
-        .order("published_at", { ascending: false, nullsFirst: false });
+        .from("blog_posts")
+        .select("id, title, slug, excerpt, featured_image, status, created_at")
+        .eq("status", "published")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as SocialPost[];
+      return data as BlogPost[];
     },
   });
-
-  const truncateCaption = (caption: string, maxLength = 150) => {
-    if (caption.length <= maxLength) return caption;
-    return caption.substring(0, maxLength).trim() + "...";
-  };
 
   return (
     <div className="min-h-screen" dir={language === "ar" ? "rtl" : "ltr"}>
@@ -96,53 +77,55 @@ export default function Blog() {
               </div>
             ) : (
               <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
-                {posts?.map((post, index) => {
-                  const PlatformIcon = platformIcons[post.platform];
-                  const publishDate = post.published_at || post.created_at;
-
-                  return (
-                    <Link
-                      key={post.id}
-                      to={`/blog/${post.slug}`}
-                      className="group animate-fade-in-up"
-                      style={{ animationDelay: `${index * 100}ms` }}
-                    >
-                      <Card className="overflow-hidden border-border hover:border-primary/50 transition-all hover:-translate-y-2 shadow-card h-full">
-                        {/* Image */}
-                        <div className="relative aspect-video overflow-hidden">
+                {posts?.map((post, index) => (
+                  <Link
+                    key={post.id}
+                    to={`/blog/${post.slug}`}
+                    className="group animate-fade-in-up"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <Card className="overflow-hidden border-border hover:border-primary/50 transition-all hover:-translate-y-2 shadow-card h-full">
+                      {/* Image */}
+                      <div className="relative aspect-video overflow-hidden bg-muted">
+                        {post.featured_image ? (
                           <img
-                            src={post.image_url}
-                            alt="Post preview"
+                            src={post.featured_image}
+                            alt={post.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
-                          <Badge
-                            className={`absolute top-3 left-3 ${platformColors[post.platform]} text-white border-0`}
-                          >
-                            <PlatformIcon className="w-3 h-3 mr-1" />
-                            {post.platform}
-                          </Badge>
-                        </div>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Newspaper className="w-12 h-12 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
 
-                        <CardContent className="p-5 space-y-3">
-                          {/* Date */}
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(publishDate), "MMMM d, yyyy")}
-                          </p>
+                      <CardContent className="p-5 space-y-3">
+                        {/* Date */}
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(post.created_at), "MMMM d, yyyy")}
+                        </p>
 
-                          {/* Caption preview */}
-                          <p className="text-foreground line-clamp-3">
-                            {truncateCaption(post.caption)}
-                          </p>
+                        {/* Title */}
+                        <h2 className="text-lg font-semibold line-clamp-2 group-hover:text-primary transition-colors">
+                          {post.title}
+                        </h2>
 
-                          {/* Read more */}
-                          <p className="text-primary font-medium text-sm group-hover:underline">
-                            Read more →
+                        {/* Excerpt */}
+                        {post.excerpt && (
+                          <p className="text-muted-foreground line-clamp-3">
+                            {post.excerpt}
                           </p>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  );
-                })}
+                        )}
+
+                        {/* Read more */}
+                        <p className="text-primary font-medium text-sm group-hover:underline">
+                          Read more →
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
               </div>
             )}
           </div>

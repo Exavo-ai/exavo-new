@@ -31,6 +31,7 @@ import AdminLeads from "@/pages/admin/Leads";
 import AdminSettings from "@/pages/admin/Settings";
 import AdminProjectDetail from "@/pages/admin/ProjectDetail";
 import AdminApprovals from "@/pages/admin/Approvals";
+import AdminBlog from "@/pages/admin/Blog";
 import ClientDashboard from "./pages/ClientDashboard";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import Analytics from "./pages/Analytics";
@@ -179,6 +180,16 @@ const App = () => (
                   <ProtectedRoute requireRole="admin">
                     <AdminLayout>
                       <AdminApprovals />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/blog"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminLayout>
+                      <AdminBlog />
                     </AdminLayout>
                   </ProtectedRoute>
                 }

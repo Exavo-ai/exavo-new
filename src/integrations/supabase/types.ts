@@ -191,6 +191,51 @@ export type Database = {
           },
         ]
       }
+      blog_posts: {
+        Row: {
+          content: string | null
+          created_at: string
+          excerpt: string | null
+          featured_image: string | null
+          gallery_images: Json | null
+          id: string
+          slug: string
+          status: string
+          title: string
+          updated_at: string
+          uploaded_video: string | null
+          video_url: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          excerpt?: string | null
+          featured_image?: string | null
+          gallery_images?: Json | null
+          id?: string
+          slug: string
+          status?: string
+          title: string
+          updated_at?: string
+          uploaded_video?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          excerpt?: string | null
+          featured_image?: string | null
+          gallery_images?: Json | null
+          id?: string
+          slug?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          uploaded_video?: string | null
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
