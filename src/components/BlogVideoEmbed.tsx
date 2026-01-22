@@ -1,12 +1,13 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface BlogVideoEmbedProps {
   uploadedVideo?: string | null;
+  videoPoster?: string | null;
   videoUrl?: string | null;
 }
 
-export function BlogVideoEmbed({ uploadedVideo, videoUrl }: BlogVideoEmbedProps) {
+export function BlogVideoEmbed({ uploadedVideo, videoPoster, videoUrl }: BlogVideoEmbedProps) {
   const getEmbedUrl = (url: string): string | null => {
     // YouTube
     const youtubeMatch = url.match(
@@ -39,18 +40,30 @@ export function BlogVideoEmbed({ uploadedVideo, videoUrl }: BlogVideoEmbedProps)
 
     return (
       <div className="my-8 space-y-3">
-        <video
-          controls
-          className="w-full rounded-xl shadow-lg bg-black"
-          preload="metadata"
-          playsInline
-          style={{ minHeight: '200px' }}
-        >
-          <source src={cleanUrl} type={mimeType} />
-          <p className="text-center p-4">
-            Your browser doesn't support HTML video.
-          </p>
-        </video>
+        <div className="relative group">
+          <video
+            controls
+            className="w-full rounded-xl shadow-lg bg-black"
+            preload="metadata"
+            playsInline
+            poster={videoPoster || undefined}
+            style={{ minHeight: '200px' }}
+          >
+            <source src={cleanUrl} type={mimeType} />
+            <p className="text-center p-4">
+              Your browser doesn't support HTML video.
+            </p>
+          </video>
+          
+          {/* Play overlay when poster is shown */}
+          {videoPoster && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="w-16 h-16 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
+                <Play className="w-8 h-8 text-primary-foreground ml-1" />
+              </div>
+            </div>
+          )}
+        </div>
         
         {/* Always show direct link as backup */}
         <div className="flex justify-center">

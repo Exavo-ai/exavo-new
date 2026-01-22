@@ -37,6 +37,7 @@ type BlogPost = {
   featured_image: string | null;
   gallery_images: string[];
   uploaded_video: string | null;
+  video_poster: string | null;
   video_url: string | null;
   status: string;
   created_at: string;
