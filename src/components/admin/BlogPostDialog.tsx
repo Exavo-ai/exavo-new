@@ -362,10 +362,16 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
             {uploadedVideo ? (
               <div className="relative">
                 <video
-                  src={uploadedVideo}
                   className="w-full max-w-md rounded-lg"
                   controls
-                />
+                  playsInline
+                >
+                  <source 
+                    src={uploadedVideo} 
+                    type={uploadedVideo.toLowerCase().includes('.webm') ? 'video/webm' : 'video/mp4'} 
+                  />
+                  Your browser does not support the video tag.
+                </video>
                 <Button
                   variant="destructive"
                   size="icon"

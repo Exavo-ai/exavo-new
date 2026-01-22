@@ -22,15 +22,26 @@ export function BlogVideoEmbed({ uploadedVideo, videoUrl }: BlogVideoEmbedProps)
     return null;
   };
 
+  const getVideoMimeType = (url: string): string => {
+    const lowerUrl = url.toLowerCase();
+    if (lowerUrl.includes('.webm')) return 'video/webm';
+    if (lowerUrl.includes('.mp4')) return 'video/mp4';
+    // Default to mp4 if extension can't be determined
+    return 'video/mp4';
+  };
+
   if (uploadedVideo) {
+    const mimeType = getVideoMimeType(uploadedVideo);
+    
     return (
       <div className="my-8">
         <video
-          src={uploadedVideo}
           controls
           className="w-full rounded-xl shadow-lg"
           preload="metadata"
+          playsInline
         >
+          <source src={uploadedVideo} type={mimeType} />
           Your browser does not support the video tag.
         </video>
       </div>
