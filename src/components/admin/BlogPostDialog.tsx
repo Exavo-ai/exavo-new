@@ -30,6 +30,7 @@ type BlogPost = {
   featured_image: string | null;
   gallery_images: string[];
   uploaded_video: string | null;
+  video_poster: string | null;
   video_url: string | null;
   status: string;
   created_at: string;
@@ -49,6 +50,7 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
   const [featuredImage, setFeaturedImage] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [uploadedVideo, setUploadedVideo] = useState<string | null>(null);
+  const [videoPoster, setVideoPoster] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState("");
   const [status, setStatus] = useState("draft");
   const [uploading, setUploading] = useState(false);
@@ -63,6 +65,7 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
       setFeaturedImage(post.featured_image);
       setGalleryImages(post.gallery_images || []);
       setUploadedVideo(post.uploaded_video);
+      setVideoPoster(post.video_poster);
       setVideoUrl(post.video_url || "");
       setStatus(post.status);
     } else {
@@ -72,6 +75,7 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
       setFeaturedImage(null);
       setGalleryImages([]);
       setUploadedVideo(null);
+      setVideoPoster(null);
       setVideoUrl("");
       setStatus("draft");
     }
@@ -184,6 +188,27 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
     }
   };
 
+  const handleVideoPosterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const url = await uploadFile(file, "posters");
+      setVideoPoster(url);
+      toast.success("Video thumbnail uploaded");
+    } catch (error) {
+      toast.error("Failed to upload thumbnail");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const removeGalleryImage = (index: number) => {
     setGalleryImages(galleryImages.filter((_, i) => i !== index));
   };
@@ -198,6 +223,7 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
         featured_image: featuredImage,
         gallery_images: galleryImages,
         uploaded_video: uploadedVideo,
+        video_poster: videoPoster,
         video_url: videoUrl || null,
         status,
       };
@@ -367,6 +393,7 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
                   controls
                   playsInline
                   preload="metadata"
+                  poster={videoPoster || undefined}
                 >
                   <source 
                     src={uploadedVideo} 
@@ -378,7 +405,10 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => setUploadedVideo(null)}
+                    onClick={() => {
+                      setUploadedVideo(null);
+                      setVideoPoster(null);
+                    }}
                   >
                     <X className="w-4 h-4 mr-1" />
                     Remove
@@ -409,6 +439,47 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
               </label>
             )}
           </div>
+
+          {/* Video Thumbnail/Poster */}
+          {uploadedVideo && (
+            <div className="space-y-2">
+              <Label>Video Thumbnail (Optional)</Label>
+              <p className="text-xs text-muted-foreground">
+                This image will be displayed before the video plays
+              </p>
+              {videoPoster ? (
+                <div className="relative inline-block">
+                  <img
+                    src={videoPoster}
+                    alt="Video thumbnail"
+                    className="w-full max-w-xs h-32 object-cover rounded-lg border"
+                  />
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 w-6 h-6"
+                    onClick={() => setVideoPoster(null)}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full max-w-xs h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                  <Image className="w-5 h-5 text-muted-foreground mb-1" />
+                  <span className="text-sm text-muted-foreground">
+                    Upload thumbnail image
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleVideoPosterUpload}
+                    className="hidden"
+                    disabled={uploading}
+                  />
+                </label>
+              )}
+            </div>
+          )}
 
           {/* Video URL */}
           <div className="space-y-2">

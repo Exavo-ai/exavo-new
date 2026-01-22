@@ -20,6 +20,7 @@ type BlogPost = {
   featured_image: string | null;
   gallery_images: string[];
   uploaded_video: string | null;
+  video_poster: string | null;
   video_url: string | null;
   status: string;
   created_at: string;
@@ -125,6 +126,7 @@ export default function BlogPostPage() {
             {/* Video */}
             <BlogVideoEmbed
               uploadedVideo={post.uploaded_video}
+              videoPoster={post.video_poster}
               videoUrl={post.video_url}
             />
 
