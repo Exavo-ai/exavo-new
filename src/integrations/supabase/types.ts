@@ -358,6 +358,8 @@ export type Database = {
       }
       deliveries: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           created_by: string
           files: Json | null
@@ -366,9 +368,12 @@ export type Database = {
           project_id: string
           revision_notes: string | null
           revision_requested: boolean
+          status: string
           updated_at: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           created_by: string
           files?: Json | null
@@ -377,9 +382,12 @@ export type Database = {
           project_id: string
           revision_notes?: string | null
           revision_requested?: boolean
+          status?: string
           updated_at?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           created_by?: string
           files?: Json | null
@@ -388,6 +396,7 @@ export type Database = {
           project_id?: string
           revision_notes?: string | null
           revision_requested?: boolean
+          status?: string
           updated_at?: string
         }
         Relationships: [

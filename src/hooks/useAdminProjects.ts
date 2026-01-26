@@ -74,6 +74,8 @@ export interface ProjectFile {
   };
 }
 
+export type DeliveryStatus = 'pending' | 'approved' | 'changes_requested';
+
 export interface Delivery {
   id: string;
   project_id: string;
@@ -82,6 +84,9 @@ export interface Delivery {
   created_by: string;
   revision_requested: boolean;
   revision_notes: string | null;
+  status: DeliveryStatus;
+  approved_at: string | null;
+  approved_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -188,7 +193,7 @@ export function useAdminProject(projectId: string | undefined) {
       setMilestones(milestonesRes.data || []);
       setComments(commentsRes.data || []);
       setFiles((filesRes.data as ProjectFile[]) || []);
-      setDeliveries(deliveriesRes.data || []);
+      setDeliveries((deliveriesRes.data || []) as Delivery[]);
       setTickets(ticketsRes.data || []);
 
       // Fetch payments for this project (same source as main Billing: payments table)
