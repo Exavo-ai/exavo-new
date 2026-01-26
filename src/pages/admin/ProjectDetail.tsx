@@ -45,6 +45,7 @@ import AdminProjectFileUploadDialog from "@/components/admin/AdminProjectFileUpl
 import AdminDeliveryDialog from "@/components/admin/AdminDeliveryDialog";
 import AdminMilestoneDialog from "@/components/admin/AdminMilestoneDialog";
 import { CreateTicketDialog } from "@/components/portal/CreateTicketDialog";
+import { DeliveryStatusBadge } from "@/components/portal/DeliveryStatusBadge";
 import type { Milestone } from "@/hooks/useAdminProjects";
 import { cn } from "@/lib/utils";
 
@@ -431,12 +432,20 @@ export default function AdminProjectDetailPage() {
                 <CardTitle>Deliveries</CardTitle>
                 <CardDescription>Submit and manage project deliveries</CardDescription>
               </div>
-              {!isCompleted && (
-                <Button onClick={() => setDeliveryDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Delivery
-                </Button>
-              )}
+              <div className="flex items-center gap-3">
+                {deliveries.length > 0 && deliveries.every(d => d.status === 'approved') && (
+                  <div className="flex items-center gap-2 text-green-600 bg-green-50 dark:bg-green-950/30 px-3 py-1.5 rounded-lg text-sm">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span className="font-medium">All deliveries approved</span>
+                  </div>
+                )}
+                {!isCompleted && (
+                  <Button onClick={() => setDeliveryDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Delivery
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {deliveries.length === 0 ? (
@@ -446,18 +455,24 @@ export default function AdminProjectDetailPage() {
               ) : (
                 <div className="space-y-6">
                   {deliveries.map((delivery) => (
-                    <div key={delivery.id} className="p-4 rounded-lg border space-y-4">
+                    <div key={delivery.id} className={`p-4 rounded-lg border space-y-4 ${delivery.status === 'approved' ? 'bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900' : ''}`}>
                       <div className="flex items-start justify-between">
-                        <div>
+                        <div className="space-y-1">
                           <p className="text-sm text-muted-foreground">
                             {format(new Date(delivery.created_at), "MMM d, yyyy 'at' h:mm a")}
                           </p>
-                          {delivery.revision_requested && (
-                            <Badge variant="destructive" className="mt-1">
-                              Revision Requested
-                            </Badge>
+                          <DeliveryStatusBadge status={delivery.status} />
+                          {delivery.status === 'approved' && delivery.approved_at && (
+                            <p className="text-xs text-green-600 dark:text-green-400">
+                              Approved on {format(new Date(delivery.approved_at), "MMM d, yyyy")}
+                            </p>
                           )}
                         </div>
+                        {delivery.status === 'approved' && (
+                          <div className="text-xs text-muted-foreground italic">
+                            Locked — approved by client
+                          </div>
+                        )}
                       </div>
                       <p>{delivery.message}</p>
                       {delivery.revision_notes && (

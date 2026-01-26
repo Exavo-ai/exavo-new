@@ -70,6 +70,8 @@ export interface ProjectFile {
   };
 }
 
+export type DeliveryStatus = 'pending' | 'approved' | 'changes_requested';
+
 export interface Delivery {
   id: string;
   project_id: string;
@@ -78,6 +80,9 @@ export interface Delivery {
   created_by: string;
   revision_requested: boolean;
   revision_notes: string | null;
+  status: DeliveryStatus;
+  approved_at: string | null;
+  approved_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -243,7 +248,7 @@ export function useProject(projectId: string | undefined) {
       setMilestones(milestonesRes.data || []);
       setComments(commentsRes.data || []);
       setFiles((filesRes.data as ProjectFile[]) || []);
-      setDeliveries(deliveriesRes.data || []);
+      setDeliveries((deliveriesRes.data || []) as Delivery[]);
       setTickets(ticketsRes.data || []);
 
       // Fetch payments for this project (same source as main Billing: payments table)
@@ -444,16 +449,48 @@ export function useProject(projectId: string | undefined) {
     try {
       const { error } = await supabase
         .from("deliveries")
-        .update({ revision_requested: true, revision_notes: notes })
+        .update({ 
+          revision_requested: true, 
+          revision_notes: notes,
+          status: 'changes_requested' as const
+        })
         .eq("id", deliveryId);
 
       if (error) throw error;
       toast({ title: "Revision requested" });
+      loadProject();
       return true;
     } catch (err: any) {
       toast({
         title: "Error",
         description: "Failed to request revision",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const approveDelivery = async (deliveryId: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from("deliveries")
+        .update({ 
+          status: 'approved' as const,
+          approved_at: new Date().toISOString(),
+          approved_by: user.id
+        })
+        .eq("id", deliveryId);
+
+      if (error) throw error;
+      toast({ title: "Delivery approved", description: "The delivery has been marked as approved." });
+      loadProject();
+      return true;
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: "Failed to approve delivery",
         variant: "destructive",
       });
       return false;
@@ -662,6 +699,7 @@ export function useProject(projectId: string | undefined) {
     refetch: loadProject,
     addComment,
     requestRevision,
+    approveDelivery,
     deleteFile,
     cancelSubscription,
     openBillingPortal,

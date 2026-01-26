@@ -26,6 +26,7 @@ import {
   Upload,
   Trash2,
   Plus,
+  ThumbsUp,
 } from "lucide-react";
 import { useProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +42,7 @@ import {
 import ProjectFileUploadDialog from "@/components/portal/ProjectFileUploadDialog";
 import { CreateTicketDialog } from "@/components/portal/CreateTicketDialog";
 import { ProjectBillingTab } from "@/components/portal/ProjectBillingTab";
+import { DeliveryStatusBadge } from "@/components/portal/DeliveryStatusBadge";
 
 const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
   switch (status.toLowerCase()) {
@@ -83,6 +85,7 @@ export default function ProjectDetailPage() {
     refetch,
     addComment,
     requestRevision,
+    approveDelivery,
     deleteFile,
     cancelSubscription,
     openBillingPortal,
@@ -97,8 +100,16 @@ export default function ProjectDetailPage() {
   });
   const [revisionNotes, setRevisionNotes] = useState("");
   const [fileUploadOpen, setFileUploadOpen] = useState(false);
+  const [approvingDeliveryId, setApprovingDeliveryId] = useState<string | null>(null);
 
   const isCompleted = project?.status === "completed";
+  const allDeliveriesApproved = deliveries.length > 0 && deliveries.every(d => d.status === 'approved');
+
+  const handleApproveDelivery = async (deliveryId: string) => {
+    setApprovingDeliveryId(deliveryId);
+    await approveDelivery(deliveryId);
+    setApprovingDeliveryId(null);
+  };
 
   const handlePostComment = async () => {
     if (!newComment.trim()) return;
@@ -355,8 +366,18 @@ export default function ProjectDetailPage() {
         <TabsContent value="deliveries">
           <Card>
             <CardHeader>
-              <CardTitle>Deliveries</CardTitle>
-              <CardDescription>Review and approve project deliveries</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Deliveries</CardTitle>
+                  <CardDescription>Review and approve project deliveries</CardDescription>
+                </div>
+                {allDeliveriesApproved && (
+                  <div className="flex items-center gap-2 text-green-600 bg-green-50 dark:bg-green-950/30 px-4 py-2 rounded-lg">
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span className="font-medium">Project completed and approved by client</span>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {deliveries.length === 0 ? (
@@ -366,29 +387,43 @@ export default function ProjectDetailPage() {
               ) : (
                 <div className="space-y-6">
                   {deliveries.map((delivery) => (
-                    <div key={delivery.id} className="p-4 rounded-lg border space-y-4">
+                    <div key={delivery.id} className={`p-4 rounded-lg border space-y-4 ${delivery.status === 'approved' ? 'bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900' : ''}`}>
                       <div className="flex items-start justify-between">
-                        <div>
+                        <div className="space-y-1">
                           <p className="text-sm text-muted-foreground">
                             {format(new Date(delivery.created_at), "MMM d, yyyy 'at' h:mm a")}
                           </p>
-                          {delivery.revision_requested && (
-                            <Badge variant="destructive" className="mt-1">
-                              Revision Requested
-                            </Badge>
+                          <DeliveryStatusBadge status={delivery.status} />
+                          {delivery.status === 'approved' && delivery.approved_at && (
+                            <p className="text-xs text-green-600 dark:text-green-400">
+                              Approved on {format(new Date(delivery.approved_at), "MMM d, yyyy")}
+                            </p>
                           )}
                         </div>
-                        {!isCompleted && !delivery.revision_requested && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              setRevisionDialog({ open: true, deliveryId: delivery.id })
-                            }
-                          >
-                            <RotateCcw className="w-4 h-4 mr-2" />
-                            Request Revision
-                          </Button>
+                        {/* Show action buttons only for pending deliveries */}
+                        {delivery.status === 'pending' && !isCompleted && (
+                          <div className="flex gap-2">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleApproveDelivery(delivery.id)}
+                              disabled={approvingDeliveryId === delivery.id}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <ThumbsUp className="w-4 h-4 mr-2" />
+                              {approvingDeliveryId === delivery.id ? 'Approving...' : 'Approve Delivery'}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setRevisionDialog({ open: true, deliveryId: delivery.id })
+                              }
+                            >
+                              <RotateCcw className="w-4 h-4 mr-2" />
+                              Request Changes
+                            </Button>
+                          </div>
                         )}
                       </div>
                       <p>{delivery.message}</p>
