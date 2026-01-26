@@ -471,9 +471,10 @@ export function useProject(projectId: string | undefined) {
   };
 
   const approveDelivery = async (deliveryId: string): Promise<boolean> => {
-    if (!user) return false;
+    if (!user || !projectId) return false;
 
     try {
+      // 1. Approve the delivery
       const { error } = await supabase
         .from("deliveries")
         .update({ 
@@ -484,7 +485,40 @@ export function useProject(projectId: string | undefined) {
         .eq("id", deliveryId);
 
       if (error) throw error;
-      toast({ title: "Delivery approved", description: "The delivery has been marked as approved." });
+
+      // 2. Check if ALL deliveries for this project are now approved
+      const { data: allDeliveries, error: fetchError } = await supabase
+        .from("deliveries")
+        .select("id, status")
+        .eq("project_id", projectId);
+
+      if (fetchError) throw fetchError;
+
+      // 3. If all deliveries are approved, update project status to completed
+      const allApproved = allDeliveries && allDeliveries.length > 0 && 
+        allDeliveries.every(d => d.status === 'approved');
+
+      if (allApproved) {
+        const { error: projectError } = await supabase
+          .from("projects")
+          .update({ 
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          })
+          .eq("id", projectId);
+
+        if (projectError) {
+          console.error("Failed to update project status:", projectError);
+        } else {
+          toast({ 
+            title: "Project Completed", 
+            description: "All deliveries approved. Project is now marked as completed." 
+          });
+        }
+      } else {
+        toast({ title: "Delivery approved", description: "The delivery has been marked as approved." });
+      }
+
       loadProject();
       return true;
     } catch (err: any) {
