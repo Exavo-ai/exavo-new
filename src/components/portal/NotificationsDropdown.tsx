@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck, AlertTriangle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface Notification {
   id: string;
@@ -22,6 +23,9 @@ interface Notification {
   read: boolean;
   link: string | null;
   created_at: string;
+  priority?: string;
+  event_type?: string;
+  read_at?: string | null;
 }
 
 export function NotificationsDropdown() {
@@ -32,7 +36,8 @@ export function NotificationsDropdown() {
 
   useEffect(() => {
     loadNotifications();
-    subscribeToNotifications();
+    const unsubscribe = subscribeToNotifications();
+    return unsubscribe;
   }, []);
 
   const loadNotifications = async () => {
@@ -45,7 +50,7 @@ export function NotificationsDropdown() {
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(30);
 
       if (error) throw error;
       setNotifications(data || []);
@@ -78,18 +83,19 @@ export function NotificationsDropdown() {
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  const hasHighPriority = notifications.some(n => !n.read && n.priority === "high");
 
   const handleMarkAsRead = async (id: string, link?: string | null) => {
     try {
       const { error } = await supabase
         .from("notifications")
-        .update({ read: true })
+        .update({ read: true, read_at: new Date().toISOString() })
         .eq("id", id);
 
       if (error) throw error;
 
       setNotifications(prev =>
-        prev.map(n => (n.id === id ? { ...n, read: true } : n))
+        prev.map(n => (n.id === id ? { ...n, read: true, read_at: new Date().toISOString() } : n))
       );
 
       if (link) {
@@ -112,13 +118,13 @@ export function NotificationsDropdown() {
 
       const { error } = await supabase
         .from("notifications")
-        .update({ read: true })
+        .update({ read: true, read_at: new Date().toISOString() })
         .eq("user_id", user.id)
         .eq("read", false);
 
       if (error) throw error;
 
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifications(prev => prev.map(n => ({ ...n, read: true, read_at: new Date().toISOString() })));
     } catch (error) {
       console.error("Error marking all as read:", error);
       toast({
@@ -129,19 +135,55 @@ export function NotificationsDropdown() {
     }
   };
 
+  const getPriorityStyles = (priority?: string, read?: boolean) => {
+    if (read) return "";
+    
+    switch (priority) {
+      case "high":
+        return "border-l-4 border-l-destructive bg-destructive/5";
+      case "low":
+        return "opacity-80";
+      default:
+        return "bg-muted/50";
+    }
+  };
+
+  const getPriorityIcon = (priority?: string) => {
+    switch (priority) {
+      case "high":
+        return <AlertTriangle className="w-3.5 h-3.5 text-destructive flex-shrink-0" />;
+      case "low":
+        return <Info className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 relative">
-          <Bell className="h-4 w-4" />
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className={cn(
+            "h-9 w-9 shrink-0 relative",
+            hasHighPriority && "animate-pulse"
+          )}
+        >
+          <Bell className={cn("h-4 w-4", hasHighPriority && "text-destructive")} />
           {unreadCount > 0 && (
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-              {unreadCount}
+            <Badge 
+              className={cn(
+                "absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs",
+                hasHighPriority && "bg-destructive"
+              )}
+            >
+              {unreadCount > 9 ? "9+" : unreadCount}
             </Badge>
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
+      <DropdownMenuContent align="end" className="w-96">
         <DropdownMenuLabel className="flex items-center justify-between">
           <span>Notifications</span>
           {unreadCount > 0 && (
@@ -166,23 +208,37 @@ export function NotificationsDropdown() {
             No notifications
           </div>
         ) : (
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[400px] overflow-y-auto">
             {notifications.map((notification) => (
               <DropdownMenuItem
                 key={notification.id}
-                className={`flex flex-col items-start gap-1 p-3 cursor-pointer ${
-                  !notification.read ? 'bg-muted/50' : ''
-                }`}
+                className={cn(
+                  "flex flex-col items-start gap-1 p-3 cursor-pointer",
+                  getPriorityStyles(notification.priority, notification.read)
+                )}
                 onClick={() => handleMarkAsRead(notification.id, notification.link)}
               >
-                <div className="flex items-start justify-between w-full">
-                  <p className="font-medium text-sm">{notification.title}</p>
+                <div className="flex items-start justify-between w-full gap-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {getPriorityIcon(notification.priority)}
+                    <p className={cn(
+                      "font-medium text-sm truncate",
+                      notification.priority === "high" && !notification.read && "text-destructive"
+                    )}>
+                      {notification.title}
+                    </p>
+                  </div>
                   {!notification.read && (
-                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
+                    <div className={cn(
+                      "w-2 h-2 rounded-full flex-shrink-0 mt-1",
+                      notification.priority === "high" ? "bg-destructive" : "bg-primary"
+                    )} />
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">{notification.message}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground line-clamp-2 pl-5">
+                  {notification.message}
+                </p>
+                <p className="text-xs text-muted-foreground pl-5">
                   {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                 </p>
               </DropdownMenuItem>
