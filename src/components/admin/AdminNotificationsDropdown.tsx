@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell } from "lucide-react";
+import { Bell, AlertTriangle, Info, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface Notification {
   id: string;
@@ -22,6 +23,9 @@ interface Notification {
   read: boolean;
   link: string | null;
   created_at: string;
+  priority?: string;
+  event_type?: string;
+  role?: string;
 }
 
 export function AdminNotificationsDropdown() {
@@ -47,10 +51,11 @@ export function AdminNotificationsDropdown() {
           const newNotification = payload.new as Notification;
           setNotifications((prev) => [newNotification, ...prev]);
           
-          // Show toast for new notification
+          // Show toast for new notification with priority styling
           toast({
             title: newNotification.title,
             description: newNotification.message,
+            variant: newNotification.priority === "high" ? "destructive" : "default",
           });
         }
       )
@@ -87,7 +92,7 @@ export function AdminNotificationsDropdown() {
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(30);
 
       if (error) throw error;
       
@@ -115,7 +120,7 @@ export function AdminNotificationsDropdown() {
     try {
       const { error } = await supabase
         .from("notifications")
-        .update({ read: true })
+        .update({ read: true, read_at: new Date().toISOString() })
         .eq("id", notification.id);
 
       if (error) throw error;
@@ -144,7 +149,7 @@ export function AdminNotificationsDropdown() {
 
       const { error } = await supabase
         .from("notifications")
-        .update({ read: true })
+        .update({ read: true, read_at: new Date().toISOString() })
         .eq("user_id", user.id)
         .eq("read", false);
 
@@ -167,35 +172,73 @@ export function AdminNotificationsDropdown() {
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const hasHighPriority = notifications.some(n => !n.read && n.priority === "high");
+
+  const getPriorityStyles = (priority?: string, read?: boolean) => {
+    if (read) return "";
+    
+    switch (priority) {
+      case "high":
+        return "border-l-4 border-l-destructive bg-destructive/5";
+      case "low":
+        return "opacity-80";
+      default:
+        return "bg-muted/50";
+    }
+  };
+
+  const getPriorityIcon = (priority?: string) => {
+    switch (priority) {
+      case "high":
+        return <AlertTriangle className="w-3.5 h-3.5 text-destructive flex-shrink-0" />;
+      case "low":
+        return <Info className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9 relative shrink-0">
-          <Bell className="h-4 w-4" />
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className={cn(
+            "h-9 w-9 relative shrink-0",
+            hasHighPriority && "animate-pulse"
+          )}
+        >
+          <Bell className={cn("h-4 w-4", hasHighPriority && "text-destructive")} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-medium">
+            <span className={cn(
+              "absolute -top-1 -right-1 h-5 w-5 rounded-full text-xs flex items-center justify-center font-medium",
+              hasHighPriority 
+                ? "bg-destructive text-destructive-foreground" 
+                : "bg-primary text-primary-foreground"
+            )}>
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
+      <DropdownMenuContent align="end" className="w-96">
         <DropdownMenuLabel className="flex items-center justify-between">
           <span>Notifications</span>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+              className="h-auto p-1 text-xs"
               onClick={handleMarkAllAsRead}
             >
-              Mark all as read
+              <CheckCheck className="w-4 h-4 mr-1" />
+              Mark all read
             </Button>
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <ScrollArea className="h-[300px]">
+        <ScrollArea className="h-[400px]">
           {loading ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               Loading notifications...
@@ -208,23 +251,33 @@ export function AdminNotificationsDropdown() {
             notifications.map((notification) => (
               <DropdownMenuItem
                 key={notification.id}
-                className={`flex flex-col items-start p-3 cursor-pointer ${
-                  !notification.read ? "bg-muted/50" : ""
-                }`}
+                className={cn(
+                  "flex flex-col items-start p-3 cursor-pointer",
+                  getPriorityStyles(notification.priority, notification.read)
+                )}
                 onClick={() => handleMarkAsRead(notification)}
               >
                 <div className="flex items-start justify-between w-full gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{notification.title}</p>
-                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                      {notification.message}
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {getPriorityIcon(notification.priority)}
+                    <p className={cn(
+                      "font-medium text-sm truncate",
+                      notification.priority === "high" && !notification.read && "text-destructive"
+                    )}>
+                      {notification.title}
                     </p>
                   </div>
                   {!notification.read && (
-                    <div className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1" />
+                    <div className={cn(
+                      "h-2 w-2 rounded-full shrink-0 mt-1",
+                      notification.priority === "high" ? "bg-destructive" : "bg-primary"
+                    )} />
                   )}
                 </div>
-                <span className="text-xs text-muted-foreground mt-2">
+                <p className="text-xs text-muted-foreground line-clamp-2 mt-1 pl-5">
+                  {notification.message}
+                </p>
+                <span className="text-xs text-muted-foreground mt-2 pl-5">
                   {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                 </span>
               </DropdownMenuItem>

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { emitSystemAlert, emitEvent } from "../_shared/notifications.ts";
 
 // Generate request ID for tracing
 const generateRequestId = () => `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -830,6 +831,55 @@ serve(async (req) => {
           .eq("stripe_subscription_id", invoice.subscription);
 
         logStep("Subscription marked as past_due", { subscriptionId: invoice.subscription }, ctx);
+
+        // Get project info for notification
+        const { data: projectSub } = await supabaseAdmin
+          .from("project_subscriptions")
+          .select("project_id")
+          .eq("stripe_subscription_id", invoice.subscription)
+          .maybeSingle();
+
+        if (projectSub?.project_id) {
+          const { data: project } = await supabaseAdmin
+            .from("projects")
+            .select("name, user_id, client_id")
+            .eq("id", projectSub.project_id)
+            .maybeSingle();
+
+          if (project) {
+            const clientId = project.client_id || project.user_id;
+            
+            // Emit payment failed event to client
+            await emitEvent("PAYMENT_FAILED", {
+              entity_type: "subscription",
+              entity_id: projectSub.project_id,
+              target_user_id: clientId,
+              metadata: {
+                project_name: project.name,
+                invoice_id: invoice.id,
+                attempt_count: invoice.attempt_count,
+              },
+            });
+
+            // Alert admins about payment failure
+            await emitSystemAlert(
+              `Payment failed for project "${project.name}"`,
+              {
+                source: "stripe-webhook",
+                severity: invoice.attempt_count && invoice.attempt_count >= 3 ? "critical" : "warning",
+                affected_entity_type: "project",
+                affected_entity_id: projectSub.project_id,
+                suggested_action: "Contact customer about payment method update",
+                metadata: {
+                  invoice_id: invoice.id,
+                  subscription_id: invoice.subscription,
+                  attempt_count: invoice.attempt_count,
+                  customer_email: invoice.customer_email,
+                },
+              }
+            );
+          }
+        }
       }
     }
 

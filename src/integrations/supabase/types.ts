@@ -529,29 +529,53 @@ export type Database = {
       }
       notifications: {
         Row: {
+          actor_id: string | null
           created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          event_type: string | null
           id: string
           link: string | null
           message: string
+          metadata: Json | null
+          priority: string | null
           read: boolean
+          read_at: string | null
+          role: string | null
           title: string
           user_id: string
         }
         Insert: {
+          actor_id?: string | null
           created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type?: string | null
           id?: string
           link?: string | null
           message: string
+          metadata?: Json | null
+          priority?: string | null
           read?: boolean
+          read_at?: string | null
+          role?: string | null
           title: string
           user_id: string
         }
         Update: {
+          actor_id?: string | null
           created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type?: string | null
           id?: string
           link?: string | null
           message?: string
+          metadata?: Json | null
+          priority?: string | null
           read?: boolean
+          read_at?: string | null
+          role?: string | null
           title?: string
           user_id?: string
         }
@@ -1647,6 +1671,22 @@ export type Database = {
     }
     Functions: {
       _lovable_types_sync: { Args: never; Returns: boolean }
+      emit_notification: {
+        Args: {
+          p_actor_id?: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_event_type?: string
+          p_link?: string
+          p_message: string
+          p_metadata?: Json
+          p_priority?: string
+          p_role?: string
+          p_title: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -1657,6 +1697,20 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      notify_all_admins: {
+        Args: {
+          p_actor_id?: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_event_type: string
+          p_link?: string
+          p_message: string
+          p_metadata?: Json
+          p_priority?: string
+          p_title: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
