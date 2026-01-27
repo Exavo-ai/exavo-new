@@ -78,6 +78,7 @@ export default function ProjectDetailPage() {
     invoices,
     subscription,
     monthlyFee,
+    currentPackage,
     tickets,
     loading,
     error,
@@ -655,6 +656,8 @@ export default function ProjectDetailPage() {
         {/* Billing Tab */}
         <TabsContent value="billing">
           <ProjectBillingTab
+            projectId={project.id}
+            serviceId={project.service_id}
             paymentModel={project.payment_model as "one_time" | "subscription" | null}
             invoices={invoices.map(inv => ({
               id: inv.id,
@@ -677,6 +680,7 @@ export default function ProjectDetailPage() {
               cancel_at_period_end: subscription.cancel_at_period_end,
             } : null}
             monthlyFee={monthlyFee}
+            currentPackage={currentPackage}
             onCancelSubscription={cancelSubscription}
             cancellingSubscription={cancellingSubscription}
             onPauseSubscription={pauseSubscription}
@@ -685,6 +689,7 @@ export default function ProjectDetailPage() {
             resumingSubscription={resumingSubscription}
             onOpenBillingPortal={openBillingPortal}
             onResubscribe={resubscribe}
+            onRefetch={refetch}
           />
         </TabsContent>
       </Tabs>

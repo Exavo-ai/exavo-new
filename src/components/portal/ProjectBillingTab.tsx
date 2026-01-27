@@ -23,9 +23,11 @@ import {
   RotateCw, 
   Pause, 
   Play,
-  AlertTriangle
+  AlertTriangle,
+  ArrowUpDown
 } from "lucide-react";
 import { format } from "date-fns";
+import { ChangePlanDialog } from "./ChangePlanDialog";
 
 interface Invoice {
   id: string;
@@ -49,11 +51,20 @@ interface Subscription {
   cancel_at_period_end?: boolean;
 }
 
+interface CurrentPackage {
+  id: string;
+  package_name: string;
+  monthly_fee: number;
+}
+
 interface ProjectBillingTabProps {
+  projectId: string;
+  serviceId: string | null;
   paymentModel: "one_time" | "subscription" | null;
   invoices: Invoice[];
   subscription?: Subscription | null;
   monthlyFee?: number;
+  currentPackage?: CurrentPackage | null;
   onCancelSubscription?: () => Promise<boolean>;
   cancellingSubscription?: boolean;
   onPauseSubscription?: () => Promise<boolean>;
@@ -62,13 +73,17 @@ interface ProjectBillingTabProps {
   resumingSubscription?: boolean;
   onOpenBillingPortal?: () => Promise<boolean>;
   onResubscribe?: () => Promise<boolean>;
+  onRefetch?: () => void;
 }
 
 export function ProjectBillingTab({
+  projectId,
+  serviceId,
   paymentModel,
   invoices,
   subscription,
   monthlyFee = 0,
+  currentPackage,
   onCancelSubscription,
   cancellingSubscription = false,
   onPauseSubscription,
@@ -77,11 +92,13 @@ export function ProjectBillingTab({
   resumingSubscription = false,
   onOpenBillingPortal,
   onResubscribe,
+  onRefetch,
 }: ProjectBillingTabProps) {
   const [openingPortal, setOpeningPortal] = useState(false);
   const [resubscribing, setResubscribing] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showPauseDialog, setShowPauseDialog] = useState(false);
+  const [showChangePlanDialog, setShowChangePlanDialog] = useState(false);
 
   const isSubscription = paymentModel === "subscription";
   const isActive = subscription?.status === "active";
@@ -150,12 +167,18 @@ export function ProjectBillingTab({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Status</p>
                 <Badge variant={getStatusBadgeVariant()}>
                   {getStatusLabel()}
                 </Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Current Plan</p>
+                <p className="font-medium">
+                  {currentPackage?.package_name || "Unknown"}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Monthly Fee</p>
@@ -192,6 +215,17 @@ export function ProjectBillingTab({
                     >
                       <CreditCard className="w-4 h-4 mr-2" />
                       {openingPortal ? "Opening..." : "Manage Billing"}
+                    </Button>
+                  )}
+
+                  {/* Change Plan button - only show if service has multiple packages */}
+                  {serviceId && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowChangePlanDialog(true)}
+                    >
+                      <ArrowUpDown className="w-4 h-4 mr-2" />
+                      Change Plan
                     </Button>
                   )}
 
@@ -408,6 +442,21 @@ export function ProjectBillingTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Change Plan Dialog */}
+      {serviceId && (
+        <ChangePlanDialog
+          open={showChangePlanDialog}
+          onOpenChange={setShowChangePlanDialog}
+          projectId={projectId}
+          serviceId={serviceId}
+          currentPackageId={currentPackage?.id || null}
+          currentMonthlyFee={monthlyFee}
+          onPlanChanged={() => {
+            onRefetch?.();
+          }}
+        />
+      )}
     </div>
   );
 }

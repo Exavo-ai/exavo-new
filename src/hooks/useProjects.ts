@@ -116,6 +116,12 @@ export interface ProjectSubscription {
   updated_at: string;
 }
 
+export interface ServicePackageInfo {
+  id: string;
+  package_name: string;
+  monthly_fee: number;
+}
+
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,6 +189,7 @@ export function useProject(projectId: string | undefined) {
   const [invoices, setInvoices] = useState<ProjectInvoice[]>([]);
   const [subscription, setSubscription] = useState<ProjectSubscription | null>(null);
   const [monthlyFee, setMonthlyFee] = useState<number>(0);
+  const [currentPackage, setCurrentPackage] = useState<ServicePackageInfo | null>(null);
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -285,7 +292,7 @@ export function useProject(projectId: string | undefined) {
           .maybeSingle();
         setSubscription(subData || null);
 
-        // Get monthly fee from booking's package or service
+        // Get monthly fee and package info from booking's package
         if (projectData.appointment_id) {
           const { data: bookingData } = await supabase
             .from("appointments")
@@ -296,15 +303,25 @@ export function useProject(projectId: string | undefined) {
           if (bookingData?.package_id) {
             const { data: pkgData } = await supabase
               .from("service_packages")
-              .select("monthly_fee")
+              .select("id, package_name, monthly_fee")
               .eq("id", bookingData.package_id)
               .maybeSingle();
             setMonthlyFee(Number(pkgData?.monthly_fee) || 0);
+            setCurrentPackage(pkgData ? {
+              id: pkgData.id,
+              package_name: pkgData.package_name,
+              monthly_fee: Number(pkgData.monthly_fee) || 0,
+            } : null);
+          } else {
+            setCurrentPackage(null);
           }
+        } else {
+          setCurrentPackage(null);
         }
       } else {
         setSubscription(null);
         setMonthlyFee(0);
+        setCurrentPackage(null);
       }
 
       const appointmentId = projectData.appointment_id;
@@ -818,6 +835,7 @@ export function useProject(projectId: string | undefined) {
     invoices,
     subscription,
     monthlyFee,
+    currentPackage,
     tickets,
     loading,
     error,
