@@ -12,7 +12,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Receipt, ExternalLink, Calendar, DollarSign, RefreshCw, XCircle, CreditCard, RotateCw } from "lucide-react";
+import { 
+  Receipt, 
+  ExternalLink, 
+  Calendar, 
+  DollarSign, 
+  RefreshCw, 
+  XCircle, 
+  CreditCard, 
+  RotateCw, 
+  Pause, 
+  Play,
+  AlertTriangle
+} from "lucide-react";
 import { format } from "date-fns";
 
 interface Invoice {
@@ -32,6 +44,9 @@ interface Subscription {
   status: string;
   next_renewal_date: string | null;
   stripe_subscription_id: string | null;
+  paused_at?: string | null;
+  resume_at?: string | null;
+  cancel_at_period_end?: boolean;
 }
 
 interface ProjectBillingTabProps {
@@ -41,6 +56,10 @@ interface ProjectBillingTabProps {
   monthlyFee?: number;
   onCancelSubscription?: () => Promise<boolean>;
   cancellingSubscription?: boolean;
+  onPauseSubscription?: () => Promise<boolean>;
+  pausingSubscription?: boolean;
+  onResumeSubscription?: () => Promise<boolean>;
+  resumingSubscription?: boolean;
   onOpenBillingPortal?: () => Promise<boolean>;
   onResubscribe?: () => Promise<boolean>;
 }
@@ -52,16 +71,23 @@ export function ProjectBillingTab({
   monthlyFee = 0,
   onCancelSubscription,
   cancellingSubscription = false,
+  onPauseSubscription,
+  pausingSubscription = false,
+  onResumeSubscription,
+  resumingSubscription = false,
   onOpenBillingPortal,
   onResubscribe,
 }: ProjectBillingTabProps) {
   const [openingPortal, setOpeningPortal] = useState(false);
   const [resubscribing, setResubscribing] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showPauseDialog, setShowPauseDialog] = useState(false);
 
   const isSubscription = paymentModel === "subscription";
   const isActive = subscription?.status === "active";
+  const isPaused = subscription?.status === "paused";
   const isCanceled = subscription?.status === "canceled";
+  const isPastDue = subscription?.status === "past_due";
 
   const handleOpenBillingPortal = async () => {
     if (!onOpenBillingPortal) return;
@@ -83,11 +109,40 @@ export function ProjectBillingTab({
     await onCancelSubscription();
   };
 
+  const handlePauseSubscription = async () => {
+    if (!onPauseSubscription) return;
+    setShowPauseDialog(false);
+    await onPauseSubscription();
+  };
+
+  const handleResumeSubscription = async () => {
+    if (!onResumeSubscription) return;
+    await onResumeSubscription();
+  };
+
+  const getStatusBadgeVariant = () => {
+    if (isActive) return "default";
+    if (isPaused) return "secondary";
+    if (isPastDue) return "destructive";
+    if (isCanceled) return "destructive";
+    return "secondary";
+  };
+
+  const getStatusLabel = () => {
+    if (isPaused) return "Paused";
+    if (isPastDue) return "Past Due";
+    return subscription?.status ? subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1) : "Unknown";
+  };
+
   return (
     <div className="space-y-6">
       {/* Subscription Info Card - Only for subscription projects */}
       {isSubscription && subscription && (
-        <Card className={isCanceled ? "border-destructive/50" : "border-primary/20"}>
+        <Card className={`${
+          isCanceled || isPastDue ? "border-destructive/50" : 
+          isPaused ? "border-yellow-500/50" : 
+          "border-primary/20"
+        }`}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <RefreshCw className="w-5 h-5" />
@@ -98,8 +153,8 @@ export function ProjectBillingTab({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Status</p>
-                <Badge variant={isActive ? "default" : isCanceled ? "destructive" : "secondary"}>
-                  {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
+                <Badge variant={getStatusBadgeVariant()}>
+                  {getStatusLabel()}
                 </Badge>
               </div>
               <div>
@@ -111,11 +166,13 @@ export function ProjectBillingTab({
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">
-                  {isCanceled ? "Access Until" : "Next Renewal"}
+                  {isCanceled ? "Access Until" : isPaused ? "Paused Since" : "Next Renewal"}
                 </p>
                 <p className="font-medium flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
-                  {subscription.next_renewal_date
+                  {isPaused && subscription.paused_at
+                    ? format(new Date(subscription.paused_at), "MMM d, yyyy")
+                    : subscription.next_renewal_date
                     ? format(new Date(subscription.next_renewal_date), "MMM d, yyyy")
                     : "N/A"}
                 </p>
@@ -124,29 +181,58 @@ export function ProjectBillingTab({
 
             {/* Action buttons */}
             <div className="pt-4 border-t flex flex-wrap gap-3">
-              {isActive && onOpenBillingPortal && (
+              {/* Active subscription actions */}
+              {isActive && (
+                <>
+                  {onOpenBillingPortal && (
+                    <Button
+                      variant="default"
+                      onClick={handleOpenBillingPortal}
+                      disabled={openingPortal}
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      {openingPortal ? "Opening..." : "Manage Billing"}
+                    </Button>
+                  )}
+
+                  {onPauseSubscription && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowPauseDialog(true)}
+                      disabled={pausingSubscription}
+                    >
+                      <Pause className="w-4 h-4 mr-2" />
+                      {pausingSubscription ? "Pausing..." : "Pause Subscription"}
+                    </Button>
+                  )}
+
+                  {onCancelSubscription && (
+                    <Button
+                      variant="outline"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setShowCancelDialog(true)}
+                      disabled={cancellingSubscription}
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      {cancellingSubscription ? "Cancelling..." : "Cancel Subscription"}
+                    </Button>
+                  )}
+                </>
+              )}
+
+              {/* Paused subscription actions */}
+              {isPaused && onResumeSubscription && (
                 <Button
                   variant="default"
-                  onClick={handleOpenBillingPortal}
-                  disabled={openingPortal}
+                  onClick={handleResumeSubscription}
+                  disabled={resumingSubscription}
                 >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  {openingPortal ? "Opening..." : "Manage Billing"}
+                  <Play className="w-4 h-4 mr-2" />
+                  {resumingSubscription ? "Resuming..." : "Resume Subscription"}
                 </Button>
               )}
 
-              {isActive && onCancelSubscription && (
-                <Button
-                  variant="outline"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setShowCancelDialog(true)}
-                  disabled={cancellingSubscription}
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  {cancellingSubscription ? "Cancelling..." : "Cancel Subscription"}
-                </Button>
-              )}
-
+              {/* Canceled subscription actions */}
               {isCanceled && onResubscribe && (
                 <Button
                   variant="default"
@@ -157,12 +243,36 @@ export function ProjectBillingTab({
                   {resubscribing ? "Processing..." : "Resubscribe"}
                 </Button>
               )}
+
+              {/* Past due actions */}
+              {isPastDue && onOpenBillingPortal && (
+                <Button
+                  variant="default"
+                  onClick={handleOpenBillingPortal}
+                  disabled={openingPortal}
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  {openingPortal ? "Opening..." : "Update Payment Method"}
+                </Button>
+              )}
             </div>
 
+            {/* Status-specific messages */}
             {isActive && (
               <p className="text-xs text-muted-foreground">
                 Use "Manage Billing" to update payment method or view billing details in Stripe.
               </p>
+            )}
+
+            {isPaused && (
+              <div className="p-3 bg-yellow-500/10 rounded-lg">
+                <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                  Your subscription is paused. No charges will be made until you resume.
+                  {subscription.resume_at && (
+                    <> Scheduled to resume on {format(new Date(subscription.resume_at), "MMM d, yyyy")}.</>
+                  )}
+                </p>
+              </div>
             )}
 
             {isCanceled && (
@@ -172,6 +282,15 @@ export function ProjectBillingTab({
                   {subscription.next_renewal_date
                     ? format(new Date(subscription.next_renewal_date), "MMM d, yyyy")
                     : "the end of the current period"}.
+                </p>
+              </div>
+            )}
+
+            {isPastDue && (
+              <div className="p-3 bg-destructive/10 rounded-lg flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-destructive">
+                  Your last payment failed. Please update your payment method to avoid service interruption.
                 </p>
               </div>
             )}
@@ -242,6 +361,7 @@ export function ProjectBillingTab({
           )}
         </CardContent>
       </Card>
+
       {/* Cancel Subscription Confirmation Dialog */}
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <AlertDialogContent>
@@ -264,6 +384,26 @@ export function ProjectBillingTab({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Yes, Cancel Subscription
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Pause Subscription Confirmation Dialog */}
+      <AlertDialog open={showPauseDialog} onOpenChange={setShowPauseDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pause Subscription?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pausing your subscription will stop future billing until you resume. You can resume
+              your subscription anytime from this page. During the pause, you may have limited access
+              to some features.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Active</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePauseSubscription}>
+              Yes, Pause Subscription
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

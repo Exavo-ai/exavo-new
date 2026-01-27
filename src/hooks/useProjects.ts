@@ -108,6 +108,10 @@ export interface ProjectSubscription {
   stripe_customer_id: string | null;
   status: string;
   next_renewal_date: string | null;
+  paused_at: string | null;
+  resume_at: string | null;
+  pause_behavior: string | null;
+  cancel_at_period_end: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -183,6 +187,8 @@ export function useProject(projectId: string | undefined) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [pausingSubscription, setPausingSubscription] = useState(false);
+  const [resumingSubscription, setResumingSubscription] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -716,6 +722,92 @@ export function useProject(projectId: string | undefined) {
     }
   };
 
+  const pauseSubscription = async (): Promise<boolean> => {
+    if (!user || !projectId) return false;
+    setPausingSubscription(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke("pause-subscription", {
+        body: { project_id: projectId },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to pause subscription");
+      }
+
+      if (response.data?.ok === false) {
+        throw new Error(response.data.message || "Failed to pause subscription");
+      }
+
+      toast({
+        title: "Subscription paused",
+        description: "Your subscription has been paused. You can resume it anytime.",
+      });
+
+      loadProject();
+      return true;
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to pause subscription",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setPausingSubscription(false);
+    }
+  };
+
+  const resumeSubscription = async (): Promise<boolean> => {
+    if (!user || !projectId) return false;
+    setResumingSubscription(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke("resume-subscription", {
+        body: { project_id: projectId },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to resume subscription");
+      }
+
+      if (response.data?.ok === false) {
+        throw new Error(response.data.message || "Failed to resume subscription");
+      }
+
+      const nextRenewal = response.data?.next_renewal_date
+        ? new Date(response.data.next_renewal_date).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })
+        : null;
+
+      toast({
+        title: "Subscription resumed",
+        description: nextRenewal
+          ? `Your subscription is now active. Next billing date: ${nextRenewal}.`
+          : "Your subscription is now active.",
+      });
+
+      loadProject();
+      return true;
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to resume subscription",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setResumingSubscription(false);
+    }
+  };
+
   return {
     project,
     milestones,
@@ -730,12 +822,16 @@ export function useProject(projectId: string | undefined) {
     loading,
     error,
     cancellingSubscription,
+    pausingSubscription,
+    resumingSubscription,
     refetch: loadProject,
     addComment,
     requestRevision,
     approveDelivery,
     deleteFile,
     cancelSubscription,
+    pauseSubscription,
+    resumeSubscription,
     openBillingPortal,
     resubscribe,
   };

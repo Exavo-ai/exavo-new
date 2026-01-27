@@ -477,6 +477,86 @@ serve(async (req) => {
       }
     }
 
+    // Handle invoice payment failed (for subscription payment failures)
+    if (event.type === "invoice.payment_failed") {
+      const invoice = event.data.object as Stripe.Invoice;
+      
+      if (invoice.subscription) {
+        logStep("invoice.payment_failed", { 
+          invoiceId: invoice.id, 
+          subscriptionId: invoice.subscription,
+          attemptCount: invoice.attempt_count 
+        });
+
+        // Update project subscription status to indicate payment issue
+        await supabaseAdmin
+          .from("project_subscriptions")
+          .update({ status: "past_due" })
+          .eq("stripe_subscription_id", invoice.subscription);
+
+        // Update user-level subscription
+        await supabaseAdmin
+          .from("subscriptions")
+          .update({ status: "past_due" })
+          .eq("stripe_subscription_id", invoice.subscription);
+
+        logStep("Subscription marked as past_due", { subscriptionId: invoice.subscription });
+      }
+    }
+
+    // Handle subscription paused (pause_collection set)
+    if (event.type === "customer.subscription.paused") {
+      const subscription = event.data.object as Stripe.Subscription;
+      logStep("subscription.paused", { id: subscription.id });
+
+      const pausedAt = new Date().toISOString();
+      const resumeAt = subscription.pause_collection?.resumes_at 
+        ? new Date(subscription.pause_collection.resumes_at * 1000).toISOString() 
+        : null;
+
+      await supabaseAdmin
+        .from("project_subscriptions")
+        .update({ 
+          status: "paused", 
+          paused_at: pausedAt,
+          resume_at: resumeAt 
+        })
+        .eq("stripe_subscription_id", subscription.id);
+
+      await supabaseAdmin
+        .from("subscriptions")
+        .update({ status: "paused" })
+        .eq("stripe_subscription_id", subscription.id);
+
+      logStep("Subscription marked as paused", { subscriptionId: subscription.id });
+    }
+
+    // Handle subscription resumed (pause_collection cleared)
+    if (event.type === "customer.subscription.resumed") {
+      const subscription = event.data.object as Stripe.Subscription;
+      logStep("subscription.resumed", { id: subscription.id, status: subscription.status });
+
+      await supabaseAdmin
+        .from("project_subscriptions")
+        .update({ 
+          status: subscription.status, 
+          paused_at: null,
+          resume_at: null,
+          next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString()
+        })
+        .eq("stripe_subscription_id", subscription.id);
+
+      await supabaseAdmin
+        .from("subscriptions")
+        .update({ 
+          status: subscription.status,
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+        })
+        .eq("stripe_subscription_id", subscription.id);
+
+      logStep("Subscription resumed", { subscriptionId: subscription.id, status: subscription.status });
+    }
+
     return new Response(JSON.stringify({ received: true }), { status: 200 });
   } catch (err) {
     logStep("ERROR", { message: err instanceof Error ? err.message : "Unknown error" });
