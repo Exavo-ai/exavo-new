@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, AlertCircle, FolderKanban, Filter, ExternalLink, Calendar, RefreshCw } from "lucide-react";
+import { Search, AlertCircle, FolderKanban, Filter, ExternalLink, Calendar, RefreshCw, CreditCard } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -189,6 +189,27 @@ export default function ProjectsPage() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="w-4 h-4" />
                     <span>Due {format(new Date(project.due_date), "MMM d, yyyy")}</span>
+                  </div>
+                )}
+
+                {/* Subscription Renewal Date */}
+                {project.payment_model === "subscription" && 
+                 project.subscription?.next_renewal_date && 
+                 project.subscription.status === "active" &&
+                 !project.subscription.cancel_at_period_end && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CreditCard className="w-4 h-4 text-emerald-500" />
+                    <span>Renews {format(new Date(project.subscription.next_renewal_date), "MMM d, yyyy")}</span>
+                  </div>
+                )}
+
+                {/* Cancellation End Date */}
+                {project.payment_model === "subscription" && 
+                 project.subscription?.next_renewal_date && 
+                 project.subscription.cancel_at_period_end && (
+                  <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+                    <CreditCard className="w-4 h-4" />
+                    <span>Ends {format(new Date(project.subscription.next_renewal_date), "MMM d, yyyy")}</span>
                   </div>
                 )}
 
