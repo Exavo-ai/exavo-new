@@ -140,7 +140,7 @@ serve(async (req) => {
 
       logStep("Creating package-based subscription checkout", { buildCost, monthlyFee });
 
-      // Build session options
+      // Build session options with comprehensive metadata for reliable webhook processing
       const sessionOptions: Stripe.Checkout.SessionCreateParams = {
         customer: customerId,
         customer_email: customerId ? undefined : user.email,
@@ -154,9 +154,20 @@ serve(async (req) => {
           lovable_user_id: user.id,
           package_id: packageId,
           service_id: service?.id || '',
+          service_name: service?.name || 'Service',
+          payment_model: 'subscription',
           type: "subscription",
+          service_type: "subscription", // Explicit marker for webhook
           build_cost: buildCost.toString(),
           monthly_fee: monthlyFee.toString(),
+        },
+        subscription_data: {
+          metadata: {
+            lovable_user_id: user.id,
+            service_id: service?.id || '',
+            package_id: packageId,
+            service_type: "subscription",
+          },
         },
       };
 
@@ -187,7 +198,7 @@ serve(async (req) => {
       );
     }
 
-    // Legacy: Use priceId directly
+    // Legacy: Use priceId directly with comprehensive metadata
     const legacySessionOptions: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
@@ -205,6 +216,14 @@ serve(async (req) => {
       metadata: {
         lovable_user_id: user.id,
         type: "subscription",
+        service_type: "subscription",
+        payment_model: "subscription",
+      },
+      subscription_data: {
+        metadata: {
+          lovable_user_id: user.id,
+          service_type: "subscription",
+        },
       },
     };
 

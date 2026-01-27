@@ -2,8 +2,13 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
-const logStep = (step: string, details?: unknown) => {
-  console.log(`[STRIPE-WEBHOOK] ${step}`, details ? JSON.stringify(details) : "");
+// Generate request ID for tracing
+const generateRequestId = () => `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+const logStep = (step: string, details?: unknown, context?: { requestId?: string; eventId?: string }) => {
+  const timestamp = new Date().toISOString();
+  const contextStr = context ? `[${context.requestId || ''}][${context.eventId || ''}]` : '';
+  console.log(`[STRIPE-WEBHOOK][${timestamp}]${contextStr} ${step}`, details ? JSON.stringify(details) : "");
 };
 
 // Helper to extract client notes from Stripe custom_fields or metadata
@@ -59,8 +64,10 @@ serve(async (req) => {
   try {
     const body = await req.text();
     const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    const requestId = generateRequestId();
+    const ctx = { requestId, eventId: event.id };
 
-    logStep("Event received", { type: event.type, id: event.id });
+    logStep("Event received", { type: event.type, id: event.id }, ctx);
 
     // Idempotency check - prevent duplicate processing
     const { data: existingEvent } = await supabaseAdmin
@@ -360,10 +367,175 @@ serve(async (req) => {
       }
     }
 
+    // Handle customer.subscription.created - CRITICAL FALLBACK for subscription linking
+    // This catches subscriptions that might not be linked during checkout.session.completed
+    if (event.type === "customer.subscription.created") {
+      const subscription = event.data.object as Stripe.Subscription;
+      
+      logStep("subscription.created", { 
+        id: subscription.id, 
+        status: subscription.status,
+        customerId: subscription.customer,
+        metadata: subscription.metadata 
+      }, ctx);
+
+      // Try to find project via subscription metadata
+      const serviceId = subscription.metadata?.service_id;
+      const userId = subscription.metadata?.lovable_user_id;
+      const customerId = typeof subscription.customer === "string" 
+        ? subscription.customer 
+        : subscription.customer?.id;
+
+      // Check if project_subscription already exists for this subscription
+      const { data: existingProjectSub } = await supabaseAdmin
+        .from("project_subscriptions")
+        .select("id, project_id")
+        .eq("stripe_subscription_id", subscription.id)
+        .maybeSingle();
+
+      if (existingProjectSub) {
+        logStep("Subscription already linked to project", { 
+          subscriptionId: subscription.id, 
+          projectId: existingProjectSub.project_id 
+        }, ctx);
+      } else {
+        // Try to find the project to link
+        let projectToLink: { id: string } | null = null;
+
+        // Strategy 1: Find by service_id and user_id from metadata
+        if (serviceId && userId) {
+          const { data: projectByMeta } = await supabaseAdmin
+            .from("projects")
+            .select("id")
+            .eq("service_id", serviceId)
+            .eq("user_id", userId)
+            .eq("payment_model", "subscription")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (projectByMeta) {
+            projectToLink = projectByMeta;
+            logStep("Found project by metadata", { projectId: projectByMeta.id }, ctx);
+          }
+        }
+
+        // Strategy 2: Find recent subscription project for user (created within 1 hour)
+        if (!projectToLink && userId) {
+          const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+          const { data: recentProject } = await supabaseAdmin
+            .from("projects")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("payment_model", "subscription")
+            .gte("created_at", oneHourAgo)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (recentProject) {
+            projectToLink = recentProject;
+            logStep("Found recent subscription project for user", { projectId: recentProject.id }, ctx);
+          }
+        }
+
+        // Strategy 3: Find by customer email if we have customer ID
+        if (!projectToLink && customerId) {
+          try {
+            const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+            if (customer && !customer.deleted && customer.email) {
+              const { data: profile } = await supabaseAdmin
+                .from("profiles")
+                .select("id")
+                .eq("email", customer.email)
+                .maybeSingle();
+
+              if (profile) {
+                const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+                const { data: recentProject } = await supabaseAdmin
+                  .from("projects")
+                  .select("id")
+                  .eq("user_id", profile.id)
+                  .eq("payment_model", "subscription")
+                  .gte("created_at", oneHourAgo)
+                  .order("created_at", { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+
+                if (recentProject) {
+                  projectToLink = recentProject;
+                  logStep("Found project via customer email lookup", { projectId: recentProject.id }, ctx);
+                }
+              }
+            }
+          } catch (e) {
+            logStep("Could not lookup customer for fallback", { error: e }, ctx);
+          }
+        }
+
+        if (projectToLink) {
+          // Upsert project_subscription record
+          const { error: upsertError } = await supabaseAdmin
+            .from("project_subscriptions")
+            .upsert({
+              project_id: projectToLink.id,
+              stripe_subscription_id: subscription.id,
+              stripe_customer_id: customerId,
+              status: subscription.status,
+              next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
+              cancel_at_period_end: subscription.cancel_at_period_end,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "project_id" });
+
+          if (upsertError) {
+            logStep("ERROR: Failed to upsert project_subscription on created", { error: upsertError }, ctx);
+          } else {
+            logStep("Successfully linked subscription via created event", { 
+              subscriptionId: subscription.id, 
+              projectId: projectToLink.id,
+              status: subscription.status
+            }, ctx);
+          }
+        } else {
+          logStep("WARN: Could not find project to link subscription", { 
+            subscriptionId: subscription.id,
+            metadata: subscription.metadata 
+          }, ctx);
+        }
+      }
+
+      // Also upsert to user-level subscriptions table
+      if (userId) {
+        const priceId = subscription.items.data[0]?.price.id || "";
+        
+        const { error: subError } = await supabaseAdmin
+          .from("subscriptions")
+          .upsert({
+            user_id: userId,
+            stripe_subscription_id: subscription.id,
+            stripe_customer_id: customerId || "",
+            price_id: priceId,
+            status: subscription.status,
+            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          }, { onConflict: "user_id" });
+
+        if (subError) {
+          logStep("ERROR: Failed to upsert user subscription on created", { error: subError }, ctx);
+        } else {
+          logStep("User subscription upserted on created", { subscriptionId: subscription.id, userId }, ctx);
+        }
+      }
+    }
+
     // Handle subscription updates
     if (event.type === "customer.subscription.updated") {
       const subscription = event.data.object as Stripe.Subscription;
-      logStep("subscription.updated", { id: subscription.id, status: subscription.status });
+      
+      logStep("subscription.updated", { 
+        id: subscription.id, 
+        status: subscription.status,
+        cancel_at_period_end: subscription.cancel_at_period_end 
+      }, ctx);
 
       // Update user-level subscription
       const { data: existingSub } = await supabaseAdmin
@@ -382,17 +554,75 @@ serve(async (req) => {
           })
           .eq("stripe_subscription_id", subscription.id);
 
-        logStep("Subscription updated", { subscriptionId: subscription.id });
+        logStep("User subscription updated", { subscriptionId: subscription.id }, ctx);
       }
 
-      // Update project-level subscription
-      await supabaseAdmin
+      // Upsert project-level subscription (ensures record exists even if missed during creation)
+      const { data: existingProjectSub } = await supabaseAdmin
         .from("project_subscriptions")
-        .update({
-          status: subscription.status,
-          next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
-        })
-        .eq("stripe_subscription_id", subscription.id);
+        .select("id, project_id")
+        .eq("stripe_subscription_id", subscription.id)
+        .maybeSingle();
+
+      if (existingProjectSub) {
+        await supabaseAdmin
+          .from("project_subscriptions")
+          .update({
+            status: subscription.status,
+            next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
+            cancel_at_period_end: subscription.cancel_at_period_end,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("stripe_subscription_id", subscription.id);
+
+        logStep("Project subscription updated", { 
+          subscriptionId: subscription.id, 
+          projectId: existingProjectSub.project_id 
+        }, ctx);
+      } else {
+        logStep("WARN: No project_subscription found for update event, attempting fallback link", { 
+          subscriptionId: subscription.id 
+        }, ctx);
+
+        // Fallback: Try to find and link project using subscription metadata
+        const userId = subscription.metadata?.lovable_user_id;
+        const serviceId = subscription.metadata?.service_id;
+
+        if (userId && serviceId) {
+          const { data: project } = await supabaseAdmin
+            .from("projects")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("service_id", serviceId)
+            .eq("payment_model", "subscription")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (project) {
+            const customerId = typeof subscription.customer === "string" 
+              ? subscription.customer 
+              : subscription.customer?.id;
+
+            await supabaseAdmin
+              .from("project_subscriptions")
+              .upsert({
+                project_id: project.id,
+                stripe_subscription_id: subscription.id,
+                stripe_customer_id: customerId,
+                status: subscription.status,
+                next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
+                cancel_at_period_end: subscription.cancel_at_period_end,
+                updated_at: new Date().toISOString(),
+              }, { onConflict: "project_id" });
+
+            logStep("Project subscription created via fallback on update event", { 
+              subscriptionId: subscription.id, 
+              projectId: project.id 
+            }, ctx);
+          }
+        }
+      }
     }
 
     // Handle subscription cancellation

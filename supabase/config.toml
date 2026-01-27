@@ -98,3 +98,6 @@ verify_jwt = true
 
 [functions.resume-subscription]
 verify_jwt = true
+
+[functions.backfill-subscriptions]
+verify_jwt = true
