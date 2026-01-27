@@ -101,3 +101,6 @@ verify_jwt = true
 
 [functions.backfill-subscriptions]
 verify_jwt = true
+
+[functions.update-subscription-plan]
+verify_jwt = true
