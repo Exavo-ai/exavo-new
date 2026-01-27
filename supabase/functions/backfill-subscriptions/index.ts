@@ -119,7 +119,7 @@ serve(async (req) => {
     for (const project of projects || []) {
       results.processed++;
 
-      // Check if project_subscription already exists
+      // Check if project_subscription already exists with valid stripe_subscription_id
       const { data: existingSub } = await supabaseAdmin
         .from("project_subscriptions")
         .select("id, stripe_subscription_id, status")
@@ -175,14 +175,14 @@ serve(async (req) => {
 
       const customerId = customers.data[0].id;
 
-      // Find active subscriptions for this customer
+      // Find all subscriptions for this customer
       const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
-        status: "all", // Get all to handle various states
+        status: "all",
         limit: 100,
       });
 
-      // Filter to active/trialing/past_due subscriptions (not canceled)
+      // Filter to active/trialing/past_due subscriptions (not fully canceled)
       const activeSubscriptions = subscriptions.data.filter(
         (s: Stripe.Subscription) => ["active", "trialing", "past_due", "paused"].includes(s.status)
       );
@@ -201,7 +201,7 @@ serve(async (req) => {
       // Try to match subscription by metadata or creation date proximity
       let matchedSubscription: Stripe.Subscription | null = null;
 
-      // First: try exact metadata match
+      // Strategy 1: Exact metadata match on service_id
       for (const sub of activeSubscriptions) {
         if (sub.metadata?.service_id === project.service_id) {
           matchedSubscription = sub;
@@ -210,13 +210,13 @@ serve(async (req) => {
         }
       }
 
-      // Second: if only one active subscription, use it
+      // Strategy 2: If only one active subscription, use it
       if (!matchedSubscription && activeSubscriptions.length === 1) {
         matchedSubscription = activeSubscriptions[0];
         logStep("Using only active subscription", { subscriptionId: matchedSubscription.id });
       }
 
-      // Third: try matching by creation date (within 24 hours of project creation)
+      // Strategy 3: Match by creation date (within 24 hours of project creation)
       if (!matchedSubscription) {
         const projectCreatedAt = new Date(project.created_at).getTime();
         for (const sub of activeSubscriptions) {
@@ -243,12 +243,16 @@ serve(async (req) => {
           projectId: project.id,
           action: "error",
           reason: "no_match",
-          candidateSubscriptions: activeSubscriptions.map((s: Stripe.Subscription) => ({ id: s.id, created: new Date(s.created * 1000).toISOString() })),
+          candidateSubscriptions: activeSubscriptions.map((s: Stripe.Subscription) => ({ 
+            id: s.id, 
+            created: new Date(s.created * 1000).toISOString(),
+            status: s.status
+          })),
         });
         continue;
       }
 
-      // Create or update project_subscription record
+      // Build subscription data - NEVER depend on amount, only on subscription object
       const subscriptionData = {
         project_id: project.id,
         stripe_subscription_id: matchedSubscription.id,
@@ -287,9 +291,10 @@ serve(async (req) => {
             error: upsertError.message,
           });
         } else {
-          logStep("Successfully linked subscription", { 
+          logStep("subscription_linked: Successfully linked subscription", { 
             projectId: project.id, 
-            subscriptionId: matchedSubscription.id 
+            subscriptionId: matchedSubscription.id,
+            status: matchedSubscription.status
           });
           results.linked++;
           results.details.push({

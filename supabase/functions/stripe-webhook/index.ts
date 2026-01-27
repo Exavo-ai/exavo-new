@@ -42,6 +42,241 @@ const extractClientNotes = (session: Stripe.Checkout.Session): string | null => 
   }
 };
 
+// ============================================
+// UPSERT HELPER: Safe project subscription sync
+// Primary key: stripe_subscription_id
+// Fallback: project_id
+// ============================================
+async function upsertProjectSubscription(
+  supabaseAdmin: any,
+  subscription: Stripe.Subscription,
+  projectId: string,
+  ctx: { requestId?: string; eventId?: string }
+) {
+  const customerId = typeof subscription.customer === "string" 
+    ? subscription.customer 
+    : subscription.customer?.id || null;
+
+  const priceId = subscription.items.data[0]?.price.id || null;
+  
+  const subscriptionData = {
+    project_id: projectId,
+    stripe_subscription_id: subscription.id,
+    stripe_customer_id: customerId,
+    status: subscription.status,
+    next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
+    cancel_at_period_end: subscription.cancel_at_period_end,
+    paused_at: subscription.pause_collection ? new Date().toISOString() : null,
+    resume_at: subscription.pause_collection?.resumes_at 
+      ? new Date(subscription.pause_collection.resumes_at * 1000).toISOString() 
+      : null,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Try to find existing record by stripe_subscription_id first (primary key)
+  const { data: existingBySub } = await supabaseAdmin
+    .from("project_subscriptions")
+    .select("id, project_id")
+    .eq("stripe_subscription_id", subscription.id)
+    .maybeSingle();
+
+  if (existingBySub) {
+    // Update existing record by subscription ID
+    const { error } = await supabaseAdmin
+      .from("project_subscriptions")
+      .update(subscriptionData)
+      .eq("stripe_subscription_id", subscription.id);
+
+    if (error) {
+      logStep("ERROR: Failed to update project_subscription by subscription_id", { error }, ctx);
+      return false;
+    }
+    logStep("subscription_upserted (updated by stripe_subscription_id)", { 
+      subscriptionId: subscription.id, 
+      projectId: existingBySub.project_id,
+      status: subscription.status
+    }, ctx);
+    return true;
+  }
+
+  // Try to find by project_id (fallback)
+  const { data: existingByProject } = await supabaseAdmin
+    .from("project_subscriptions")
+    .select("id, stripe_subscription_id")
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  if (existingByProject) {
+    // Update existing record by project_id
+    const { error } = await supabaseAdmin
+      .from("project_subscriptions")
+      .update(subscriptionData)
+      .eq("project_id", projectId);
+
+    if (error) {
+      logStep("ERROR: Failed to update project_subscription by project_id", { error }, ctx);
+      return false;
+    }
+    logStep("subscription_upserted (updated by project_id)", { 
+      subscriptionId: subscription.id, 
+      projectId,
+      previousSubId: existingByProject.stripe_subscription_id,
+      status: subscription.status
+    }, ctx);
+    return true;
+  }
+
+  // Insert new record
+  const { error: insertError } = await supabaseAdmin
+    .from("project_subscriptions")
+    .insert(subscriptionData);
+
+  if (insertError) {
+    // Handle race condition: record might have been inserted by another event
+    if (insertError.code === "23505") {
+      logStep("subscription_upserted (race condition, already exists)", { 
+        subscriptionId: subscription.id, 
+        projectId 
+      }, ctx);
+      return true;
+    }
+    logStep("ERROR: Failed to insert project_subscription", { error: insertError }, ctx);
+    return false;
+  }
+
+  logStep("subscription_linked (new record)", { 
+    subscriptionId: subscription.id, 
+    projectId,
+    status: subscription.status
+  }, ctx);
+  return true;
+}
+
+// ============================================
+// FIND PROJECT HELPER: Multiple strategies
+// ============================================
+async function findProjectForSubscription(
+  supabaseAdmin: any,
+  stripe: Stripe,
+  subscription: Stripe.Subscription,
+  ctx: { requestId?: string; eventId?: string }
+): Promise<{ id: string } | null> {
+  const serviceId = subscription.metadata?.service_id;
+  const userId = subscription.metadata?.lovable_user_id;
+  const customerId = typeof subscription.customer === "string"
+    ? subscription.customer 
+    : subscription.customer?.id;
+
+  // Strategy 1: Find by service_id and user_id from metadata (most reliable)
+  if (serviceId && userId) {
+    const { data: projectByMeta } = await supabaseAdmin
+      .from("projects")
+      .select("id")
+      .eq("service_id", serviceId)
+      .eq("user_id", userId)
+      .eq("payment_model", "subscription")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (projectByMeta) {
+      logStep("subscription_detected: Found project by metadata", { 
+        projectId: projectByMeta.id, 
+        serviceId, 
+        userId 
+      }, ctx);
+      return projectByMeta;
+    }
+  }
+
+  // Strategy 2: Find recent subscription project for user (created within 1 hour)
+  if (userId) {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: recentProject } = await supabaseAdmin
+      .from("projects")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("payment_model", "subscription")
+      .gte("created_at", oneHourAgo)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (recentProject) {
+      logStep("subscription_detected: Found recent subscription project", { 
+        projectId: recentProject.id, 
+        userId 
+      }, ctx);
+      return recentProject;
+    }
+  }
+
+  // Strategy 3: Find by customer email (customer.metadata fallback)
+  if (customerId) {
+    try {
+      const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+      if (customer && !customer.deleted) {
+        // Try customer metadata first
+        const lastUserId = customer.metadata?.last_lovable_user_id;
+        const lastServiceId = customer.metadata?.last_service_id;
+        
+        if (lastUserId && lastServiceId) {
+          const { data: projectByCustomerMeta } = await supabaseAdmin
+            .from("projects")
+            .select("id")
+            .eq("user_id", lastUserId)
+            .eq("service_id", lastServiceId)
+            .eq("payment_model", "subscription")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (projectByCustomerMeta) {
+            logStep("subscription_detected: Found project by customer metadata", { 
+              projectId: projectByCustomerMeta.id 
+            }, ctx);
+            return projectByCustomerMeta;
+          }
+        }
+
+        // Try email lookup
+        if (customer.email) {
+          const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("id")
+            .eq("email", customer.email)
+            .maybeSingle();
+
+          if (profile) {
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+            const { data: recentProject } = await supabaseAdmin
+              .from("projects")
+              .select("id")
+              .eq("user_id", profile.id)
+              .eq("payment_model", "subscription")
+              .gte("created_at", oneHourAgo)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (recentProject) {
+              logStep("subscription_detected: Found project via customer email", { 
+                projectId: recentProject.id, 
+                email: customer.email 
+              }, ctx);
+              return recentProject;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      logStep("Could not lookup customer for fallback", { error: e }, ctx);
+    }
+  }
+
+  return null;
+}
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -77,18 +312,19 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingEvent) {
-      logStep("Event already processed", { eventId: event.id });
+      logStep("skipped_duplicate_event", { eventId: event.id }, ctx);
       return new Response(JSON.stringify({ received: true, duplicate: true }), { status: 200 });
     }
 
     // Record event for idempotency
     await supabaseAdmin.from("webhook_events").insert({ event_id: event.id, type: event.type });
 
-    // Handle checkout.session.completed (one-time and subscription initial payments)
+    // ============================================
+    // HANDLE: checkout.session.completed
+    // ============================================
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
 
-      // Log client notes early for debugging
       const hasClientNotes = !!(session.metadata?.client_notes && session.metadata.client_notes.trim().length > 0);
       
       logStep("checkout.session.completed", {
@@ -100,13 +336,13 @@ serve(async (req) => {
         payment_status: session.payment_status,
         metadata: session.metadata,
         has_client_notes: hasClientNotes,
-        client_notes_preview: hasClientNotes ? session.metadata.client_notes.substring(0, 50) : null,
-      });
+        subscription_id: session.subscription,
+      }, ctx);
 
       const lovableUserId = session.metadata?.lovable_user_id;
 
-      // Handle both paid purchases AND 100% discounted purchases (no_payment_required)
-      // This ensures bookings/projects are created regardless of payment amount
+      // Handle both paid AND 100% discounted (no_payment_required)
+      // NEVER rely on amount - rely on status
       const isSuccessfulCheckout = session.payment_status === "paid" || session.payment_status === "no_payment_required";
 
       if (isSuccessfulCheckout && lovableUserId) {
@@ -127,7 +363,6 @@ serve(async (req) => {
           let receiptUrl: string | null = null;
 
           if (session.mode === "payment" && session.payment_intent) {
-            // One-time payment: get receipt from charge
             const paymentIntentId = typeof session.payment_intent === "string" 
               ? session.payment_intent 
               : session.payment_intent.id;
@@ -138,10 +373,9 @@ serve(async (req) => {
                 receiptUrl = charge.receipt_url || null;
               }
             } catch (e) {
-              logStep("Could not get receipt URL from payment intent", { error: e });
+              logStep("Could not get receipt URL from payment intent", { error: e }, ctx);
             }
           } else if (session.mode === "subscription" && session.subscription) {
-            // Subscription: get receipt from latest invoice
             const subscriptionId = typeof session.subscription === "string" 
               ? session.subscription 
               : session.subscription.id;
@@ -154,7 +388,7 @@ serve(async (req) => {
                 receiptUrl = invoice.hosted_invoice_url || invoice.invoice_pdf || null;
               }
             } catch (e) {
-              logStep("Could not get receipt URL from subscription invoice", { error: e });
+              logStep("Could not get receipt URL from subscription invoice", { error: e }, ctx);
             }
           }
 
@@ -180,24 +414,24 @@ serve(async (req) => {
                 appointment_time: "TBD",
                 status: "pending",
                 project_status: "not_started",
-                notes: `stripe_session:${session.id}\nService: ${serviceName}\nPackage: ${session.metadata?.package_name || "Unknown"}\nPayment: $${(session.amount_total || 0) / 100}\nPayment Model: ${paymentModel}`,
+                notes: `stripe_session:${session.id}\nService: ${serviceName}\nPackage: ${session.metadata?.package_name || "Unknown"}\nPayment Model: ${paymentModel}`,
               })
               .select("id")
               .single();
 
             if (bookingError) {
-              logStep("ERROR: Failed to create booking", { error: bookingError });
+              logStep("ERROR: Failed to create booking", { error: bookingError }, ctx);
             } else {
-              logStep("Booking created for service purchase", { 
+              logStep("Booking created", { 
                 userId: lovableUserId, 
                 bookingId: newBooking.id,
                 mode: session.mode 
-              });
+              }, ctx);
               appointmentId = newBooking.id;
             }
           }
 
-          // Insert payment record (with appointment_id if available)
+          // Insert payment record
           const { error: insertError } = await supabaseAdmin
             .from("payments")
             .insert({
@@ -217,9 +451,14 @@ serve(async (req) => {
             });
 
           if (insertError) {
-            logStep("ERROR: Failed to insert payment", { error: insertError });
+            logStep("ERROR: Failed to insert payment", { error: insertError }, ctx);
           } else {
-            logStep("Payment record created", { userId: lovableUserId, sessionId: session.id, receiptUrl, appointmentId });
+            logStep("Payment record created", { 
+              userId: lovableUserId, 
+              sessionId: session.id, 
+              receiptUrl, 
+              appointmentId 
+            }, ctx);
           }
 
           // Create project if booking was created
@@ -228,7 +467,6 @@ serve(async (req) => {
             const serviceName = session.metadata?.service_name || "Service Project";
             const paymentModel = session.metadata?.payment_model || (session.mode === "subscription" ? "subscription" : "one_time");
 
-            // Create project immediately linked to booking (client sees it right away)
             const { data: newProject, error: projectError } = await supabaseAdmin
               .from("projects")
               .insert({
@@ -252,7 +490,7 @@ serve(async (req) => {
 
             if (projectError) {
               if (projectError.code === "23505") {
-                logStep("Project already exists, fetching existing", { appointmentId });
+                logStep("Project already exists, fetching existing", { appointmentId }, ctx);
                 const { data: existingProject } = await supabaseAdmin
                   .from("projects")
                   .select("id")
@@ -260,14 +498,14 @@ serve(async (req) => {
                   .maybeSingle();
                 finalProjectId = existingProject?.id || null;
               } else {
-                logStep("ERROR: Failed to create project", { error: projectError });
+                logStep("ERROR: Failed to create project", { error: projectError }, ctx);
               }
             } else {
-              logStep("Project created for client", { 
+              logStep("Project created", { 
                 userId: lovableUserId, 
                 appointmentId,
                 projectId: newProject.id 
-              });
+              }, ctx);
               finalProjectId = newProject.id;
             }
 
@@ -284,14 +522,16 @@ serve(async (req) => {
                   .eq("id", finalProjectId);
                 
                 if (notesError) {
-                  logStep("WARN: Failed to save client notes (non-blocking)", { error: notesError });
+                  logStep("WARN: Failed to save client notes", { error: notesError }, ctx);
                 } else {
-                  logStep("Client notes saved to project", { projectId: finalProjectId });
+                  logStep("Client notes saved to project", { projectId: finalProjectId }, ctx);
                 }
               }
             }
 
-            // For subscriptions: create/upsert project_subscription record
+            // ============================================
+            // SUBSCRIPTION LINKING - CRITICAL
+            // ============================================
             if (session.mode === "subscription" && session.subscription && finalProjectId) {
               const subscriptionId = typeof session.subscription === "string" 
                 ? session.subscription 
@@ -299,40 +539,17 @@ serve(async (req) => {
               
               try {
                 const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-                const customerId = typeof session.customer === "string" 
-                  ? session.customer 
-                  : session.customer?.id || null;
-
-                const { error: subError } = await supabaseAdmin
-                  .from("project_subscriptions")
-                  .upsert({
-                    project_id: finalProjectId,
-                    stripe_subscription_id: subscriptionId,
-                    stripe_customer_id: customerId,
-                    status: subscription.status,
-                    next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
-                  }, { onConflict: "project_id" });
-
-                if (subError) {
-                  logStep("ERROR: Failed to upsert project subscription", { error: subError });
-                } else {
-                  logStep("Project subscription upserted", { 
-                    projectId: finalProjectId, 
-                    subscriptionId,
-                    status: subscription.status,
-                    nextRenewal: new Date(subscription.current_period_end * 1000).toISOString()
-                  });
-                }
+                await upsertProjectSubscription(supabaseAdmin, subscription, finalProjectId, ctx);
               } catch (e) {
-                logStep("ERROR: Failed to retrieve subscription details", { error: e });
+                logStep("ERROR: Failed to link subscription on checkout", { error: e }, ctx);
               }
             }
           }
         } else {
-          logStep("Payment already exists for session", { sessionId: session.id });
+          logStep("Payment already exists for session", { sessionId: session.id }, ctx);
         }
 
-        // Handle subscription creation in subscriptions table (for user-level subscription tracking)
+        // Handle subscription creation in subscriptions table (user-level tracking)
         if (session.mode === "subscription" && session.subscription) {
           const subscriptionId = typeof session.subscription === "string" 
             ? session.subscription 
@@ -352,39 +569,31 @@ serve(async (req) => {
             }, { onConflict: "user_id" });
 
           if (subError) {
-            logStep("ERROR: Failed to upsert subscription", { error: subError });
+            logStep("ERROR: Failed to upsert user subscription", { error: subError }, ctx);
           } else {
-            logStep("Subscription upserted", { subscriptionId });
+            logStep("User subscription upserted", { subscriptionId }, ctx);
           }
         }
       } else if (isSuccessfulCheckout && !lovableUserId) {
-        logStep("WARN: Payment completed but no lovable_user_id in metadata", { sessionId: session.id });
-      } else if (!isSuccessfulCheckout) {
-        logStep("WARN: Checkout completed with unexpected payment_status", { 
-          sessionId: session.id, 
-          paymentStatus: session.payment_status 
-        });
+        logStep("skipped_missing_project_id: Payment completed but no lovable_user_id", { 
+          sessionId: session.id 
+        }, ctx);
       }
     }
 
-    // Handle customer.subscription.created - CRITICAL FALLBACK for subscription linking
-    // This catches subscriptions that might not be linked during checkout.session.completed
+    // ============================================
+    // HANDLE: customer.subscription.created
+    // CRITICAL FALLBACK for subscription linking
+    // ============================================
     if (event.type === "customer.subscription.created") {
       const subscription = event.data.object as Stripe.Subscription;
       
       logStep("subscription.created", { 
-        id: subscription.id, 
+        subscription_id: subscription.id, 
         status: subscription.status,
-        customerId: subscription.customer,
+        customer_id: subscription.customer,
         metadata: subscription.metadata 
       }, ctx);
-
-      // Try to find project via subscription metadata
-      const serviceId = subscription.metadata?.service_id;
-      const userId = subscription.metadata?.lovable_user_id;
-      const customerId = typeof subscription.customer === "string" 
-        ? subscription.customer 
-        : subscription.customer?.id;
 
       // Check if project_subscription already exists for this subscription
       const { data: existingProjectSub } = await supabaseAdmin
@@ -394,121 +603,34 @@ serve(async (req) => {
         .maybeSingle();
 
       if (existingProjectSub) {
-        logStep("Subscription already linked to project", { 
+        logStep("subscription_linked (already exists)", { 
           subscriptionId: subscription.id, 
           projectId: existingProjectSub.project_id 
         }, ctx);
       } else {
-        // Try to find the project to link
-        let projectToLink: { id: string } | null = null;
-
-        // Strategy 1: Find by service_id and user_id from metadata
-        if (serviceId && userId) {
-          const { data: projectByMeta } = await supabaseAdmin
-            .from("projects")
-            .select("id")
-            .eq("service_id", serviceId)
-            .eq("user_id", userId)
-            .eq("payment_model", "subscription")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (projectByMeta) {
-            projectToLink = projectByMeta;
-            logStep("Found project by metadata", { projectId: projectByMeta.id }, ctx);
-          }
-        }
-
-        // Strategy 2: Find recent subscription project for user (created within 1 hour)
-        if (!projectToLink && userId) {
-          const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-          const { data: recentProject } = await supabaseAdmin
-            .from("projects")
-            .select("id")
-            .eq("user_id", userId)
-            .eq("payment_model", "subscription")
-            .gte("created_at", oneHourAgo)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (recentProject) {
-            projectToLink = recentProject;
-            logStep("Found recent subscription project for user", { projectId: recentProject.id }, ctx);
-          }
-        }
-
-        // Strategy 3: Find by customer email if we have customer ID
-        if (!projectToLink && customerId) {
-          try {
-            const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
-            if (customer && !customer.deleted && customer.email) {
-              const { data: profile } = await supabaseAdmin
-                .from("profiles")
-                .select("id")
-                .eq("email", customer.email)
-                .maybeSingle();
-
-              if (profile) {
-                const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-                const { data: recentProject } = await supabaseAdmin
-                  .from("projects")
-                  .select("id")
-                  .eq("user_id", profile.id)
-                  .eq("payment_model", "subscription")
-                  .gte("created_at", oneHourAgo)
-                  .order("created_at", { ascending: false })
-                  .limit(1)
-                  .maybeSingle();
-
-                if (recentProject) {
-                  projectToLink = recentProject;
-                  logStep("Found project via customer email lookup", { projectId: recentProject.id }, ctx);
-                }
-              }
-            }
-          } catch (e) {
-            logStep("Could not lookup customer for fallback", { error: e }, ctx);
-          }
-        }
+        // Find project to link
+        const projectToLink = await findProjectForSubscription(supabaseAdmin, stripe, subscription, ctx);
 
         if (projectToLink) {
-          // Upsert project_subscription record
-          const { error: upsertError } = await supabaseAdmin
-            .from("project_subscriptions")
-            .upsert({
-              project_id: projectToLink.id,
-              stripe_subscription_id: subscription.id,
-              stripe_customer_id: customerId,
-              status: subscription.status,
-              next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
-              cancel_at_period_end: subscription.cancel_at_period_end,
-              updated_at: new Date().toISOString(),
-            }, { onConflict: "project_id" });
-
-          if (upsertError) {
-            logStep("ERROR: Failed to upsert project_subscription on created", { error: upsertError }, ctx);
-          } else {
-            logStep("Successfully linked subscription via created event", { 
-              subscriptionId: subscription.id, 
-              projectId: projectToLink.id,
-              status: subscription.status
-            }, ctx);
-          }
+          await upsertProjectSubscription(supabaseAdmin, subscription, projectToLink.id, ctx);
         } else {
-          logStep("WARN: Could not find project to link subscription", { 
-            subscriptionId: subscription.id,
+          logStep("skipped_missing_project_id: Could not find project to link", { 
+            subscription_id: subscription.id,
             metadata: subscription.metadata 
           }, ctx);
         }
       }
 
       // Also upsert to user-level subscriptions table
+      const userId = subscription.metadata?.lovable_user_id;
+      const customerId = typeof subscription.customer === "string" 
+        ? subscription.customer 
+        : subscription.customer?.id;
+
       if (userId) {
         const priceId = subscription.items.data[0]?.price.id || "";
         
-        const { error: subError } = await supabaseAdmin
+        await supabaseAdmin
           .from("subscriptions")
           .upsert({
             user_id: userId,
@@ -519,20 +641,18 @@ serve(async (req) => {
             current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
           }, { onConflict: "user_id" });
 
-        if (subError) {
-          logStep("ERROR: Failed to upsert user subscription on created", { error: subError }, ctx);
-        } else {
-          logStep("User subscription upserted on created", { subscriptionId: subscription.id, userId }, ctx);
-        }
+        logStep("User subscription upserted on created", { subscriptionId: subscription.id, userId }, ctx);
       }
     }
 
-    // Handle subscription updates
+    // ============================================
+    // HANDLE: customer.subscription.updated
+    // ============================================
     if (event.type === "customer.subscription.updated") {
       const subscription = event.data.object as Stripe.Subscription;
       
       logStep("subscription.updated", { 
-        id: subscription.id, 
+        subscription_id: subscription.id, 
         status: subscription.status,
         cancel_at_period_end: subscription.cancel_at_period_end 
       }, ctx);
@@ -557,7 +677,7 @@ serve(async (req) => {
         logStep("User subscription updated", { subscriptionId: subscription.id }, ctx);
       }
 
-      // Upsert project-level subscription (ensures record exists even if missed during creation)
+      // Update or create project-level subscription
       const { data: existingProjectSub } = await supabaseAdmin
         .from("project_subscriptions")
         .select("id, project_id")
@@ -571,64 +691,39 @@ serve(async (req) => {
             status: subscription.status,
             next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
             cancel_at_period_end: subscription.cancel_at_period_end,
+            paused_at: subscription.pause_collection ? new Date().toISOString() : null,
+            resume_at: subscription.pause_collection?.resumes_at 
+              ? new Date(subscription.pause_collection.resumes_at * 1000).toISOString() 
+              : null,
             updated_at: new Date().toISOString(),
           })
           .eq("stripe_subscription_id", subscription.id);
 
-        logStep("Project subscription updated", { 
-          subscriptionId: subscription.id, 
-          projectId: existingProjectSub.project_id 
+        logStep("subscription_upserted (updated on .updated event)", { 
+          subscription_id: subscription.id, 
+          project_id: existingProjectSub.project_id,
+          status: subscription.status
         }, ctx);
       } else {
-        logStep("WARN: No project_subscription found for update event, attempting fallback link", { 
-          subscriptionId: subscription.id 
-        }, ctx);
+        // Fallback: Try to find and link project
+        const projectToLink = await findProjectForSubscription(supabaseAdmin, stripe, subscription, ctx);
 
-        // Fallback: Try to find and link project using subscription metadata
-        const userId = subscription.metadata?.lovable_user_id;
-        const serviceId = subscription.metadata?.service_id;
-
-        if (userId && serviceId) {
-          const { data: project } = await supabaseAdmin
-            .from("projects")
-            .select("id")
-            .eq("user_id", userId)
-            .eq("service_id", serviceId)
-            .eq("payment_model", "subscription")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (project) {
-            const customerId = typeof subscription.customer === "string" 
-              ? subscription.customer 
-              : subscription.customer?.id;
-
-            await supabaseAdmin
-              .from("project_subscriptions")
-              .upsert({
-                project_id: project.id,
-                stripe_subscription_id: subscription.id,
-                stripe_customer_id: customerId,
-                status: subscription.status,
-                next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
-                cancel_at_period_end: subscription.cancel_at_period_end,
-                updated_at: new Date().toISOString(),
-              }, { onConflict: "project_id" });
-
-            logStep("Project subscription created via fallback on update event", { 
-              subscriptionId: subscription.id, 
-              projectId: project.id 
-            }, ctx);
-          }
+        if (projectToLink) {
+          await upsertProjectSubscription(supabaseAdmin, subscription, projectToLink.id, ctx);
+        } else {
+          logStep("skipped_missing_project_id: No project found for update event", { 
+            subscription_id: subscription.id 
+          }, ctx);
         }
       }
     }
 
-    // Handle subscription cancellation
+    // ============================================
+    // HANDLE: customer.subscription.deleted
+    // ============================================
     if (event.type === "customer.subscription.deleted") {
       const subscription = event.data.object as Stripe.Subscription;
-      logStep("subscription.deleted", { id: subscription.id });
+      logStep("subscription.deleted", { subscription_id: subscription.id }, ctx);
 
       await supabaseAdmin
         .from("subscriptions")
@@ -637,19 +732,24 @@ serve(async (req) => {
 
       await supabaseAdmin
         .from("project_subscriptions")
-        .update({ status: "canceled" })
+        .update({ status: "canceled", updated_at: new Date().toISOString() })
         .eq("stripe_subscription_id", subscription.id);
 
-      logStep("Subscription marked as canceled", { subscriptionId: subscription.id });
+      logStep("Subscription marked as canceled", { subscriptionId: subscription.id }, ctx);
     }
 
-    // Handle invoice payment succeeded (for recurring subscription payments)
+    // ============================================
+    // HANDLE: invoice.payment_succeeded (recurring)
+    // ============================================
     if (event.type === "invoice.payment_succeeded") {
       const invoice = event.data.object as Stripe.Invoice;
       
-      // Only process subscription invoices (not one-time payments or initial subscription)
+      // Only process subscription invoices (not initial subscription)
       if (invoice.subscription && invoice.billing_reason !== "subscription_create") {
-        logStep("invoice.payment_succeeded (recurring)", { invoiceId: invoice.id });
+        logStep("invoice.payment_succeeded (recurring)", { 
+          invoiceId: invoice.id,
+          subscriptionId: invoice.subscription 
+        }, ctx);
 
         const { data: sub } = await supabaseAdmin
           .from("subscriptions")
@@ -665,7 +765,6 @@ serve(async (req) => {
             .maybeSingle();
 
           if (!existingPayment) {
-            // Get project subscription to link payment to correct service
             const { data: projectSub } = await supabaseAdmin
               .from("project_subscriptions")
               .select("project_id")
@@ -701,13 +800,15 @@ serve(async (req) => {
                 service_id: serviceId,
                 appointment_id: appointmentId,
               });
-            logStep("Recurring payment recorded", { invoiceId: invoice.id });
+            logStep("Recurring payment recorded", { invoiceId: invoice.id }, ctx);
           }
         }
       }
     }
 
-    // Handle invoice payment failed (for subscription payment failures)
+    // ============================================
+    // HANDLE: invoice.payment_failed
+    // ============================================
     if (event.type === "invoice.payment_failed") {
       const invoice = event.data.object as Stripe.Invoice;
       
@@ -716,28 +817,28 @@ serve(async (req) => {
           invoiceId: invoice.id, 
           subscriptionId: invoice.subscription,
           attemptCount: invoice.attempt_count 
-        });
+        }, ctx);
 
-        // Update project subscription status to indicate payment issue
         await supabaseAdmin
           .from("project_subscriptions")
-          .update({ status: "past_due" })
+          .update({ status: "past_due", updated_at: new Date().toISOString() })
           .eq("stripe_subscription_id", invoice.subscription);
 
-        // Update user-level subscription
         await supabaseAdmin
           .from("subscriptions")
           .update({ status: "past_due" })
           .eq("stripe_subscription_id", invoice.subscription);
 
-        logStep("Subscription marked as past_due", { subscriptionId: invoice.subscription });
+        logStep("Subscription marked as past_due", { subscriptionId: invoice.subscription }, ctx);
       }
     }
 
-    // Handle subscription paused (pause_collection set)
+    // ============================================
+    // HANDLE: customer.subscription.paused
+    // ============================================
     if (event.type === "customer.subscription.paused") {
       const subscription = event.data.object as Stripe.Subscription;
-      logStep("subscription.paused", { id: subscription.id });
+      logStep("subscription.paused", { subscription_id: subscription.id }, ctx);
 
       const pausedAt = new Date().toISOString();
       const resumeAt = subscription.pause_collection?.resumes_at 
@@ -749,7 +850,8 @@ serve(async (req) => {
         .update({ 
           status: "paused", 
           paused_at: pausedAt,
-          resume_at: resumeAt 
+          resume_at: resumeAt,
+          updated_at: new Date().toISOString()
         })
         .eq("stripe_subscription_id", subscription.id);
 
@@ -758,13 +860,15 @@ serve(async (req) => {
         .update({ status: "paused" })
         .eq("stripe_subscription_id", subscription.id);
 
-      logStep("Subscription marked as paused", { subscriptionId: subscription.id });
+      logStep("Subscription marked as paused", { subscriptionId: subscription.id }, ctx);
     }
 
-    // Handle subscription resumed (pause_collection cleared)
+    // ============================================
+    // HANDLE: customer.subscription.resumed
+    // ============================================
     if (event.type === "customer.subscription.resumed") {
       const subscription = event.data.object as Stripe.Subscription;
-      logStep("subscription.resumed", { id: subscription.id, status: subscription.status });
+      logStep("subscription.resumed", { subscription_id: subscription.id, status: subscription.status }, ctx);
 
       await supabaseAdmin
         .from("project_subscriptions")
@@ -772,7 +876,8 @@ serve(async (req) => {
           status: subscription.status, 
           paused_at: null,
           resume_at: null,
-          next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString()
+          next_renewal_date: new Date(subscription.current_period_end * 1000).toISOString(),
+          updated_at: new Date().toISOString()
         })
         .eq("stripe_subscription_id", subscription.id);
 
@@ -784,7 +889,7 @@ serve(async (req) => {
         })
         .eq("stripe_subscription_id", subscription.id);
 
-      logStep("Subscription resumed", { subscriptionId: subscription.id, status: subscription.status });
+      logStep("Subscription resumed", { subscriptionId: subscription.id, status: subscription.status }, ctx);
     }
 
     return new Response(JSON.stringify({ received: true }), { status: 200 });
