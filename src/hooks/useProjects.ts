@@ -30,6 +30,7 @@ export interface Project {
   subscription?: {
     status: string;
     cancel_at_period_end: boolean;
+    next_renewal_date: string | null;
   } | null;
 }
 
@@ -156,12 +157,12 @@ export function useProjects() {
         .filter(p => p.payment_model === "subscription")
         .map(p => p.id);
 
-      let subscriptionMap: Record<string, { status: string; cancel_at_period_end: boolean }> = {};
+      let subscriptionMap: Record<string, { status: string; cancel_at_period_end: boolean; next_renewal_date: string | null }> = {};
       
       if (projectIds.length > 0) {
         const { data: subData } = await supabase
           .from("project_subscriptions")
-          .select("project_id, status, cancel_at_period_end")
+          .select("project_id, status, cancel_at_period_end, next_renewal_date")
           .in("project_id", projectIds);
 
         if (subData) {
@@ -169,9 +170,10 @@ export function useProjects() {
             acc[sub.project_id] = {
               status: sub.status,
               cancel_at_period_end: sub.cancel_at_period_end,
+              next_renewal_date: sub.next_renewal_date,
             };
             return acc;
-          }, {} as Record<string, { status: string; cancel_at_period_end: boolean }>);
+          }, {} as Record<string, { status: string; cancel_at_period_end: boolean; next_renewal_date: string | null }>);
         }
       }
 
