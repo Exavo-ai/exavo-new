@@ -151,16 +151,22 @@ serve(async (req) => {
       pause_collection: "", // Empty string clears the pause
     });
 
-    log(requestId, "stripe_resume_ok", { 
-      status: updated.status, 
-      current_period_end: updated.current_period_end 
-    });
+    log(requestId, "stripe_resume_ok", { status: updated.status });
 
     const nowIso = new Date().toISOString();
-    const nextRenewalDate = new Date(updated.current_period_end * 1000).toISOString();
+    
+    // Safely convert current_period_end to ISO string
+    let nextRenewalDate: string | null = null;
+    if (updated.current_period_end && typeof updated.current_period_end === 'number') {
+      try {
+        nextRenewalDate = new Date(updated.current_period_end * 1000).toISOString();
+      } catch {
+        log(requestId, "date_conversion_warning", { current_period_end: updated.current_period_end });
+      }
+    }
 
     // Update local database
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from("project_subscriptions")
       .update({
         status: updated.status,
@@ -168,15 +174,23 @@ serve(async (req) => {
         resume_at: null,
         pause_behavior: null,
         next_renewal_date: nextRenewalDate,
+        updated_at: nowIso,
       })
       .eq("id", projectSub.id);
+
+    if (updateError) {
+      log(requestId, "db_update_error", { error: updateError.message });
+      // Still return success since Stripe was updated
+    }
+
+    log(requestId, "resume_complete", { status: updated.status, nextRenewalDate });
 
     return json({
       ok: true,
       status: updated.status,
       subscription_id: updated.id,
       resumed_at: nowIso,
-      next_renewal_date: nextRenewalDate,
+      next_renewal_date: nextRenewalDate || nowIso,
       requestId,
     });
   } catch (e: any) {
