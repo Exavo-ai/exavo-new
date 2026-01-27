@@ -82,12 +82,16 @@ export default function ProjectDetailPage() {
     loading,
     error,
     cancellingSubscription,
+    pausingSubscription,
+    resumingSubscription,
     refetch,
     addComment,
     requestRevision,
     approveDelivery,
     deleteFile,
     cancelSubscription,
+    pauseSubscription,
+    resumeSubscription,
     openBillingPortal,
     resubscribe,
   } = useProject(projectId);
@@ -668,10 +672,17 @@ export default function ProjectDetailPage() {
               status: subscription.status,
               next_renewal_date: subscription.next_renewal_date,
               stripe_subscription_id: subscription.stripe_subscription_id,
+              paused_at: subscription.paused_at,
+              resume_at: subscription.resume_at,
+              cancel_at_period_end: subscription.cancel_at_period_end,
             } : null}
             monthlyFee={monthlyFee}
             onCancelSubscription={cancelSubscription}
             cancellingSubscription={cancellingSubscription}
+            onPauseSubscription={pauseSubscription}
+            pausingSubscription={pausingSubscription}
+            onResumeSubscription={resumeSubscription}
+            resumingSubscription={resumingSubscription}
             onOpenBillingPortal={openBillingPortal}
             onResubscribe={resubscribe}
           />

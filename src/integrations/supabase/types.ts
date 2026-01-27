@@ -937,7 +937,10 @@ export type Database = {
           created_at: string
           id: string
           next_renewal_date: string | null
+          pause_behavior: string | null
+          paused_at: string | null
           project_id: string
+          resume_at: string | null
           status: string
           stripe_checkout_session_id: string | null
           stripe_customer_id: string | null
@@ -951,7 +954,10 @@ export type Database = {
           created_at?: string
           id?: string
           next_renewal_date?: string | null
+          pause_behavior?: string | null
+          paused_at?: string | null
           project_id: string
+          resume_at?: string | null
           status?: string
           stripe_checkout_session_id?: string | null
           stripe_customer_id?: string | null
@@ -965,7 +971,10 @@ export type Database = {
           created_at?: string
           id?: string
           next_renewal_date?: string | null
+          pause_behavior?: string | null
+          paused_at?: string | null
           project_id?: string
+          resume_at?: string | null
           status?: string
           stripe_checkout_session_id?: string | null
           stripe_customer_id?: string | null
