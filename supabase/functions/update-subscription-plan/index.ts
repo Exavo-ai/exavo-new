@@ -7,6 +7,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const safeUnixToIso = (unixSeconds: unknown) => {
+  if (typeof unixSeconds !== "number" || !Number.isFinite(unixSeconds) || unixSeconds <= 0) return null;
+  try {
+    return new Date(unixSeconds * 1000).toISOString();
+  } catch {
+    return null;
+  }
+};
+
 const logStep = (step: string, details?: unknown) => {
   const requestId = crypto.randomUUID().slice(0, 8);
   console.log(`[UPDATE-SUBSCRIPTION-PLAN][${requestId}] ${step}`, details ? JSON.stringify(details) : "");
@@ -249,6 +258,11 @@ serve(async (req) => {
       currentPeriodEnd: updatedSubscription.current_period_end
     });
 
+    const nextRenewalIso = safeUnixToIso(updatedSubscription.current_period_end);
+    if (!nextRenewalIso) {
+      logStep("date_conversion_warning", { current_period_end: updatedSubscription.current_period_end });
+    }
+
     // 6. Update the appointment to reference the new package
     if (project.appointment_id) {
       await supabaseAdmin
@@ -263,7 +277,7 @@ serve(async (req) => {
     await supabaseAdmin
       .from("project_subscriptions")
       .update({
-        next_renewal_date: new Date(updatedSubscription.current_period_end * 1000).toISOString(),
+        ...(nextRenewalIso ? { next_renewal_date: nextRenewalIso } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("id", subscription.id);
@@ -291,7 +305,7 @@ serve(async (req) => {
         to_plan: newPackage.package_name,
         new_monthly_fee: newPackage.monthly_fee,
         proration_applied: proration_behavior === "create_prorations",
-        next_billing_date: new Date(updatedSubscription.current_period_end * 1000).toISOString(),
+        next_billing_date: nextRenewalIso,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
