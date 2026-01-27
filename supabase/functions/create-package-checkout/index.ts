@@ -92,13 +92,14 @@ serve(async (req) => {
     const userId = user.id;
     logStep("User authenticated", { userId, email: user.email });
 
-    // Check for existing Stripe customer
+    // Check for existing Stripe customer or create one
     let customerId: string | undefined;
     const email = customerEmail || user.email;
+    
     if (email) {
       const customers = await stripe.customers.list({ email, limit: 1 });
-      customerId = customers.data.length > 0 ? customers.data[0].id : undefined;
-      if (customerId) {
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
         logStep("Found existing customer", { customerId });
       }
     }
@@ -106,9 +107,25 @@ serve(async (req) => {
     const serviceName = service?.name || 'Service';
     const origin = req.headers.get('origin') || 'https://exavo.ai';
 
+    // ============================================
+    // UNIFIED METADATA - CRITICAL FOR WEBHOOK LINKING
+    // ============================================
+    const coreMetadata = {
+      lovable_user_id: userId,
+      package_id: packageId,
+      service_id: service?.id || '',
+      service_name: serviceName,
+      package_name: packageData.package_name,
+      customer_name: customerName || user.user_metadata?.full_name || '',
+      payment_model: paymentModel,
+      client_notes: clientNotes || '',
+    };
+
     // Handle based on payment model
     if (paymentModel === 'subscription') {
-      // SUBSCRIPTION: Build cost (one-time) + Monthly fee (recurring)
+      // ============================================
+      // SUBSCRIPTION: ONE checkout with build cost + monthly fee
+      // ============================================
       const buildCost = packageData.build_cost || 0;
       const monthlyFee = packageData.monthly_fee || 0;
 
@@ -121,7 +138,8 @@ serve(async (req) => {
 
       const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
 
-      // Add build cost as one-time line item if > 0
+      // CRITICAL: Add build cost as one-time line item INSIDE subscription checkout
+      // This ensures build cost is charged ONCE in the same checkout, NOT separately
       if (buildCost > 0) {
         lineItems.push({
           price_data: {
@@ -152,9 +170,14 @@ serve(async (req) => {
         quantity: 1,
       });
 
-      logStep("Creating subscription checkout", { buildCost, monthlyFee, lineItemsCount: lineItems.length });
+      logStep("Creating UNIFIED subscription checkout", { 
+        buildCost, 
+        monthlyFee, 
+        lineItemsCount: lineItems.length,
+        hasBuildCost: buildCost > 0
+      });
 
-      // Build session options
+      // Build session options with comprehensive metadata
       const sessionOptions: Stripe.Checkout.SessionCreateParams = {
         customer: customerId,
         customer_email: customerId ? undefined : email,
@@ -164,19 +187,40 @@ serve(async (req) => {
         allow_promotion_codes: true,
         success_url: successUrl || `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: cancelUrl || `${origin}/services`,
+        // Session-level metadata
         metadata: {
-          lovable_user_id: userId,
-          package_id: packageId,
-          service_id: service?.id || '',
-          service_name: serviceName,
-          package_name: packageData.package_name,
-          customer_name: customerName || user.user_metadata?.full_name || '',
-          payment_model: 'subscription',
+          ...coreMetadata,
+          has_build_cost: buildCost > 0 ? 'true' : 'false',
           build_cost: buildCost.toString(),
           monthly_fee: monthlyFee.toString(),
-          client_notes: clientNotes || '',
+        },
+        // CRITICAL: subscription_data.metadata is copied to the Stripe subscription object
+        // This ensures webhook can ALWAYS find project via subscription.metadata
+        subscription_data: {
+          metadata: {
+            lovable_user_id: userId,
+            package_id: packageId,
+            service_id: service?.id || '',
+            payment_model: 'subscription',
+          },
         },
       };
+
+      // SAFETY NET: Copy metadata to customer for fallback
+      if (customerId) {
+        try {
+          await stripe.customers.update(customerId, {
+            metadata: {
+              last_lovable_user_id: userId,
+              last_service_id: service?.id || '',
+              last_package_id: packageId,
+            },
+          });
+          logStep("Customer metadata updated for fallback", { customerId });
+        } catch (e) {
+          logStep("WARN: Could not update customer metadata (non-blocking)", { error: e });
+        }
+      }
 
       // Add optional client notes field (feature-flagged)
       if (ENABLE_CLIENT_NOTES) {
@@ -197,7 +241,11 @@ serve(async (req) => {
 
       const session = await stripe.checkout.sessions.create(sessionOptions);
 
-      logStep("Subscription checkout session created", { sessionId: session.id });
+      logStep("Subscription checkout session created", { 
+        sessionId: session.id,
+        mode: 'subscription',
+        lineItems: lineItems.length
+      });
 
       return new Response(
         JSON.stringify({ 
@@ -215,7 +263,9 @@ serve(async (req) => {
       );
 
     } else {
-      // ONE-TIME PAYMENT
+      // ============================================
+      // ONE-TIME PAYMENT - Simple single charge
+      // ============================================
       const price = packageData.price || 0;
 
       if (price <= 0) {
@@ -255,16 +305,7 @@ serve(async (req) => {
         allow_promotion_codes: true,
         success_url: successUrl || `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: cancelUrl || `${origin}/services`,
-        metadata: {
-          lovable_user_id: userId,
-          package_id: packageId,
-          service_id: service?.id || '',
-          service_name: serviceName,
-          package_name: packageData.package_name,
-          customer_name: customerName || user.user_metadata?.full_name || '',
-          payment_model: 'one_time',
-          client_notes: clientNotes || '',
-        },
+        metadata: coreMetadata,
       };
 
       // Add optional client notes field (feature-flagged)
