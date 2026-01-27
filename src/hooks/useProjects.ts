@@ -22,10 +22,15 @@ export interface Project {
   updated_at: string;
   client_notes: string | null;
   client_notes_updated_at: string | null;
+  payment_model?: string | null;
   service?: {
     name: string;
     image_url: string | null;
   };
+  subscription?: {
+    status: string;
+    cancel_at_period_end: boolean;
+  } | null;
 }
 
 export interface Milestone {
@@ -145,7 +150,40 @@ export function useProjects() {
         .order("created_at", { ascending: false });
 
       if (fetchError) throw fetchError;
-      setProjects(data || []);
+
+      // Fetch subscription status for subscription projects
+      const projectIds = (data || [])
+        .filter(p => p.payment_model === "subscription")
+        .map(p => p.id);
+
+      let subscriptionMap: Record<string, { status: string; cancel_at_period_end: boolean }> = {};
+      
+      if (projectIds.length > 0) {
+        const { data: subData } = await supabase
+          .from("project_subscriptions")
+          .select("project_id, status, cancel_at_period_end")
+          .in("project_id", projectIds);
+
+        if (subData) {
+          subscriptionMap = subData.reduce((acc, sub) => {
+            acc[sub.project_id] = {
+              status: sub.status,
+              cancel_at_period_end: sub.cancel_at_period_end,
+            };
+            return acc;
+          }, {} as Record<string, { status: string; cancel_at_period_end: boolean }>);
+        }
+      }
+
+      // Merge subscription data into projects
+      const projectsWithSubs = (data || []).map(project => ({
+        ...project,
+        subscription: project.payment_model === "subscription" 
+          ? subscriptionMap[project.id] || null 
+          : null,
+      }));
+
+      setProjects(projectsWithSubs);
     } catch (err: any) {
       console.error("Error loading projects:", err);
       setError(err.message);

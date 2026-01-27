@@ -11,10 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, AlertCircle, FolderKanban, Filter, ExternalLink, Calendar } from "lucide-react";
+import { Search, AlertCircle, FolderKanban, Filter, ExternalLink, Calendar, RefreshCw } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { SubscriptionStatusBadge } from "@/components/portal/SubscriptionStatusBadge";
 
 const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
   switch (status.toLowerCase()) {
@@ -163,9 +164,23 @@ export default function ProjectsPage() {
                       </CardDescription>
                     )}
                   </div>
-                  <Badge variant={getStatusVariant(project.status)} className="shrink-0">
-                    {getStatusLabel(project.status)}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <Badge variant={getStatusVariant(project.status)} className="shrink-0">
+                      {getStatusLabel(project.status)}
+                    </Badge>
+                    {project.payment_model === "subscription" && project.subscription && (
+                      <SubscriptionStatusBadge 
+                        status={project.subscription.status}
+                        cancelAtPeriodEnd={project.subscription.cancel_at_period_end}
+                      />
+                    )}
+                    {project.payment_model === "subscription" && !project.subscription && (
+                      <Badge variant="outline" className="gap-1 text-xs">
+                        <RefreshCw className="w-3 h-3" />
+                        Subscription
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
