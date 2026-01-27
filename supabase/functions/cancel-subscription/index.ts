@@ -431,7 +431,16 @@ serve(async (req) => {
   });
 
   const nowIso = new Date().toISOString();
-  const accessUntilIso = new Date(updated.current_period_end * 1000).toISOString();
+  
+  // Safely convert current_period_end to ISO string
+  let accessUntilIso: string | null = null;
+  if (updated.current_period_end && typeof updated.current_period_end === 'number') {
+    try {
+      accessUntilIso = new Date(updated.current_period_end * 1000).toISOString();
+    } catch {
+      log(requestId, "date_conversion_warning", { current_period_end: updated.current_period_end });
+    }
+  }
 
   // DB consistency update
   const { error: updateError } = await supabaseAdmin
@@ -445,6 +454,7 @@ serve(async (req) => {
       stripe_customer_id: stripeCustomerId,
       stripe_checkout_session_id: checkoutSessionId,
       next_renewal_date: accessUntilIso,
+      updated_at: nowIso,
     })
     .eq("id", projectSub.id);
 
@@ -468,9 +478,9 @@ serve(async (req) => {
     subscription_id: updated.id,
     cancel_at_period_end: Boolean(updated.cancel_at_period_end),
     canceled_at: nowIso,
-    access_until: accessUntilIso,
+    access_until: accessUntilIso || nowIso,
     stripe_status: updated.status,
-    current_period_end: accessUntilIso,
+    current_period_end: accessUntilIso || nowIso,
     requestId,
     ...(isAdmin
       ? {
