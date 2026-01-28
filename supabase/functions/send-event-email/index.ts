@@ -882,9 +882,27 @@ Deno.serve(async (req) => {
     if (config.shouldEmailClient) {
       const recipientEmail = enrichedData.client_email;
 
-      // Skip if actor triggered their own action (no self-emails)
+      // Define lifecycle events that should ALWAYS send to client
+      // even if client triggered the action themselves
+      const LIFECYCLE_EVENTS = [
+        "SUBSCRIPTION_CANCELED",
+        "SUBSCRIPTION_PAUSED",
+        "SUBSCRIPTION_RESUMED",
+        "SUBSCRIPTION_RENEWED",
+        "SUBSCRIPTION_ACTIVATED",
+        "PAYMENT_FAILED",
+        "DELIVERY_APPROVED",
+        "PROJECT_COMPLETED",
+        "PROJECT_STATUS_CHANGED",
+        "DELIVERY_CREATED",
+        "SERVICE_APPROVED",
+      ];
+
+      // Only skip self-notifications for non-lifecycle events (like comments)
       let shouldSkipSelfNotification = false;
-      if (recipientEmail && actor_id) {
+      const isLifecycleEvent = LIFECYCLE_EVENTS.includes(event_type);
+      
+      if (!isLifecycleEvent && recipientEmail && actor_id) {
         const { data: actorProfile } = await supabaseAdmin
           .from("profiles")
           .select("email")
@@ -892,7 +910,7 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (actorProfile?.email === recipientEmail) {
-          console.log(`[EVENT-EMAIL][${requestId}] Skipping self-notification for client`);
+          console.log(`[EVENT-EMAIL][${requestId}] Skipping self-notification for non-lifecycle event: ${event_type}`);
           shouldSkipSelfNotification = true;
         }
       }
