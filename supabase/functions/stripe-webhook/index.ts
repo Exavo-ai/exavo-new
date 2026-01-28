@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { emitSystemAlert, emitEvent } from "../_shared/notifications.ts";
+import { sendEventEmail } from "../_shared/email-events.ts";
 
 // Generate request ID for tracing
 const generateRequestId = () => `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -785,6 +786,19 @@ serve(async (req) => {
             logStep("ERROR: Failed to upsert user subscription", { error: subError }, ctx);
           } else {
             logStep("User subscription upserted", { subscriptionId }, ctx);
+
+            // Send email notification for subscription activated
+            sendEventEmail({
+              event_type: "SUBSCRIPTION_ACTIVATED",
+              entity_type: "project",
+              entity_id: session.metadata?.project_id || undefined,
+              metadata: {
+                project_name: session.metadata?.service_name || "Your subscription",
+                service_name: session.metadata?.service_name,
+                client_email: session.customer_email,
+                amount: session.amount_total,
+              },
+            });
           }
         }
       } else if (isSuccessfulCheckout && !lovableUserId) {
@@ -949,6 +963,41 @@ serve(async (req) => {
         .eq("stripe_subscription_id", subscription.id);
 
       logStep("Subscription marked as canceled", { subscriptionId: subscription.id }, ctx);
+
+      // Get project info for email notification
+      const { data: cancelledProjectSub } = await supabaseAdmin
+        .from("project_subscriptions")
+        .select("project_id")
+        .eq("stripe_subscription_id", subscription.id)
+        .maybeSingle();
+
+      if (cancelledProjectSub?.project_id) {
+        const { data: cancelledProject } = await supabaseAdmin
+          .from("projects")
+          .select("name, user_id, client_id")
+          .eq("id", cancelledProjectSub.project_id)
+          .maybeSingle();
+
+        if (cancelledProject) {
+          const clientId = cancelledProject.client_id || cancelledProject.user_id;
+          const { data: clientProfile } = await supabaseAdmin
+            .from("profiles")
+            .select("email")
+            .eq("id", clientId)
+            .maybeSingle();
+
+          // Send email notification for subscription cancellation (to admins)
+          sendEventEmail({
+            event_type: "SUBSCRIPTION_CANCELED",
+            entity_type: "project",
+            entity_id: cancelledProjectSub.project_id,
+            metadata: {
+              project_name: cancelledProject.name,
+              client_email: clientProfile?.email,
+            },
+          });
+        }
+      }
     }
 
     // ============================================
@@ -1014,6 +1063,36 @@ serve(async (req) => {
                 appointment_id: appointmentId,
               });
             logStep("Recurring payment recorded", { invoiceId: invoice.id }, ctx);
+
+            // Send email notification for subscription renewal to client
+            if (projectSub?.project_id) {
+              const { data: renewedProject } = await supabaseAdmin
+                .from("projects")
+                .select("name, user_id, client_id")
+                .eq("id", projectSub.project_id)
+                .maybeSingle();
+
+              if (renewedProject) {
+                const clientId = renewedProject.client_id || renewedProject.user_id;
+                const { data: clientProfile } = await supabaseAdmin
+                  .from("profiles")
+                  .select("email")
+                  .eq("id", clientId)
+                  .maybeSingle();
+
+                sendEventEmail({
+                  event_type: "SUBSCRIPTION_RENEWED",
+                  entity_type: "project",
+                  entity_id: projectSub.project_id,
+                  target_user_id: clientId,
+                  metadata: {
+                    project_name: renewedProject.name,
+                    client_email: clientProfile?.email || invoice.customer_email,
+                    next_renewal_date: new Date((invoice as any).lines?.data?.[0]?.period?.end * 1000).toISOString(),
+                  },
+                });
+              }
+            }
           }
         }
       }
@@ -1090,6 +1169,18 @@ serve(async (req) => {
                 },
               }
             );
+
+            // Send email notification for payment failure
+            sendEventEmail({
+              event_type: "PAYMENT_FAILED",
+              entity_type: "project",
+              entity_id: projectSub.project_id,
+              metadata: {
+                project_name: project.name,
+                client_email: invoice.customer_email,
+                error: `Payment attempt ${invoice.attempt_count || 1} failed`,
+              },
+            });
           }
         }
       }
@@ -1123,6 +1214,41 @@ serve(async (req) => {
         .eq("stripe_subscription_id", subscription.id);
 
       logStep("Subscription marked as paused", { subscriptionId: subscription.id }, ctx);
+
+      // Get project info for email notification
+      const { data: pausedProjectSub } = await supabaseAdmin
+        .from("project_subscriptions")
+        .select("project_id")
+        .eq("stripe_subscription_id", subscription.id)
+        .maybeSingle();
+
+      if (pausedProjectSub?.project_id) {
+        const { data: pausedProject } = await supabaseAdmin
+          .from("projects")
+          .select("name, user_id, client_id")
+          .eq("id", pausedProjectSub.project_id)
+          .maybeSingle();
+
+        if (pausedProject) {
+          const clientId = pausedProject.client_id || pausedProject.user_id;
+          const { data: clientProfile } = await supabaseAdmin
+            .from("profiles")
+            .select("email")
+            .eq("id", clientId)
+            .maybeSingle();
+
+          // Send email notification for subscription paused
+          sendEventEmail({
+            event_type: "SUBSCRIPTION_PAUSED",
+            entity_type: "project",
+            entity_id: pausedProjectSub.project_id,
+            metadata: {
+              project_name: pausedProject.name,
+              client_email: clientProfile?.email,
+            },
+          });
+        }
+      }
     }
 
     // ============================================
