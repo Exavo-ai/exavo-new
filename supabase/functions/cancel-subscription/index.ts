@@ -398,7 +398,26 @@ serve(async (req) => {
   // Stripe cancel behavior
   let updated: Stripe.Subscription;
   try {
-    if (cancelAtPeriodEnd) {
+    // First, retrieve the current subscription state from Stripe
+    log(requestId, "stripe_subscription_retrieve", { stripeSubscriptionId });
+    const currentSub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    
+    // Check if already canceled - if so, just sync and return success
+    if (currentSub.status === "canceled") {
+      log(requestId, "stripe_subscription_already_canceled", { 
+        stripeSubscriptionId, 
+        status: currentSub.status,
+        canceled_at: currentSub.canceled_at 
+      });
+      updated = currentSub;
+    } else if (currentSub.cancel_at_period_end && cancelAtPeriodEnd) {
+      // Already set to cancel at period end
+      log(requestId, "stripe_subscription_already_canceling", { 
+        stripeSubscriptionId,
+        cancel_at_period_end: currentSub.cancel_at_period_end
+      });
+      updated = currentSub;
+    } else if (cancelAtPeriodEnd) {
       log(requestId, "stripe_subscriptions_update_cancel_at_period_end", { stripeSubscriptionId });
       updated = await stripe.subscriptions.update(stripeSubscriptionId, {
         cancel_at_period_end: true,
