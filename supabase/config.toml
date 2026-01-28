@@ -104,3 +104,6 @@ verify_jwt = true
 
 [functions.update-subscription-plan]
 verify_jwt = true
+
+[functions.send-event-email]
+verify_jwt = false

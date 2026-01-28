@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { sendEventEmail } from "../_shared/email-events.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -332,6 +333,20 @@ Deno.serve(async (req) => {
     }
 
     log(requestId, "notifications_created", { count: notifications.length });
+
+    // ================================
+    // TRIGGER EMAIL NOTIFICATIONS (ADDITIVE)
+    // Fire-and-forget - never blocks the main flow
+    // ================================
+    sendEventEmail({
+      event_type,
+      actor_id,
+      entity_type,
+      entity_id,
+      metadata: enrichedMeta,
+      target_user_id,
+      client_email: (metadata.client_email as string) || (metadata.customer_email as string) || undefined,
+    });
 
     return new Response(
       JSON.stringify({ 
