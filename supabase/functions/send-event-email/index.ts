@@ -91,7 +91,21 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getClientBody: () => "",
   },
 
-  // Client approves delivery
+  // Client resumes subscription
+  SUBSCRIPTION_RESUMED: {
+    shouldEmailAdmin: true,
+    shouldEmailClient: false,
+    priority: "normal",
+    getSubject: (m) => `Subscription Resumed: ${m.project_name || "Project"}`,
+    getAdminBody: (m, link) => `
+      <p>A client has resumed their subscription.</p>
+      <p><strong>Project:</strong> ${m.project_name || "Unknown"}</p>
+      <p><strong>Client:</strong> ${m.client_email || "Unknown"}</p>
+      <p><a href="${link}">View Project →</a></p>
+    `,
+    getClientBody: () => "",
+  },
+
   DELIVERY_APPROVED: {
     shouldEmailAdmin: true,
     shouldEmailClient: false,

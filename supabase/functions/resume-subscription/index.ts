@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { sendEventEmail } from "../_shared/email-events.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -182,6 +183,44 @@ serve(async (req) => {
       log(requestId, "db_update_error", { error: updateError.message });
       // Still return success since Stripe was updated
     }
+
+    // Get project and service info for email
+    const { data: projectData } = await supabaseAdmin
+      .from("projects")
+      .select("name, title, service_id")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    let serviceName: string | null = null;
+    if (projectData?.service_id) {
+      const { data: serviceData } = await supabaseAdmin
+        .from("services")
+        .select("name")
+        .eq("id", projectData.service_id)
+        .maybeSingle();
+      serviceName = serviceData?.name || null;
+    }
+
+    // Get client email
+    const { data: clientProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    // Send email notification for subscription resumed
+    sendEventEmail({
+      event_type: "SUBSCRIPTION_RESUMED",
+      entity_type: "project",
+      entity_id: projectId,
+      metadata: {
+        project_name: projectData?.title || projectData?.name || "Your project",
+        service_name: serviceName,
+        client_email: clientProfile?.email,
+        client_name: clientProfile?.full_name,
+        next_renewal_date: nextRenewalDate,
+      },
+    });
 
     log(requestId, "resume_complete", { status: updated.status, nextRenewalDate });
 

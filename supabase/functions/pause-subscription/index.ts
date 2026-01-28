@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { sendEventEmail } from "../_shared/email-events.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -182,6 +183,46 @@ serve(async (req) => {
         pause_behavior: pauseBehavior,
       })
       .eq("id", projectSub.id);
+
+    // Get project and service info for email
+    const { data: projectData } = await supabaseAdmin
+      .from("projects")
+      .select("name, title, service_id")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    let serviceName: string | null = null;
+    if (projectData?.service_id) {
+      const { data: serviceData } = await supabaseAdmin
+        .from("services")
+        .select("name")
+        .eq("id", projectData.service_id)
+        .maybeSingle();
+      serviceName = serviceData?.name || null;
+    }
+
+    // Get client email
+    const { data: clientProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    // Send email notification for subscription paused
+    sendEventEmail({
+      event_type: "SUBSCRIPTION_PAUSED",
+      entity_type: "project",
+      entity_id: projectId,
+      metadata: {
+        project_name: projectData?.title || projectData?.name || "Your project",
+        service_name: serviceName,
+        client_email: clientProfile?.email,
+        client_name: clientProfile?.full_name,
+        resume_at: resumeAtIso,
+      },
+    });
+
+    log(requestId, "email_sent", { event_type: "SUBSCRIPTION_PAUSED" });
 
     return json({
       ok: true,
