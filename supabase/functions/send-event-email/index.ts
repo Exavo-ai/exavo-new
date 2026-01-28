@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,23 +17,272 @@ const ADMIN_EMAILS = ["info@exavo.ai", "mahmoud@exavoai.io"];
 const BASE_URL = "https://exavo-new.lovable.app";
 
 // ================================
+// ENRICHED DATA TYPE
+// ================================
+interface EnrichedEventData {
+  // Project data
+  project_id: string | null;
+  project_name: string | null;
+  project_status: string | null;
+  
+  // Service data
+  service_id: string | null;
+  service_name: string | null;
+  
+  // Client data
+  client_id: string | null;
+  client_email: string | null;
+  client_name: string | null;
+  
+  // Subscription data (from Stripe)
+  subscription_id: string | null;
+  subscription_status: string | null;
+  plan_name: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  
+  // Original metadata (merged)
+  [key: string]: unknown;
+}
+
+// ================================
+// DATA ENRICHMENT FUNCTION
+// ================================
+async function enrichEventData(
+  supabaseAdmin: any,
+  stripe: Stripe | null,
+  payload: EventEmailPayload,
+  requestId: string
+): Promise<EnrichedEventData> {
+  const { entity_id, entity_type, metadata = {}, target_user_id, client_email } = payload;
+  
+  const enriched: EnrichedEventData = {
+    // Start with null values
+    project_id: null,
+    project_name: null,
+    project_status: null,
+    service_id: null,
+    service_name: null,
+    client_id: null,
+    client_email: client_email || (metadata.client_email as string) || null,
+    client_name: (metadata.client_name as string) || null,
+    subscription_id: (metadata.subscription_id as string) || (metadata.stripe_subscription_id as string) || null,
+    subscription_status: null,
+    plan_name: null,
+    current_period_end: null,
+    cancel_at_period_end: false,
+    // Merge original metadata
+    ...metadata,
+  };
+
+  try {
+    // ================================
+    // STEP 1: Resolve Project Data
+    // ================================
+    let projectId = entity_type === "project" ? entity_id : (metadata.project_id as string) || null;
+    
+    if (projectId) {
+      console.log(`[EVENT-EMAIL][${requestId}] Enriching project data for: ${projectId}`);
+      
+      const { data: project, error: projectError } = await supabaseAdmin
+        .from("projects")
+        .select("id, name, title, status, service_id, user_id, client_id")
+        .eq("id", projectId)
+        .maybeSingle();
+
+      if (project && !projectError) {
+        enriched.project_id = project.id;
+        enriched.project_name = project.title || project.name || "Project";
+        enriched.project_status = project.status;
+        enriched.service_id = project.service_id;
+        enriched.client_id = project.client_id || project.user_id;
+        
+        console.log(`[EVENT-EMAIL][${requestId}] Project resolved: ${enriched.project_name}`);
+      } else {
+        console.warn(`[EVENT-EMAIL][${requestId}] Could not fetch project: ${projectId}`);
+      }
+    }
+
+    // ================================
+    // STEP 2: Resolve Service Data
+    // ================================
+    const serviceId = enriched.service_id || (metadata.service_id as string);
+    
+    if (serviceId) {
+      const { data: service, error: serviceError } = await supabaseAdmin
+        .from("services")
+        .select("id, name")
+        .eq("id", serviceId)
+        .maybeSingle();
+
+      if (service && !serviceError) {
+        enriched.service_id = service.id;
+        enriched.service_name = service.name || "Service";
+        console.log(`[EVENT-EMAIL][${requestId}] Service resolved: ${enriched.service_name}`);
+      }
+    }
+
+    // ================================
+    // STEP 3: Resolve Client Data from Profile
+    // ================================
+    const clientId = enriched.client_id || target_user_id || (metadata.user_id as string);
+    
+    if (clientId && (!enriched.client_email || !enriched.client_name)) {
+      const { data: profile, error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .select("id, email, full_name")
+        .eq("id", clientId)
+        .maybeSingle();
+
+      if (profile && !profileError) {
+        enriched.client_id = profile.id;
+        enriched.client_email = enriched.client_email || profile.email;
+        enriched.client_name = enriched.client_name || profile.full_name || "Client";
+        console.log(`[EVENT-EMAIL][${requestId}] Client resolved: ${enriched.client_email}`);
+      }
+    }
+
+    // ================================
+    // STEP 4: Resolve Subscription Data from project_subscriptions
+    // ================================
+    if (projectId || enriched.subscription_id) {
+      // First try to get from project_subscriptions table
+      let subscriptionQuery = supabaseAdmin
+        .from("project_subscriptions")
+        .select("id, stripe_subscription_id, status, next_renewal_date, cancel_at_period_end, project_id");
+      
+      if (enriched.subscription_id) {
+        subscriptionQuery = subscriptionQuery.eq("stripe_subscription_id", enriched.subscription_id);
+      } else if (projectId) {
+        subscriptionQuery = subscriptionQuery.eq("project_id", projectId);
+      }
+      
+      const { data: projectSub, error: subError } = await subscriptionQuery.maybeSingle();
+      
+      if (projectSub && !subError) {
+        enriched.subscription_id = projectSub.stripe_subscription_id;
+        enriched.subscription_status = projectSub.status;
+        enriched.cancel_at_period_end = projectSub.cancel_at_period_end || false;
+        
+        if (projectSub.next_renewal_date) {
+          enriched.current_period_end = projectSub.next_renewal_date;
+        }
+        
+        // If we got project_id from subscription, resolve project data
+        if (!enriched.project_id && projectSub.project_id) {
+          const { data: project } = await supabaseAdmin
+            .from("projects")
+            .select("id, name, title, status, service_id, user_id, client_id")
+            .eq("id", projectSub.project_id)
+            .maybeSingle();
+          
+          if (project) {
+            enriched.project_id = project.id;
+            enriched.project_name = project.title || project.name || "Project";
+            enriched.project_status = project.status;
+            enriched.service_id = enriched.service_id || project.service_id;
+            enriched.client_id = enriched.client_id || project.client_id || project.user_id;
+          }
+        }
+        
+        console.log(`[EVENT-EMAIL][${requestId}] Subscription resolved from DB: ${enriched.subscription_status}`);
+      }
+    }
+
+    // ================================
+    // STEP 5: Enrich from Stripe API (if available)
+    // ================================
+    if (stripe && enriched.subscription_id) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(enriched.subscription_id);
+        
+        enriched.subscription_status = subscription.status;
+        enriched.cancel_at_period_end = subscription.cancel_at_period_end;
+        
+        if (subscription.current_period_end) {
+          enriched.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
+        }
+        
+        // Get plan/price name
+        if (subscription.items?.data?.[0]?.price) {
+          const price = subscription.items.data[0].price;
+          if (typeof price.product === "string") {
+            try {
+              const product = await stripe.products.retrieve(price.product);
+              enriched.plan_name = product.name || null;
+            } catch {
+              enriched.plan_name = price.nickname || null;
+            }
+          } else if (price.product && typeof price.product === "object" && "name" in price.product) {
+            enriched.plan_name = (price.product as any).name || null;
+          }
+        }
+        
+        // Resolve client email from Stripe customer
+        if (!enriched.client_email && subscription.customer) {
+          const customerId = typeof subscription.customer === "string" 
+            ? subscription.customer 
+            : subscription.customer.id;
+          
+          const customer = await stripe.customers.retrieve(customerId);
+          if (customer && !customer.deleted) {
+            enriched.client_email = (customer as Stripe.Customer).email || enriched.client_email;
+            enriched.client_name = enriched.client_name || (customer as Stripe.Customer).name || null;
+          }
+        }
+        
+        console.log(`[EVENT-EMAIL][${requestId}] Stripe subscription enriched: ${subscription.status}`);
+      } catch (stripeErr) {
+        console.warn(`[EVENT-EMAIL][${requestId}] Stripe enrichment failed:`, stripeErr);
+      }
+    }
+
+    // ================================
+    // STEP 6: Final client resolution if still missing
+    // ================================
+    if (!enriched.client_email && enriched.client_id) {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", enriched.client_id)
+        .maybeSingle();
+      
+      if (profile) {
+        enriched.client_email = profile.email;
+        enriched.client_name = enriched.client_name || profile.full_name;
+      }
+    }
+
+  } catch (error) {
+    console.error(`[EVENT-EMAIL][${requestId}] Enrichment error:`, error);
+  }
+
+  // Log final enriched data summary
+  console.log(`[EVENT-EMAIL][${requestId}] Enrichment complete:`, {
+    project_name: enriched.project_name,
+    service_name: enriched.service_name,
+    client_email: enriched.client_email,
+    subscription_status: enriched.subscription_status,
+  });
+
+  return enriched;
+}
+
+// ================================
 // EMAIL EVENT CONFIGURATION
 // ================================
-// Maps event types to email settings
-// Only events listed here will trigger emails
 const EMAIL_EVENT_CONFIG: Record<string, {
   shouldEmailAdmin: boolean;
   shouldEmailClient: boolean;
   priority: "normal" | "high";
-  getSubject: (meta: Record<string, unknown>) => string;
-  getAdminBody: (meta: Record<string, unknown>, link: string) => string;
-  getClientBody: (meta: Record<string, unknown>, link: string) => string;
+  getSubject: (meta: EnrichedEventData) => string;
+  getAdminBody: (meta: EnrichedEventData, link: string) => string;
+  getClientBody: (meta: EnrichedEventData, link: string) => string;
 }> = {
   // ================================
   // ADMIN-ONLY EVENTS
   // ================================
   
-  // Client purchases a service (from checkout/subscription creation)
   SERVICE_PURCHASED: {
     shouldEmailAdmin: true,
     shouldEmailClient: false,
@@ -40,34 +290,36 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getSubject: (m) => `New Purchase: ${m.service_name || m.project_name || "Service"}`,
     getAdminBody: (m, link) => `
       <p>A client has purchased a service.</p>
-      <p><strong>Client:</strong> ${m.client_email || m.customer_email || "Unknown"}</p>
-      <p><strong>Service:</strong> ${m.service_name || m.project_name || "Unknown"}</p>
-      <p><strong>Amount:</strong> ${m.amount ? `$${(Number(m.amount) / 100).toFixed(2)}` : "N/A"}</p>
+      <p><strong>Client:</strong> ${m.client_name || "N/A"} (${m.client_email || "Unknown email"})</p>
+      <p><strong>Service:</strong> ${m.service_name || "N/A"}</p>
+      <p><strong>Project:</strong> ${m.project_name || "N/A"}</p>
+      ${m.amount ? `<p><strong>Amount:</strong> $${(Number(m.amount) / 100).toFixed(2)}</p>` : ""}
+      ${m.plan_name ? `<p><strong>Plan:</strong> ${m.plan_name}</p>` : ""}
       <p><a href="${link}">View Details →</a></p>
     `,
     getClientBody: () => "",
   },
 
-  // Client cancels subscription (or schedules cancellation)
   SUBSCRIPTION_CANCELED: {
     shouldEmailAdmin: true,
     shouldEmailClient: true,
     priority: "high",
-    getSubject: (m) => `⚠️ Subscription ${m.is_scheduled ? "Scheduled for Cancellation" : "Canceled"}: ${m.project_name || "Project"}`,
+    getSubject: (m) => `⚠️ Subscription ${m.cancel_at_period_end ? "Scheduled for Cancellation" : "Canceled"}: ${m.project_name || "Project"}`,
     getAdminBody: (m, link) => `
-      <p>A client has ${m.is_scheduled ? "scheduled cancellation for" : "canceled"} their subscription.</p>
+      <p>A client has ${m.cancel_at_period_end ? "scheduled cancellation for" : "canceled"} their subscription.</p>
       <p><strong>Project:</strong> ${m.project_name || "Unknown"}</p>
-      <p><strong>Client:</strong> ${m.client_email || "Unknown"}</p>
-      <p><strong>Plan:</strong> ${m.plan_name || "N/A"}</p>
-      ${m.is_scheduled ? `<p><strong>Access Until:</strong> ${m.access_until || "End of billing period"}</p>` : ""}
-      <p><strong>Reason:</strong> ${m.cancel_reason || "Not provided"}</p>
+      <p><strong>Service:</strong> ${m.service_name || "N/A"}</p>
+      <p><strong>Client:</strong> ${m.client_name || "N/A"} (${m.client_email || "Unknown email"})</p>
+      ${m.plan_name ? `<p><strong>Plan:</strong> ${m.plan_name}</p>` : ""}
+      ${m.cancel_at_period_end && m.current_period_end ? `<p><strong>Access Until:</strong> ${new Date(m.current_period_end).toLocaleDateString()}</p>` : ""}
+      ${m.cancel_reason ? `<p><strong>Reason:</strong> ${m.cancel_reason}</p>` : ""}
       <p><a href="${link}">View Project →</a></p>
     `,
     getClientBody: (m, link) => `
-      <p>Your subscription ${m.is_scheduled ? "has been scheduled for cancellation" : "has been canceled"}.</p>
+      <p>Your subscription ${m.cancel_at_period_end ? "has been scheduled for cancellation" : "has been canceled"}.</p>
       <p><strong>Project:</strong> ${m.project_name || "Your project"}</p>
-      ${m.is_scheduled ? `
-        <p>You will continue to have access until <strong>${m.access_until || "the end of your billing period"}</strong>.</p>
+      ${m.cancel_at_period_end && m.current_period_end ? `
+        <p>You will continue to have access until <strong>${new Date(m.current_period_end).toLocaleDateString()}</strong>.</p>
         <p>If you change your mind, you can resubscribe anytime from your project dashboard.</p>
       ` : `
         <p>Your access has ended. If you'd like to continue, you can resubscribe from your project dashboard.</p>
@@ -76,34 +328,50 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     `,
   },
 
-  // Client pauses subscription
   SUBSCRIPTION_PAUSED: {
     shouldEmailAdmin: true,
-    shouldEmailClient: false,
+    shouldEmailClient: true,
     priority: "normal",
-    getSubject: (m) => `Subscription Paused: ${m.project_name || "Project"}`,
+    getSubject: (m) => `⏸️ Subscription Paused: ${m.project_name || "Project"}`,
     getAdminBody: (m, link) => `
       <p>A client has paused their subscription.</p>
       <p><strong>Project:</strong> ${m.project_name || "Unknown"}</p>
-      <p><strong>Client:</strong> ${m.client_email || "Unknown"}</p>
+      <p><strong>Service:</strong> ${m.service_name || "N/A"}</p>
+      <p><strong>Client:</strong> ${m.client_name || "N/A"} (${m.client_email || "Unknown email"})</p>
+      ${m.plan_name ? `<p><strong>Plan:</strong> ${m.plan_name}</p>` : ""}
+      ${m.resume_at ? `<p><strong>Auto-resume:</strong> ${new Date(String(m.resume_at)).toLocaleDateString()}</p>` : ""}
       <p><a href="${link}">View Project →</a></p>
     `,
-    getClientBody: () => "",
+    getClientBody: (m, link) => `
+      <p>Your subscription has been paused.</p>
+      <p><strong>Project:</strong> ${m.project_name || "Your project"}</p>
+      ${m.resume_at ? `<p>Your subscription will automatically resume on <strong>${new Date(String(m.resume_at)).toLocaleDateString()}</strong>.</p>` : ""}
+      <p>You can resume your subscription anytime from your project dashboard.</p>
+      <p><a href="${link}">View Project →</a></p>
+    `,
   },
 
-  // Client resumes subscription
   SUBSCRIPTION_RESUMED: {
     shouldEmailAdmin: true,
-    shouldEmailClient: false,
+    shouldEmailClient: true,
     priority: "normal",
-    getSubject: (m) => `Subscription Resumed: ${m.project_name || "Project"}`,
+    getSubject: (m) => `▶️ Subscription Resumed: ${m.project_name || "Project"}`,
     getAdminBody: (m, link) => `
       <p>A client has resumed their subscription.</p>
       <p><strong>Project:</strong> ${m.project_name || "Unknown"}</p>
-      <p><strong>Client:</strong> ${m.client_email || "Unknown"}</p>
+      <p><strong>Service:</strong> ${m.service_name || "N/A"}</p>
+      <p><strong>Client:</strong> ${m.client_name || "N/A"} (${m.client_email || "Unknown email"})</p>
+      ${m.plan_name ? `<p><strong>Plan:</strong> ${m.plan_name}</p>` : ""}
+      ${m.current_period_end ? `<p><strong>Next Renewal:</strong> ${new Date(m.current_period_end).toLocaleDateString()}</p>` : ""}
       <p><a href="${link}">View Project →</a></p>
     `,
-    getClientBody: () => "",
+    getClientBody: (m, link) => `
+      <p>Your subscription has been resumed successfully!</p>
+      <p><strong>Project:</strong> ${m.project_name || "Your project"}</p>
+      ${m.current_period_end ? `<p>Your next billing date is <strong>${new Date(m.current_period_end).toLocaleDateString()}</strong>.</p>` : ""}
+      <p>You now have full access to all features included in your plan.</p>
+      <p><a href="${link}">View Project →</a></p>
+    `,
   },
 
   DELIVERY_APPROVED: {
@@ -114,13 +382,13 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getAdminBody: (m, link) => `
       <p>A client has approved a delivery.</p>
       <p><strong>Project:</strong> ${m.project_name || "Unknown"}</p>
-      <p><strong>Client:</strong> ${m.client_email || "Unknown"}</p>
+      <p><strong>Service:</strong> ${m.service_name || "N/A"}</p>
+      <p><strong>Client:</strong> ${m.client_name || "N/A"} (${m.client_email || "Unknown email"})</p>
       <p><a href="${link}">View Project →</a></p>
     `,
     getClientBody: () => "",
   },
 
-  // Payment failed
   PAYMENT_FAILED: {
     shouldEmailAdmin: true,
     shouldEmailClient: true,
@@ -129,8 +397,9 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getAdminBody: (m, link) => `
       <p>A payment has failed and requires attention.</p>
       <p><strong>Project:</strong> ${m.project_name || "Unknown"}</p>
-      <p><strong>Client:</strong> ${m.client_email || "Unknown"}</p>
-      <p><strong>Error:</strong> ${m.error || "Unknown error"}</p>
+      <p><strong>Service:</strong> ${m.service_name || "N/A"}</p>
+      <p><strong>Client:</strong> ${m.client_name || "N/A"} (${m.client_email || "Unknown email"})</p>
+      ${m.error ? `<p><strong>Error:</strong> ${m.error}</p>` : ""}
       <p><a href="${link}">View Project →</a></p>
     `,
     getClientBody: (m, link) => `
@@ -141,7 +410,6 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     `,
   },
 
-  // Subscription requires manual attention
   MANUAL_INTERVENTION_REQUIRED: {
     shouldEmailAdmin: true,
     shouldEmailClient: false,
@@ -149,14 +417,14 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getSubject: (m) => `🚨 Manual Intervention Required`,
     getAdminBody: (m, link) => `
       <p>A situation requires your immediate attention.</p>
+      ${m.project_name ? `<p><strong>Project:</strong> ${m.project_name}</p>` : ""}
       <p><strong>Reason:</strong> ${m.reason || "Unknown"}</p>
       <p><strong>Context:</strong> ${m.context || "N/A"}</p>
-      ${link ? `<p><a href="${link}">View Details →</a></p>` : ""}
+      ${link !== BASE_URL ? `<p><a href="${link}">View Details →</a></p>` : ""}
     `,
     getClientBody: () => "",
   },
 
-  // Webhook failure
   WEBHOOK_FAILURE: {
     shouldEmailAdmin: true,
     shouldEmailClient: false,
@@ -171,7 +439,6 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getClientBody: () => "",
   },
 
-  // Automation failure
   AUTOMATION_FAILED: {
     shouldEmailAdmin: true,
     shouldEmailClient: false,
@@ -185,11 +452,26 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getClientBody: () => "",
   },
 
+  REVISION_REQUESTED: {
+    shouldEmailAdmin: true,
+    shouldEmailClient: false,
+    priority: "high",
+    getSubject: (m) => `📝 Revision Requested: ${m.project_name || "Project"}`,
+    getAdminBody: (m, link) => `
+      <p>A client has requested revisions.</p>
+      <p><strong>Project:</strong> ${m.project_name || "Unknown"}</p>
+      <p><strong>Service:</strong> ${m.service_name || "N/A"}</p>
+      <p><strong>Client:</strong> ${m.client_name || "N/A"} (${m.client_email || "Unknown email"})</p>
+      <p><strong>Notes:</strong> ${m.notes || m.revision_notes || "No notes provided"}</p>
+      <p><a href="${link}">View Project →</a></p>
+    `,
+    getClientBody: () => "",
+  },
+
   // ================================
   // CLIENT-ONLY EVENTS
   // ================================
 
-  // Admin creates new delivery
   DELIVERY_CREATED: {
     shouldEmailAdmin: false,
     shouldEmailClient: true,
@@ -199,12 +481,12 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getClientBody: (m, link) => `
       <p>Great news! A new delivery is ready for your review.</p>
       <p><strong>Project:</strong> ${m.project_name || "Your project"}</p>
-      <p><strong>Message:</strong> ${m.message || "Please review the latest delivery."}</p>
+      ${m.service_name ? `<p><strong>Service:</strong> ${m.service_name}</p>` : ""}
+      ${m.message ? `<p><strong>Message:</strong> ${m.message}</p>` : "<p>Please review the latest delivery.</p>"}
       <p><a href="${link}">Review Delivery →</a></p>
     `,
   },
 
-  // Subscription renewed successfully
   SUBSCRIPTION_RENEWED: {
     shouldEmailAdmin: false,
     shouldEmailClient: true,
@@ -214,12 +496,12 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getClientBody: (m, link) => `
       <p>Your subscription has been successfully renewed.</p>
       <p><strong>Project:</strong> ${m.project_name || "Your project"}</p>
-      <p><strong>Next Renewal:</strong> ${m.next_renewal_date || "See your dashboard"}</p>
+      ${m.plan_name ? `<p><strong>Plan:</strong> ${m.plan_name}</p>` : ""}
+      ${m.current_period_end ? `<p><strong>Next Renewal:</strong> ${new Date(m.current_period_end).toLocaleDateString()}</p>` : ""}
       <p><a href="${link}">View Project →</a></p>
     `,
   },
 
-  // Subscription activated (first time)
   SUBSCRIPTION_ACTIVATED: {
     shouldEmailAdmin: true,
     shouldEmailClient: true,
@@ -228,18 +510,20 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getAdminBody: (m, link) => `
       <p>A new subscription has been activated.</p>
       <p><strong>Project:</strong> ${m.project_name || "Unknown"}</p>
-      <p><strong>Client:</strong> ${m.client_email || "Unknown"}</p>
+      <p><strong>Service:</strong> ${m.service_name || "N/A"}</p>
+      <p><strong>Client:</strong> ${m.client_name || "N/A"} (${m.client_email || "Unknown email"})</p>
+      ${m.plan_name ? `<p><strong>Plan:</strong> ${m.plan_name}</p>` : ""}
       <p><a href="${link}">View Project →</a></p>
     `,
     getClientBody: (m, link) => `
       <p>Your subscription is now active!</p>
       <p><strong>Project:</strong> ${m.project_name || "Your project"}</p>
+      ${m.plan_name ? `<p><strong>Plan:</strong> ${m.plan_name}</p>` : ""}
       <p>You can now access all features included in your plan.</p>
       <p><a href="${link}">Go to Project →</a></p>
     `,
   },
 
-  // Admin approves service/delivery (client notification)
   SERVICE_APPROVED: {
     shouldEmailAdmin: false,
     shouldEmailClient: true,
@@ -249,12 +533,12 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getClientBody: (m, link) => `
       <p>Your service request has been approved!</p>
       <p><strong>Project:</strong> ${m.project_name || "Your project"}</p>
+      ${m.service_name ? `<p><strong>Service:</strong> ${m.service_name}</p>` : ""}
       <p>Our team will begin working on your project shortly.</p>
       <p><a href="${link}">View Project →</a></p>
     `,
   },
 
-  // Project status updated
   PROJECT_STATUS_CHANGED: {
     shouldEmailAdmin: false,
     shouldEmailClient: true,
@@ -264,13 +548,12 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getClientBody: (m, link) => `
       <p>Your project status has been updated.</p>
       <p><strong>Project:</strong> ${m.project_name || "Your project"}</p>
-      <p><strong>New Status:</strong> ${m.new_status || "Updated"}</p>
+      ${m.new_status ? `<p><strong>New Status:</strong> ${m.new_status}</p>` : ""}
       ${m.due_date ? `<p><strong>Due Date:</strong> ${m.due_date}</p>` : ""}
       <p><a href="${link}">View Project →</a></p>
     `,
   },
 
-  // Project completed
   PROJECT_COMPLETED: {
     shouldEmailAdmin: false,
     shouldEmailClient: true,
@@ -280,25 +563,10 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getClientBody: (m, link) => `
       <p>Congratulations! Your project has been completed.</p>
       <p><strong>Project:</strong> ${m.project_name || "Your project"}</p>
+      ${m.service_name ? `<p><strong>Service:</strong> ${m.service_name}</p>` : ""}
       <p>Thank you for choosing Exavo AI. We hope you're delighted with the results!</p>
       <p><a href="${link}">View Final Delivery →</a></p>
     `,
-  },
-
-  // Revision requested (notify admin)
-  REVISION_REQUESTED: {
-    shouldEmailAdmin: true,
-    shouldEmailClient: false,
-    priority: "high",
-    getSubject: (m) => `📝 Revision Requested: ${m.project_name || "Project"}`,
-    getAdminBody: (m, link) => `
-      <p>A client has requested revisions.</p>
-      <p><strong>Project:</strong> ${m.project_name || "Unknown"}</p>
-      <p><strong>Client:</strong> ${m.client_email || "Unknown"}</p>
-      <p><strong>Notes:</strong> ${m.notes || m.revision_notes || "No notes provided"}</p>
-      <p><a href="${link}">View Project →</a></p>
-    `,
-    getClientBody: () => "",
   },
 };
 
@@ -445,7 +713,6 @@ async function sendEmail(
       "Content-Type": "application/json",
     };
 
-    // Add priority header for high priority emails
     if (priority === "high") {
       headers["X-Priority"] = "1";
     }
@@ -486,8 +753,6 @@ async function checkRecentEmailSent(
   recipientType: "admin" | "client",
   windowMinutes: number = 10
 ): Promise<boolean> {
-  // Simple in-memory deduplication using activity_logs
-  // We log each email sent and check if a similar one was sent recently
   if (!entityId) return false;
 
   try {
@@ -518,7 +783,7 @@ async function logEmailSent(
 ): Promise<void> {
   try {
     await supabaseAdmin.from("activity_logs").insert({
-      user_id: actorId || "00000000-0000-0000-0000-000000000000", // System user if no actor
+      user_id: actorId || "00000000-0000-0000-0000-000000000000",
       entity_type: "email_notification",
       entity_id: entityId,
       action: `${eventType}_${recipientType}`,
@@ -556,10 +821,17 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
+    // Initialize Stripe if key is available
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    let stripe: Stripe | null = null;
+    if (stripeKey) {
+      stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    }
+
     const payload: EventEmailPayload = await req.json();
     console.log(`[EVENT-EMAIL][${requestId}] Event:`, payload.event_type);
 
-    const { event_type, actor_id, entity_type, entity_id, metadata = {}, target_user_id, client_email } = payload;
+    const { event_type, actor_id } = payload;
 
     // Check if this event type triggers emails
     const config = EMAIL_EVENT_CONFIG[event_type];
@@ -571,29 +843,32 @@ Deno.serve(async (req) => {
       );
     }
 
-    const enrichedMeta = { ...metadata, entity_id, client_email };
+    // ================================
+    // ENRICH EVENT DATA BEFORE SENDING
+    // ================================
+    const enrichedData = await enrichEventData(supabaseAdmin, stripe, payload, requestId);
     let emailsSent = 0;
 
-    // Determine links
-    const adminLink = entity_id ? `${BASE_URL}/admin/projects/${entity_id}` : BASE_URL;
-    const clientLink = entity_id ? `${BASE_URL}/client/projects/${entity_id}` : BASE_URL;
+    // Determine links using enriched project_id
+    const projectId = enrichedData.project_id || payload.entity_id;
+    const adminLink = projectId ? `${BASE_URL}/admin/projects/${projectId}` : BASE_URL;
+    const clientLink = projectId ? `${BASE_URL}/client/projects/${projectId}` : BASE_URL;
 
     // ================================
     // SEND ADMIN EMAIL
     // ================================
     if (config.shouldEmailAdmin) {
-      // Check deduplication
-      const alreadySent = await checkRecentEmailSent(supabaseAdmin, event_type, entity_id || null, "admin");
+      const alreadySent = await checkRecentEmailSent(supabaseAdmin, event_type, projectId || null, "admin");
       
       if (!alreadySent) {
-        const subject = config.getSubject(enrichedMeta);
-        const bodyContent = config.getAdminBody(enrichedMeta, adminLink);
+        const subject = config.getSubject(enrichedData);
+        const bodyContent = config.getAdminBody(enrichedData, adminLink);
         const html = buildEmailHtml(subject, bodyContent, config.priority, "admin");
 
         const success = await sendEmail(ADMIN_EMAILS, subject, html, config.priority);
         if (success) {
           emailsSent++;
-          await logEmailSent(supabaseAdmin, event_type, entity_id || null, "admin", actor_id || null);
+          await logEmailSent(supabaseAdmin, event_type, projectId || null, "admin", actor_id || null);
           console.log(`[EVENT-EMAIL][${requestId}] Admin email sent for ${event_type}`);
         }
       } else {
@@ -605,38 +880,7 @@ Deno.serve(async (req) => {
     // SEND CLIENT EMAIL
     // ================================
     if (config.shouldEmailClient) {
-      // Resolve client email
-      let recipientEmail: string | undefined = client_email || (metadata.client_email as string) || (metadata.customer_email as string);
-
-      // If not provided, try to fetch from target_user_id or entity
-      if (!recipientEmail && target_user_id) {
-        const { data: profile } = await supabaseAdmin
-          .from("profiles")
-          .select("email")
-          .eq("id", target_user_id)
-          .single();
-        recipientEmail = profile?.email;
-      }
-
-      // If still not found and we have entity_id for a project, get project owner email
-      if (!recipientEmail && entity_id && entity_type === "project") {
-        const { data: project } = await supabaseAdmin
-          .from("projects")
-          .select("user_id, client_id")
-          .eq("id", entity_id)
-          .single();
-
-        if (project) {
-          const ownerId = project.client_id || project.user_id;
-          const { data: profile } = await supabaseAdmin
-            .from("profiles")
-            .select("email")
-            .eq("id", ownerId)
-            .single();
-          recipientEmail = profile?.email;
-          enrichedMeta.client_email = recipientEmail;
-        }
-      }
+      const recipientEmail = enrichedData.client_email;
 
       // Skip if actor triggered their own action (no self-emails)
       let shouldSkipSelfNotification = false;
@@ -645,7 +889,7 @@ Deno.serve(async (req) => {
           .from("profiles")
           .select("email")
           .eq("id", actor_id)
-          .single();
+          .maybeSingle();
 
         if (actorProfile?.email === recipientEmail) {
           console.log(`[EVENT-EMAIL][${requestId}] Skipping self-notification for client`);
@@ -654,18 +898,17 @@ Deno.serve(async (req) => {
       }
 
       if (recipientEmail && !shouldSkipSelfNotification) {
-        // Check deduplication
-        const alreadySent = await checkRecentEmailSent(supabaseAdmin, event_type, entity_id || null, "client");
+        const alreadySent = await checkRecentEmailSent(supabaseAdmin, event_type, projectId || null, "client");
 
         if (!alreadySent) {
-          const subject = config.getSubject(enrichedMeta);
-          const bodyContent = config.getClientBody(enrichedMeta, clientLink);
+          const subject = config.getSubject(enrichedData);
+          const bodyContent = config.getClientBody(enrichedData, clientLink);
           const html = buildEmailHtml(subject, bodyContent, config.priority, "client");
 
           const success = await sendEmail([recipientEmail], subject, html, config.priority);
           if (success) {
             emailsSent++;
-            await logEmailSent(supabaseAdmin, event_type, entity_id || null, "client", actor_id || null);
+            await logEmailSent(supabaseAdmin, event_type, projectId || null, "client", actor_id || null);
             console.log(`[EVENT-EMAIL][${requestId}] Client email sent to ${recipientEmail} for ${event_type}`);
           }
         } else {
