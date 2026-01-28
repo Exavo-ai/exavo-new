@@ -106,6 +106,108 @@ async function forwardSubscriptionEventToN8N(
   }
 }
 
+// ============================================
+// CHECKOUT SESSION SUBSCRIPTION FORWARDER (Fire-and-Forget)
+// Handles checkout.session.completed events that include subscriptions
+// Stripe does not always emit customer.subscription.created for checkout-based subscriptions
+// ============================================
+async function forwardCheckoutSubscriptionToN8N(
+  stripe: Stripe,
+  event: Stripe.Event,
+  ctx: { requestId?: string; eventId?: string }
+): Promise<void> {
+  // Only handle checkout.session.completed
+  if (event.type !== "checkout.session.completed") {
+    return;
+  }
+
+  const session = event.data.object as Stripe.Checkout.Session;
+  
+  // Only forward if session has a subscription
+  if (!session.subscription) {
+    logStep("forwardCheckoutSubscriptionToN8N: No subscription in session, skipping", {}, ctx);
+    return;
+  }
+
+  try {
+    // Retrieve the full subscription object from Stripe
+    const subscriptionId = typeof session.subscription === "string" 
+      ? session.subscription 
+      : session.subscription.id;
+    
+    logStep("forwardCheckoutSubscriptionToN8N: Retrieving subscription", { subscriptionId }, ctx);
+    
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+    // Extract customer ID
+    const customerId = typeof subscription.customer === "string" 
+      ? subscription.customer 
+      : subscription.customer?.id || null;
+
+    // Get customer email - try session first, then customer object
+    let customerEmail: string | null = session.customer_email || null;
+    if (!customerEmail && customerId) {
+      try {
+        const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+        if (customer && !customer.deleted) {
+          customerEmail = customer.email || null;
+        }
+      } catch (e) {
+        logStep("forwardCheckoutSubscriptionToN8N: Could not retrieve customer email (non-blocking)", { error: e }, ctx);
+      }
+    }
+
+    // Extract plan name from price nickname or product name
+    let planName: string | null = null;
+    const priceItem = subscription.items?.data?.[0]?.price;
+    if (priceItem) {
+      planName = priceItem.nickname || null;
+      // If no nickname, try to get product name
+      if (!planName && priceItem.product) {
+        try {
+          const productId = typeof priceItem.product === "string" ? priceItem.product : priceItem.product.id;
+          const product = await stripe.products.retrieve(productId);
+          planName = product.name || null;
+        } catch (e) {
+          logStep("forwardCheckoutSubscriptionToN8N: Could not retrieve product name (non-blocking)", { error: e }, ctx);
+        }
+      }
+    }
+
+    // Build payload - same structure as other subscription events
+    const payload = {
+      event: "customer.subscription.created",
+      subscription_id: subscription.id || null,
+      status: subscription.status || null,
+      customer_id: customerId,
+      customer_email: customerEmail,
+      plan: planName,
+      cancel_at_period_end: subscription.cancel_at_period_end ?? null,
+      current_period_end: subscription.current_period_end || null,
+    };
+
+    logStep("forwardCheckoutSubscriptionToN8N: Sending payload", { url: N8N_SUBSCRIPTION_WEBHOOK_URL, payload }, ctx);
+
+    // Fire-and-forget POST request
+    const response = await fetch(N8N_SUBSCRIPTION_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      logStep("forwardCheckoutSubscriptionToN8N: Success", { status: response.status }, ctx);
+    } else {
+      logStep("forwardCheckoutSubscriptionToN8N: Non-OK response (ignored)", { status: response.status }, ctx);
+    }
+  } catch (error) {
+    // Log error but DO NOT throw - this is fire-and-forget
+    logStep("forwardCheckoutSubscriptionToN8N: Error (ignored, non-blocking)", { 
+      error: error instanceof Error ? error.message : String(error) 
+    }, ctx);
+  }
+}
+
 // Helper to extract client notes from Stripe custom_fields or metadata
 const extractClientNotes = (session: Stripe.Checkout.Session): string | null => {
   try {
@@ -406,6 +508,13 @@ serve(async (req) => {
     forwardSubscriptionEventToN8N(stripe, event, ctx).catch((e) => {
       // Extra safety: catch any unhandled promise rejection
       logStep("forwardSubscriptionEventToN8N: Unhandled error (ignored)", { error: e }, ctx);
+    });
+
+    // Forward checkout.session.completed with subscription to n8n
+    // This handles cases where Stripe doesn't emit customer.subscription.created
+    forwardCheckoutSubscriptionToN8N(stripe, event, ctx).catch((e) => {
+      // Extra safety: catch any unhandled promise rejection
+      logStep("forwardCheckoutSubscriptionToN8N: Unhandled error (ignored)", { error: e }, ctx);
     });
 
     // Idempotency check - prevent duplicate processing
