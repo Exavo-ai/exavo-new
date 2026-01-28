@@ -48,20 +48,32 @@ const EMAIL_EVENT_CONFIG: Record<string, {
     getClientBody: () => "",
   },
 
-  // Client cancels subscription
+  // Client cancels subscription (or schedules cancellation)
   SUBSCRIPTION_CANCELED: {
     shouldEmailAdmin: true,
-    shouldEmailClient: false,
+    shouldEmailClient: true,
     priority: "high",
-    getSubject: (m) => `⚠️ Subscription Canceled: ${m.project_name || "Project"}`,
+    getSubject: (m) => `⚠️ Subscription ${m.is_scheduled ? "Scheduled for Cancellation" : "Canceled"}: ${m.project_name || "Project"}`,
     getAdminBody: (m, link) => `
-      <p>A client has canceled their subscription.</p>
+      <p>A client has ${m.is_scheduled ? "scheduled cancellation for" : "canceled"} their subscription.</p>
       <p><strong>Project:</strong> ${m.project_name || "Unknown"}</p>
       <p><strong>Client:</strong> ${m.client_email || "Unknown"}</p>
+      <p><strong>Plan:</strong> ${m.plan_name || "N/A"}</p>
+      ${m.is_scheduled ? `<p><strong>Access Until:</strong> ${m.access_until || "End of billing period"}</p>` : ""}
       <p><strong>Reason:</strong> ${m.cancel_reason || "Not provided"}</p>
       <p><a href="${link}">View Project →</a></p>
     `,
-    getClientBody: () => "",
+    getClientBody: (m, link) => `
+      <p>Your subscription ${m.is_scheduled ? "has been scheduled for cancellation" : "has been canceled"}.</p>
+      <p><strong>Project:</strong> ${m.project_name || "Your project"}</p>
+      ${m.is_scheduled ? `
+        <p>You will continue to have access until <strong>${m.access_until || "the end of your billing period"}</strong>.</p>
+        <p>If you change your mind, you can resubscribe anytime from your project dashboard.</p>
+      ` : `
+        <p>Your access has ended. If you'd like to continue, you can resubscribe from your project dashboard.</p>
+      `}
+      <p><a href="${link}">View Project →</a></p>
+    `,
   },
 
   // Client pauses subscription

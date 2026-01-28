@@ -877,12 +877,112 @@ serve(async (req) => {
     // ============================================
     if (event.type === "customer.subscription.updated") {
       const subscription = event.data.object as Stripe.Subscription;
+      const previousAttributes = (event.data as any).previous_attributes || {};
       
       logStep("subscription.updated", { 
         subscription_id: subscription.id, 
         status: subscription.status,
-        cancel_at_period_end: subscription.cancel_at_period_end 
+        cancel_at_period_end: subscription.cancel_at_period_end,
+        previous_cancel_at_period_end: previousAttributes.cancel_at_period_end,
+        previous_status: previousAttributes.status
       }, ctx);
+
+      // ============================================
+      // CANCELLATION DETECTION (ADDITIVE)
+      // Detect scheduled cancellations (cancel_at_period_end changed to true)
+      // or status changed to canceled
+      // ============================================
+      const wasJustScheduledForCancellation = 
+        subscription.cancel_at_period_end === true && 
+        previousAttributes.cancel_at_period_end === false;
+      
+      const wasJustCanceled = 
+        subscription.status === "canceled" && 
+        previousAttributes.status && 
+        previousAttributes.status !== "canceled";
+
+      if (wasJustScheduledForCancellation || wasJustCanceled) {
+        logStep("cancellation_detected", { 
+          type: wasJustScheduledForCancellation ? "scheduled" : "immediate",
+          subscription_id: subscription.id
+        }, ctx);
+
+        // Get project and client info for email notification
+        const { data: projectSubForCancel } = await supabaseAdmin
+          .from("project_subscriptions")
+          .select("project_id")
+          .eq("stripe_subscription_id", subscription.id)
+          .maybeSingle();
+
+        if (projectSubForCancel?.project_id) {
+          const { data: cancelProject } = await supabaseAdmin
+            .from("projects")
+            .select("name, user_id, client_id")
+            .eq("id", projectSubForCancel.project_id)
+            .maybeSingle();
+
+          if (cancelProject) {
+            const clientId = cancelProject.client_id || cancelProject.user_id;
+            const { data: clientProfile } = await supabaseAdmin
+              .from("profiles")
+              .select("email")
+              .eq("id", clientId)
+              .maybeSingle();
+
+            // Get plan name for email
+            let planName: string | null = null;
+            const priceItem = subscription.items?.data?.[0]?.price;
+            if (priceItem) {
+              planName = priceItem.nickname || null;
+              if (!planName && priceItem.product) {
+                try {
+                  const productId = typeof priceItem.product === "string" ? priceItem.product : priceItem.product.id;
+                  const product = await stripe.products.retrieve(productId);
+                  planName = product.name || null;
+                } catch (e) {
+                  logStep("Could not retrieve product name for cancel email", { error: e }, ctx);
+                }
+              }
+            }
+
+            // Calculate access until date
+            let accessUntil: string | null = null;
+            if (subscription.current_period_end && typeof subscription.current_period_end === "number") {
+              try {
+                accessUntil = new Date(subscription.current_period_end * 1000).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric"
+                });
+              } catch (e) {
+                logStep("Could not format access_until date", { error: e }, ctx);
+              }
+            }
+
+            // Fire-and-forget email notification
+            sendEventEmail({
+              event_type: "SUBSCRIPTION_CANCELED",
+              entity_type: "project",
+              entity_id: projectSubForCancel.project_id,
+              target_user_id: clientId,
+              client_email: clientProfile?.email,
+              metadata: {
+                project_name: cancelProject.name,
+                client_email: clientProfile?.email,
+                plan_name: planName,
+                is_scheduled: wasJustScheduledForCancellation,
+                access_until: accessUntil,
+              },
+            });
+
+            logStep("cancellation_email_triggered", { 
+              project_id: projectSubForCancel.project_id,
+              is_scheduled: wasJustScheduledForCancellation,
+              client_email: clientProfile?.email
+            }, ctx);
+          }
+        }
+      }
 
       // Update user-level subscription
       const { data: existingSub } = await supabaseAdmin
@@ -986,14 +1086,34 @@ serve(async (req) => {
             .eq("id", clientId)
             .maybeSingle();
 
-          // Send email notification for subscription cancellation (to admins)
+          // Get plan name for email
+          let planName: string | null = null;
+          const priceItem = subscription.items?.data?.[0]?.price;
+          if (priceItem) {
+            planName = priceItem.nickname || null;
+            if (!planName && priceItem.product) {
+              try {
+                const productId = typeof priceItem.product === "string" ? priceItem.product : priceItem.product.id;
+                const product = await stripe.products.retrieve(productId);
+                planName = product.name || null;
+              } catch (e) {
+                logStep("Could not retrieve product name for deleted email", { error: e }, ctx);
+              }
+            }
+          }
+
+          // Send email notification for subscription cancellation (to admins AND client)
           sendEventEmail({
             event_type: "SUBSCRIPTION_CANCELED",
             entity_type: "project",
             entity_id: cancelledProjectSub.project_id,
+            target_user_id: clientId,
+            client_email: clientProfile?.email,
             metadata: {
               project_name: cancelledProject.name,
               client_email: clientProfile?.email,
+              plan_name: planName,
+              is_scheduled: false, // This is an immediate/final cancellation
             },
           });
         }
