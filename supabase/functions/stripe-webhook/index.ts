@@ -12,6 +12,100 @@ const logStep = (step: string, details?: unknown, context?: { requestId?: string
   console.log(`[STRIPE-WEBHOOK][${timestamp}]${contextStr} ${step}`, details ? JSON.stringify(details) : "");
 };
 
+// ============================================
+// EXTERNAL WEBHOOK FORWARDER (Fire-and-Forget)
+// Forwards subscription events to n8n without blocking main logic
+// ============================================
+const N8N_SUBSCRIPTION_WEBHOOK_URL = "https://n8n.exavo.app/webhook/Subscription-status";
+
+async function forwardSubscriptionEventToN8N(
+  stripe: Stripe,
+  event: Stripe.Event,
+  ctx: { requestId?: string; eventId?: string }
+): Promise<void> {
+  // Only forward specific subscription events
+  const forwardableEvents = ["customer.subscription.created", "customer.subscription.deleted"];
+  if (!forwardableEvents.includes(event.type)) {
+    return;
+  }
+
+  try {
+    const subscription = event.data.object as Stripe.Subscription;
+    
+    // Map event type for external system
+    const eventType = event.type === "customer.subscription.deleted" 
+      ? "customer.subscription.cancelled" 
+      : event.type;
+
+    // Extract customer ID
+    const customerId = typeof subscription.customer === "string" 
+      ? subscription.customer 
+      : subscription.customer?.id || null;
+
+    // Attempt to get customer email (non-blocking)
+    let customerEmail: string | null = null;
+    if (customerId) {
+      try {
+        const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+        if (customer && !customer.deleted) {
+          customerEmail = customer.email || null;
+        }
+      } catch (e) {
+        logStep("forwardSubscriptionEventToN8N: Could not retrieve customer email (non-blocking)", { error: e }, ctx);
+      }
+    }
+
+    // Extract plan name from price nickname or product name
+    let planName: string | null = null;
+    const priceItem = subscription.items?.data?.[0]?.price;
+    if (priceItem) {
+      planName = priceItem.nickname || null;
+      // If no nickname, try to get product name
+      if (!planName && priceItem.product) {
+        try {
+          const productId = typeof priceItem.product === "string" ? priceItem.product : priceItem.product.id;
+          const product = await stripe.products.retrieve(productId);
+          planName = product.name || null;
+        } catch (e) {
+          logStep("forwardSubscriptionEventToN8N: Could not retrieve product name (non-blocking)", { error: e }, ctx);
+        }
+      }
+    }
+
+    // Build payload
+    const payload = {
+      event: eventType,
+      subscription_id: subscription.id || null,
+      status: subscription.status || null,
+      customer_id: customerId,
+      customer_email: customerEmail,
+      plan: planName,
+      cancel_at_period_end: subscription.cancel_at_period_end ?? null,
+      current_period_end: subscription.current_period_end || null,
+    };
+
+    logStep("forwardSubscriptionEventToN8N: Sending payload", { url: N8N_SUBSCRIPTION_WEBHOOK_URL, payload }, ctx);
+
+    // Fire-and-forget POST request
+    const response = await fetch(N8N_SUBSCRIPTION_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      logStep("forwardSubscriptionEventToN8N: Success", { status: response.status }, ctx);
+    } else {
+      logStep("forwardSubscriptionEventToN8N: Non-OK response (ignored)", { status: response.status }, ctx);
+    }
+  } catch (error) {
+    // Log error but DO NOT throw - this is fire-and-forget
+    logStep("forwardSubscriptionEventToN8N: Error (ignored, non-blocking)", { 
+      error: error instanceof Error ? error.message : String(error) 
+    }, ctx);
+  }
+}
+
 // Helper to extract client notes from Stripe custom_fields or metadata
 const extractClientNotes = (session: Stripe.Checkout.Session): string | null => {
   try {
@@ -304,6 +398,15 @@ serve(async (req) => {
     const ctx = { requestId, eventId: event.id };
 
     logStep("Event received", { type: event.type, id: event.id }, ctx);
+
+    // ============================================
+    // EXTERNAL WEBHOOK FORWARDING (Fire-and-Forget)
+    // Must NOT block or fail main webhook processing
+    // ============================================
+    forwardSubscriptionEventToN8N(stripe, event, ctx).catch((e) => {
+      // Extra safety: catch any unhandled promise rejection
+      logStep("forwardSubscriptionEventToN8N: Unhandled error (ignored)", { error: e }, ctx);
+    });
 
     // Idempotency check - prevent duplicate processing
     const { data: existingEvent } = await supabaseAdmin
