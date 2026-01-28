@@ -1,6 +1,9 @@
 /**
  * Helper to trigger event-based email notifications.
  * This is a fire-and-forget call that will never throw or block.
+ * 
+ * The send-event-email function will automatically enrich all data
+ * from the project, service, client profile, and Stripe before sending.
  */
 export async function sendEventEmail(payload: {
   event_type: string;

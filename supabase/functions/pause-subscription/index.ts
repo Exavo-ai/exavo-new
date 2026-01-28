@@ -184,45 +184,20 @@ serve(async (req) => {
       })
       .eq("id", projectSub.id);
 
-    // Get project and service info for email
-    const { data: projectData } = await supabaseAdmin
-      .from("projects")
-      .select("name, title, service_id")
-      .eq("id", projectId)
-      .maybeSingle();
-
-    let serviceName: string | null = null;
-    if (projectData?.service_id) {
-      const { data: serviceData } = await supabaseAdmin
-        .from("services")
-        .select("name")
-        .eq("id", projectData.service_id)
-        .maybeSingle();
-      serviceName = serviceData?.name || null;
-    }
-
-    // Get client email
-    const { data: clientProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("email, full_name")
-      .eq("id", user.id)
-      .maybeSingle();
-
     // Send email notification for subscription paused
+    // The send-event-email function will enrich all data automatically
     sendEventEmail({
       event_type: "SUBSCRIPTION_PAUSED",
+      actor_id: user.id,
       entity_type: "project",
       entity_id: projectId,
       metadata: {
-        project_name: projectData?.title || projectData?.name || "Your project",
-        service_name: serviceName,
-        client_email: clientProfile?.email,
-        client_name: clientProfile?.full_name,
         resume_at: resumeAtIso,
+        stripe_subscription_id: projectSub.stripe_subscription_id,
       },
     });
 
-    log(requestId, "email_sent", { event_type: "SUBSCRIPTION_PAUSED" });
+    log(requestId, "email_triggered", { event_type: "SUBSCRIPTION_PAUSED" });
 
     return json({
       ok: true,

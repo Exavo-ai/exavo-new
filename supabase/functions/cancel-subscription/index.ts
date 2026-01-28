@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { sendEventEmail } from "../_shared/email-events.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -490,6 +491,21 @@ serve(async (req) => {
       500
     );
   }
+
+  // Send email notification for subscription canceled
+  sendEventEmail({
+    event_type: "SUBSCRIPTION_CANCELED",
+    actor_id: user.id,
+    entity_type: "project",
+    entity_id: projectId,
+    metadata: {
+      cancel_reason: cancelReason,
+      is_scheduled: Boolean(updated.cancel_at_period_end),
+      stripe_subscription_id: stripeSubscriptionId,
+    },
+  });
+
+  log(requestId, "email_triggered", { event_type: "SUBSCRIPTION_CANCELED" });
 
   const response: OkResponse = {
     ok: true,
