@@ -153,7 +153,56 @@ export function ProjectBillingTab({
 
   return (
     <div className="space-y-6">
-      {/* Subscription Info Card - Only for subscription projects */}
+      {/* Subscription Pending Card - When subscription project has no linked subscription yet */}
+      {isSubscription && !subscription && (
+        <Card className="border-yellow-500/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCw className="w-5 h-5" />
+              Subscription Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-3 bg-yellow-500/10 rounded-lg">
+              <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                Subscription data is being synchronized. If you just completed checkout, please wait a moment and refresh the page.
+                If this persists, please contact support.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Status</p>
+                <Badge variant="secondary">Pending Sync</Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Current Plan</p>
+                <p className="font-medium">{currentPackage?.package_name || "Unknown"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Monthly Fee</p>
+                <p className="font-medium flex items-center gap-1">
+                  <DollarSign className="w-4 h-4" />
+                  {monthlyFee.toFixed(2)} USD
+                </p>
+              </div>
+            </div>
+            {onOpenBillingPortal && (
+              <div className="pt-4 border-t">
+                <Button
+                  variant="default"
+                  onClick={handleOpenBillingPortal}
+                  disabled={openingPortal}
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  {openingPortal ? "Opening..." : "Manage Billing"}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Subscription Info Card - Only for subscription projects with linked subscription */}
       {isSubscription && subscription && (
         <Card className={`${
           isCanceled || isPastDue ? "border-destructive/50" : 
