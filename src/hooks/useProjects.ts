@@ -429,10 +429,10 @@ export function useProject(projectId: string | undefined) {
       const projectInvoices = projectInvoicesRes.data || [];
       const allInvoices = [...paymentsInvoices, ...projectInvoices];
 
-      // Deduplicate by id
-      const uniqueInvoices = allInvoices.filter(
-        (inv, idx, arr) => arr.findIndex((i) => i.id === inv.id) === idx,
-      );
+      // Deduplicate by id and filter out $0 invoices (trial starts, etc.)
+      const uniqueInvoices = allInvoices
+        .filter((inv, idx, arr) => arr.findIndex((i) => i.id === inv.id) === idx)
+        .filter((inv) => inv.amount > 0);
 
       setInvoices(uniqueInvoices);
     } catch (err: any) {
