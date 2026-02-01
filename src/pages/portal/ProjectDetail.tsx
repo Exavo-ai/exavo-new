@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { LinkifyText } from "@/components/LinkifyText";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -440,7 +441,7 @@ export default function ProjectDetailPage() {
                           </div>
                         )}
                       </div>
-                      <p>{delivery.message}</p>
+                      <p><LinkifyText>{delivery.message}</LinkifyText></p>
                       {delivery.revision_notes && (
                         <div className="p-3 bg-destructive/10 rounded-md">
                           <p className="text-sm font-medium text-destructive">Revision Notes:</p>
