@@ -1106,6 +1106,82 @@ export type Database = {
           },
         ]
       }
+      reviews: {
+        Row: {
+          client_company: string | null
+          client_id: string
+          client_name: string
+          comment: string
+          created_at: string
+          delivery_id: string | null
+          id: string
+          priority: number
+          project_id: string | null
+          rating: number
+          service_id: string | null
+          service_type: string | null
+          show_on_home: boolean
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_company?: string | null
+          client_id: string
+          client_name: string
+          comment: string
+          created_at?: string
+          delivery_id?: string | null
+          id?: string
+          priority?: number
+          project_id?: string | null
+          rating: number
+          service_id?: string | null
+          service_type?: string | null
+          show_on_home?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_company?: string | null
+          client_id?: string
+          client_name?: string
+          comment?: string
+          created_at?: string
+          delivery_id?: string | null
+          id?: string
+          priority?: number
+          project_id?: string | null
+          rating?: number
+          service_id?: string | null
+          service_type?: string | null
+          show_on_home?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_metrics: {
         Row: {
           bookings_count: number
