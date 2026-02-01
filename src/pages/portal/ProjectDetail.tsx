@@ -43,6 +43,8 @@ import ProjectFileUploadDialog from "@/components/portal/ProjectFileUploadDialog
 import { CreateTicketDialog } from "@/components/portal/CreateTicketDialog";
 import { ProjectBillingTab } from "@/components/portal/ProjectBillingTab";
 import { DeliveryStatusBadge } from "@/components/portal/DeliveryStatusBadge";
+import { ReviewSubmissionCard } from "@/components/portal/ReviewSubmissionCard";
+import { useHasSubmittedReview } from "@/hooks/useReviews";
 
 const getStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
   switch (status.toLowerCase()) {
@@ -106,9 +108,16 @@ export default function ProjectDetailPage() {
   const [revisionNotes, setRevisionNotes] = useState("");
   const [fileUploadOpen, setFileUploadOpen] = useState(false);
   const [approvingDeliveryId, setApprovingDeliveryId] = useState<string | null>(null);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   const isCompleted = project?.status === "completed";
   const allDeliveriesApproved = deliveries.length > 0 && deliveries.every(d => d.status === 'approved');
+  
+  // Find the latest approved delivery for the review form
+  const latestApprovedDelivery = deliveries.find(d => d.status === 'approved');
+  
+  // Check if user has already submitted a review for this delivery
+  const { hasSubmitted: hasAlreadySubmittedReview } = useHasSubmittedReview(latestApprovedDelivery?.id);
 
   const handleApproveDelivery = async (deliveryId: string) => {
     setApprovingDeliveryId(deliveryId);
@@ -456,6 +465,20 @@ export default function ProjectDetailPage() {
               )}
             </CardContent>
           </Card>
+          
+          {/* Review Submission Card - Show after approved delivery */}
+          {latestApprovedDelivery && !hasAlreadySubmittedReview && !reviewSubmitted && (
+            <div className="mt-6">
+              <ReviewSubmissionCard
+                deliveryId={latestApprovedDelivery.id}
+                projectId={projectId!}
+                projectName={project?.title || project?.name || "Project"}
+                serviceId={project?.service_id}
+                serviceName={project?.service?.name}
+                onSubmitted={() => setReviewSubmitted(true)}
+              />
+            </div>
+          )}
         </TabsContent>
 
         {/* Files Tab */}
