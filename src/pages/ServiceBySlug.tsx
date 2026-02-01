@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useGuestCheckoutGuard } from "@/hooks/useGuestCheckoutGuard";
 import { ServiceImageCarousel } from "@/components/ServiceImageCarousel";
 import { PreCheckoutDialog } from "@/components/PreCheckoutDialog";
-import { ServiceTestimonials } from "@/components/ServiceTestimonials";
+
 import { 
   Bot, Workflow, LineChart, Mail, FileText, BarChart3, 
   Check, ArrowLeft, Star, Loader2
@@ -427,10 +427,6 @@ const ServiceBySlug = () => {
             )}
           </section>
 
-          {/* Testimonials - Real reviews from database */}
-          {service?.id && (
-            <ServiceTestimonials serviceId={service.id} serviceName={service.name} />
-          )}
 
           {/* FAQ */}
           <section>
