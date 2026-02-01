@@ -13,7 +13,7 @@ import { ServiceImageCarousel } from "@/components/ServiceImageCarousel";
 import { PreCheckoutDialog } from "@/components/PreCheckoutDialog";
 import { 
   Bot, Workflow, LineChart, Mail, FileText, BarChart3, 
-  Check, ArrowLeft, Star, Loader2
+  Check, ArrowLeft, Loader2
 } from "lucide-react";
 import {
   Accordion,
@@ -223,24 +223,6 @@ const ServiceDetail = () => {
     { icon: Check, text: language === 'ar' ? 'تحديثات مجانية' : 'Free Updates' },
   ];
 
-  const testimonials = [
-    {
-      name: language === 'ar' ? 'أحمد محمد' : 'Ahmed Mohamed',
-      role: language === 'ar' ? 'الرئيس التنفيذي' : 'CEO',
-      comment: language === 'ar' 
-        ? 'خدمة ممتازة! حسّنت أعمالنا بشكل كبير.'
-        : 'Excellent service! Improved our business significantly.',
-      rating: 5
-    },
-    {
-      name: language === 'ar' ? 'فاطمة علي' : 'Fatima Ali',
-      role: language === 'ar' ? 'مديرة التسويق' : 'Marketing Manager',
-      comment: language === 'ar'
-        ? 'فريق محترف ونتائج رائعة.'
-        : 'Professional team and amazing results.',
-      rating: 5
-    },
-  ];
 
   const faqs = [
     {
@@ -438,29 +420,6 @@ const ServiceDetail = () => {
                 })}
               </div>
             )}
-          </section>
-
-          {/* Testimonials */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-6">
-              {language === 'ar' ? 'آراء العملاء' : 'Customer Testimonials'}
-            </h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              {testimonials.map((testimonial, index) => (
-                <Card key={index} className="p-6">
-                  <div className="flex gap-1 mb-3">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-primary text-primary" />
-                    ))}
-                  </div>
-                  <p className="text-muted-foreground mb-4">{testimonial.comment}</p>
-                  <div>
-                    <p className="font-semibold">{testimonial.name}</p>
-                    <p className="text-sm text-muted-foreground">{testimonial.role}</p>
-                  </div>
-                </Card>
-              ))}
-            </div>
           </section>
 
           {/* FAQ */}
