@@ -37,6 +37,13 @@ import {
   type CaseStudyDeliveryType,
   type CaseStudyModuleStatus,
 } from "@/hooks/useCaseStudies";
+import { CaseStudyMediaUpload } from "./CaseStudyMediaUpload";
+
+interface MediaItem {
+  url: string;
+  type: "image" | "video";
+  name: string;
+}
 
 const moduleSchema = z.object({
   module_type: z.enum(["website", "automation", "ai_agent", "ai_content", "integration", "other"]),
@@ -100,6 +107,7 @@ export function CaseStudyModuleForm({
   module,
 }: CaseStudyModuleFormProps) {
   const [techInput, setTechInput] = useState("");
+  const [moduleMedia, setModuleMedia] = useState<MediaItem[]>([]);
   const createModule = useCreateCaseStudyModule();
   const updateModule = useUpdateCaseStudyModule();
   const isEditing = !!module;
@@ -132,6 +140,9 @@ export function CaseStudyModuleForm({
         status: module.status,
         kpis: module.kpis || "",
       });
+      // Parse existing media
+      const existingMedia = (module.media as MediaItem[] | null) || [];
+      setModuleMedia(existingMedia);
     } else {
       form.reset({
         module_type: "website",
@@ -144,6 +155,7 @@ export function CaseStudyModuleForm({
         status: "live",
         kpis: "",
       });
+      setModuleMedia([]);
     }
   }, [module, form, open]);
 
@@ -162,7 +174,7 @@ export function CaseStudyModuleForm({
           outputs: values.outputs || null,
           status: values.status,
           kpis: values.kpis || null,
-          media: module.media || [],
+          media: moduleMedia,
         });
         toast.success("Module updated successfully");
       } else {
@@ -177,7 +189,7 @@ export function CaseStudyModuleForm({
           outputs: values.outputs || null,
           status: values.status,
           kpis: values.kpis || null,
-          media: [],
+          media: moduleMedia,
           display_order: 0,
         });
         toast.success("Module created successfully");
@@ -435,6 +447,16 @@ export function CaseStudyModuleForm({
                 </FormItem>
               )}
             />
+
+            {/* Media Upload */}
+            <div className="space-y-2">
+              <FormLabel>Media (Images)</FormLabel>
+              <CaseStudyMediaUpload
+                media={moduleMedia}
+                onMediaChange={setModuleMedia}
+                maxFiles={10}
+              />
+            </div>
 
             <div className="flex justify-end gap-3">
               <Button
