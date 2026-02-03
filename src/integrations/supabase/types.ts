@@ -239,6 +239,110 @@ export type Database = {
         }
         Relationships: []
       }
+      case_study_modules: {
+        Row: {
+          created_at: string
+          delivery_type: Database["public"]["Enums"]["case_study_delivery_type"]
+          description: string | null
+          display_order: number
+          id: string
+          inputs: string | null
+          kpis: string | null
+          media: Json | null
+          module_type: Database["public"]["Enums"]["case_study_module_type"]
+          outputs: string | null
+          project_id: string
+          status: Database["public"]["Enums"]["case_study_module_status"]
+          tech_stack: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_type?: Database["public"]["Enums"]["case_study_delivery_type"]
+          description?: string | null
+          display_order?: number
+          id?: string
+          inputs?: string | null
+          kpis?: string | null
+          media?: Json | null
+          module_type: Database["public"]["Enums"]["case_study_module_type"]
+          outputs?: string | null
+          project_id: string
+          status?: Database["public"]["Enums"]["case_study_module_status"]
+          tech_stack?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery_type?: Database["public"]["Enums"]["case_study_delivery_type"]
+          description?: string | null
+          display_order?: number
+          id?: string
+          inputs?: string | null
+          kpis?: string | null
+          media?: Json | null
+          module_type?: Database["public"]["Enums"]["case_study_module_type"]
+          outputs?: string | null
+          project_id?: string
+          status?: Database["public"]["Enums"]["case_study_module_status"]
+          tech_stack?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_study_modules_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "case_study_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_study_projects: {
+        Row: {
+          client_name: string
+          created_at: string
+          display_order: number
+          id: string
+          industry: string
+          overview: string | null
+          project_status: Database["public"]["Enums"]["case_study_project_status"]
+          show_on_landing: boolean
+          summary: string
+          updated_at: string
+          visibility: boolean
+        }
+        Insert: {
+          client_name: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          industry: string
+          overview?: string | null
+          project_status?: Database["public"]["Enums"]["case_study_project_status"]
+          show_on_landing?: boolean
+          summary: string
+          updated_at?: string
+          visibility?: boolean
+        }
+        Update: {
+          client_name?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          industry?: string
+          overview?: string | null
+          project_status?: Database["public"]["Enums"]["case_study_project_status"]
+          show_on_landing?: boolean
+          summary?: string
+          updated_at?: string
+          visibility?: boolean
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -1791,6 +1895,20 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "client"
+      case_study_delivery_type:
+        | "live_ui"
+        | "background_automation"
+        | "api"
+        | "internal_tool"
+      case_study_module_status: "live" | "testing" | "disabled"
+      case_study_module_type:
+        | "website"
+        | "automation"
+        | "ai_agent"
+        | "ai_content"
+        | "integration"
+        | "other"
+      case_study_project_status: "real_client" | "demo" | "internal"
       payment_model: "one_time" | "subscription"
       social_platform: "Instagram" | "Facebook" | "LinkedIn"
       social_post_status: "pending" | "approved" | "changes_requested"
@@ -1922,6 +2040,22 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "client"],
+      case_study_delivery_type: [
+        "live_ui",
+        "background_automation",
+        "api",
+        "internal_tool",
+      ],
+      case_study_module_status: ["live", "testing", "disabled"],
+      case_study_module_type: [
+        "website",
+        "automation",
+        "ai_agent",
+        "ai_content",
+        "integration",
+        "other",
+      ],
+      case_study_project_status: ["real_client", "demo", "internal"],
       payment_model: ["one_time", "subscription"],
       social_platform: ["Instagram", "Facebook", "LinkedIn"],
       social_post_status: ["pending", "approved", "changes_requested"],
