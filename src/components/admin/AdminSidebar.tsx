@@ -13,6 +13,7 @@ import {
   CheckSquare,
   FileText,
   Star,
+  FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import exavoLogo from "@/assets/exavo-logo.png";
@@ -26,6 +27,7 @@ const navigation = [
   { name: "Tickets", href: "/admin/tickets", icon: LifeBuoy },
   { name: "Consultations", href: "/admin/leads", icon: MessageSquare },
   { name: "Reviews", href: "/admin/reviews", icon: Star },
+  { name: "Case Studies", href: "/admin/case-studies", icon: FolderKanban },
   { name: "Blog", href: "/admin/blog", icon: FileText },
   { name: "Approvals", href: "/admin/approvals", icon: CheckSquare },
   { name: "Settings", href: "/admin/settings", icon: Settings },

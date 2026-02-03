@@ -11,6 +11,7 @@ import ServiceDetail from "./pages/ServiceDetail";
 import ServiceBySlug from "./pages/ServiceBySlug";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
+import CaseStudy from "./pages/CaseStudy";
 
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
@@ -33,6 +34,7 @@ import AdminProjectDetail from "@/pages/admin/ProjectDetail";
 import AdminApprovals from "@/pages/admin/Approvals";
 import AdminBlog from "@/pages/admin/Blog";
 import AdminReviews from "@/pages/admin/Reviews";
+import AdminCaseStudies from "@/pages/admin/CaseStudies";
 import ClientDashboard from "./pages/ClientDashboard";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import Analytics from "./pages/Analytics";
@@ -201,6 +203,15 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/admin/case-studies"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminCaseStudies />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/case-study/:id" element={<CaseStudy />} />
               <Route
                 path="/client/*"
                 element={
