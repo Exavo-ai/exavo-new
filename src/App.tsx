@@ -12,6 +12,7 @@ import ServiceBySlug from "./pages/ServiceBySlug";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import CaseStudy from "./pages/CaseStudy";
+import CaseStudiesPage from "./pages/CaseStudies";
 
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
@@ -64,6 +65,7 @@ const App = () => (
         <Route path="/faq" element={<FAQ />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
+        <Route path="/case-studies" element={<CaseStudiesPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/client/invite/accept" element={<AcceptInvitation />} />
