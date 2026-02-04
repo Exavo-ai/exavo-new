@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { resolveNotificationRoute } from "@/lib/notificationRouteResolver";
 
 interface Notification {
   id: string;
@@ -26,6 +27,9 @@ interface Notification {
   priority?: string;
   event_type?: string;
   read_at?: string | null;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  metadata?: unknown;
 }
 
 export function NotificationsDropdown() {
@@ -85,22 +89,32 @@ export function NotificationsDropdown() {
   const unreadCount = notifications.filter(n => !n.read).length;
   const hasHighPriority = notifications.some(n => !n.read && n.priority === "high");
 
-  const handleMarkAsRead = async (id: string, link?: string | null) => {
+  const handleMarkAsRead = async (notification: Notification) => {
     try {
       const { error } = await supabase
         .from("notifications")
         .update({ read: true, read_at: new Date().toISOString() })
-        .eq("id", id);
+        .eq("id", notification.id);
 
       if (error) throw error;
 
       setNotifications(prev =>
-        prev.map(n => (n.id === id ? { ...n, read: true, read_at: new Date().toISOString() } : n))
+        prev.map(n => (n.id === notification.id ? { ...n, read: true, read_at: new Date().toISOString() } : n))
       );
 
-      if (link) {
-        navigate(link);
-      }
+      // Use safe route resolver for client users
+      const safeRoute = resolveNotificationRoute(
+        {
+          link: notification.link,
+          eventType: notification.event_type,
+          entityType: notification.entity_type,
+          entityId: notification.entity_id,
+          metadata: notification.metadata as Record<string, unknown> | null | undefined,
+        },
+        'client'
+      );
+      
+      navigate(safeRoute);
     } catch (error) {
       console.error("Error marking notification as read:", error);
       toast({
@@ -216,7 +230,7 @@ export function NotificationsDropdown() {
                   "flex flex-col items-start gap-1 p-3 cursor-pointer",
                   getPriorityStyles(notification.priority, notification.read)
                 )}
-                onClick={() => handleMarkAsRead(notification.id, notification.link)}
+                onClick={() => handleMarkAsRead(notification)}
               >
                 <div className="flex items-start justify-between w-full gap-2">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
