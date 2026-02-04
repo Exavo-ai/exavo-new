@@ -142,11 +142,11 @@ export default function CaseStudy() {
                 <Badge variant="secondary">{project.industry}</Badge>
               </div>
 
-              <h1 className="text-4xl md:text-5xl font-bold mb-4">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 break-words">
                 {project.client_name}
               </h1>
 
-              <p className="text-xl text-muted-foreground max-w-3xl">
+              <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl">
                 {project.summary}
               </p>
 
@@ -224,18 +224,18 @@ export default function CaseStudy() {
                       >
                         <Card>
                           <CardHeader>
-                            <div className="flex items-start gap-4">
-                              <div className="p-3 bg-primary/10 rounded-lg">
+                              <div className="flex flex-col sm:flex-row items-start gap-4">
+                              <div className="p-3 bg-primary/10 rounded-lg shrink-0">
                                 <Icon className="h-6 w-6 text-primary" />
                               </div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <CardTitle>{module.title}</CardTitle>
-                                  <Badge variant="outline">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                                  <CardTitle className="text-lg sm:text-xl break-words">{module.title}</CardTitle>
+                                  <Badge variant="outline" className="w-fit shrink-0">
                                     {deliveryTypeLabels[module.delivery_type]}
                                   </Badge>
                                 </div>
-                                <p className="text-muted-foreground">
+                                <p className="text-muted-foreground text-sm sm:text-base">
                                   {module.description}
                                 </p>
                               </div>
@@ -280,7 +280,7 @@ export default function CaseStudy() {
 
                             {/* Media (placeholder for future) */}
                             {module.media && module.media.length > 0 && (
-                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                                 {module.media.map((item, i) => (
                                   <div
                                     key={i}

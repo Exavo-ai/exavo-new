@@ -76,7 +76,7 @@ export default function Blog() {
                 <p className="text-muted-foreground">Check back soon for updates!</p>
               </div>
             ) : (
-              <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
+              <div className="grid gap-6 sm:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
                 {posts?.map((post, index) => (
                   <Link
                     key={post.id}

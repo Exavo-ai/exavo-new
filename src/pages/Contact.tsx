@@ -116,11 +116,11 @@ const Contact = () => {
         <section className="py-20">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-6xl mx-auto">
-              <div className="grid lg:grid-cols-2 gap-12">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
                 {/* Contact Form */}
                 <div className="animate-fade-in">
-                  <div className="bg-card rounded-2xl p-8 border border-border shadow-card">
-                    <h2 className="text-2xl font-bold mb-6">Send us a message</h2>
+                  <div className="bg-card rounded-2xl p-5 sm:p-8 border border-border shadow-card">
+                    <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Send us a message</h2>
                     <form className="space-y-6" onSubmit={handleSubmit}>
                       <div>
                         <label htmlFor="name" className="block text-sm font-medium mb-2">
@@ -197,9 +197,9 @@ const Contact = () => {
                 </div>
 
                 {/* Contact Info */}
-                <div className="space-y-8 animate-fade-in-up">
-                  <div className="bg-card rounded-2xl p-8 border border-border shadow-card">
-                    <h2 className="text-2xl font-bold mb-6">Contact Information</h2>
+                <div className="space-y-6 lg:space-y-8 animate-fade-in-up">
+                  <div className="bg-card rounded-2xl p-5 sm:p-8 border border-border shadow-card">
+                    <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Contact Information</h2>
                     
                     <div className="space-y-6">
                       <div className="flex items-start gap-4">

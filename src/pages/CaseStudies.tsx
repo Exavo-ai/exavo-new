@@ -108,10 +108,10 @@ const CaseStudiesPage = () => {
                 <Sparkles className="h-4 w-4" />
                 Portfolio
               </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6">
                 Real Work. Real Results.
               </h1>
-              <p className="text-lg md:text-xl text-muted-foreground">
+              <p className="text-base sm:text-lg md:text-xl text-muted-foreground px-4">
                 Explore real AI-powered solutions built and deployed for real businesses.
               </p>
             </motion.div>
@@ -119,8 +119,8 @@ const CaseStudiesPage = () => {
         </section>
 
         {/* Projects Grid Section */}
-        <section className="py-16 lg:py-20">
-          <div className="container mx-auto px-4">
+        <section className="py-12 sm:py-16 lg:py-20">
+          <div className="container mx-auto px-4 sm:px-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -139,7 +139,7 @@ const CaseStudiesPage = () => {
                 </p>
               </motion.div>
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {projects.map((project, index) => {
                   const moduleTypes = getUniqueModuleTypes(project.modules);
                   const techStack = getUniqueTechStack(project.modules);
@@ -153,7 +153,7 @@ const CaseStudiesPage = () => {
                       transition={{ duration: 0.5, delay: index * 0.1 }}
                     >
                       <Card className="h-full hover:shadow-lg transition-all duration-300 group border-border/50 hover:border-primary/20">
-                        <CardContent className="p-6 flex flex-col h-full">
+                        <CardContent className="p-4 sm:p-6 flex flex-col h-full">
                           {/* Header */}
                           <div className="flex items-start justify-between mb-3">
                             <div>
