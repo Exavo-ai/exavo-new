@@ -35,15 +35,13 @@ export function useReviews(options: UseReviewsOptions = {}) {
   const fetchReviews = async () => {
     setLoading(true);
     try {
+      // Public consumers use the reviews_public view which excludes client_id
+      // Admin consumers use useAdminReviews which queries the full reviews table
       let query = supabase
-        .from("reviews")
+        .from("reviews_public" as any)
         .select("*")
         .order("priority", { ascending: false })
         .order("created_at", { ascending: false });
-
-      if (status !== "all") {
-        query = query.eq("status", status);
-      }
 
       if (serviceId) {
         query = query.eq("service_id", serviceId);
@@ -61,7 +59,7 @@ export function useReviews(options: UseReviewsOptions = {}) {
 
       if (fetchError) throw fetchError;
 
-      setReviews((data as Review[]) || []);
+      setReviews((data as unknown as Review[]) || []);
     } catch (err: any) {
       console.error("Error fetching reviews:", err);
       setError(err.message);
