@@ -1847,7 +1847,79 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      reviews_public: {
+        Row: {
+          client_company: string | null
+          client_name: string | null
+          comment: string | null
+          created_at: string | null
+          delivery_id: string | null
+          id: string | null
+          priority: number | null
+          project_id: string | null
+          rating: number | null
+          service_id: string | null
+          service_type: string | null
+          show_on_home: boolean | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_company?: string | null
+          client_name?: string | null
+          comment?: string | null
+          created_at?: string | null
+          delivery_id?: string | null
+          id?: string | null
+          priority?: number | null
+          project_id?: string | null
+          rating?: number | null
+          service_id?: string | null
+          service_type?: string | null
+          show_on_home?: boolean | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_company?: string | null
+          client_name?: string | null
+          comment?: string | null
+          created_at?: string | null
+          delivery_id?: string | null
+          id?: string | null
+          priority?: number | null
+          project_id?: string | null
+          rating?: number | null
+          service_id?: string | null
+          service_type?: string | null
+          show_on_home?: boolean | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       _lovable_types_sync: { Args: never; Returns: boolean }
