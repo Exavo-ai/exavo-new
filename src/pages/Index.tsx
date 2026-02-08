@@ -15,8 +15,8 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       <SEO 
-        title="Exavo – AI Services & Data Analytics"
-        description="Exavo offers AI-powered solutions: custom models, automated analytics, and system integration — transforming your data into actionable insights."
+        title="Exavo | AI Automation, AI Agents & Digital Solutions"
+        description="Exavo builds AI automation, intelligent agents, and custom digital solutions to help businesses scale faster and operate smarter."
       />
       <Navigation />
       <main>

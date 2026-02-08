@@ -39,8 +39,8 @@ const Hero = () => {
           {/* Main Headline */}
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
             {language === 'ar' 
-              ? 'سوقك الشامل للذكاء الاصطناعي'
-              : 'Your One-Stop AI Marketplace'}
+              ? 'أتمتة الذكاء الاصطناعي وحلول ذكية للأعمال'
+              : 'AI Automation & Intelligent Solutions for Businesses'}
           </h1>
           
           {/* Clear Value Proposition */}
