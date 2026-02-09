@@ -288,18 +288,20 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
     if (!aiTitle.trim()) return;
     setAiGenerating(true);
     try {
-      const res = await fetch("https://hook.eu1.make.com/sry3zejmtwptrwe9t6ilu7vughlgs1vt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: aiTitle.trim() }),
-      });
-      if (!res.ok) {
-        throw new Error(`Webhook returned ${res.status}`);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) {
+        throw new Error("You must be logged in to generate content");
       }
-      const data = await res.json();
-      const generatedContent = data?.content;
+      const res = await supabase.functions.invoke("ai-generate-blog", {
+        body: { title: aiTitle.trim() },
+      });
+      if (res.error) {
+        throw new Error(res.error.message || "Failed to generate content");
+      }
+      const generatedContent = res.data?.content;
       if (!generatedContent || typeof generatedContent !== "string") {
-        throw new Error("No content returned from webhook");
+        throw new Error("No content returned from generation service");
       }
       if (content.trim()) {
         setPendingAiContent(generatedContent);
