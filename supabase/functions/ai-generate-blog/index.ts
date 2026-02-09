@@ -58,21 +58,52 @@ serve(async (req) => {
       );
     }
 
-    let data: any;
+    let content: string | undefined;
     try {
-      const text = await webhookRes.text();
-      data = JSON.parse(text);
-    } catch {
-      console.error("[ai-generate-blog] Webhook returned non-JSON response");
+      const rawText = await webhookRes.text();
+      console.log("[ai-generate-blog] Raw webhook response (first 500 chars):", rawText.substring(0, 500));
+
+      // Try parsing as JSON first
+      let data: any;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        // Not valid JSON — maybe it's the content itself as plain text
+        if (rawText && rawText.trim().length > 50) {
+          console.log("[ai-generate-blog] Response is plain text, using as content directly");
+          content = rawText.trim();
+        }
+      }
+
+      if (!content && data) {
+        // Handle: { "content": "..." }
+        if (typeof data.content === "string" && data.content.trim()) {
+          content = data.content.trim();
+        }
+        // Handle: stringified JSON inside a string, e.g. "{\"content\":\"...\"}"
+        else if (typeof data === "string") {
+          try {
+            const nested = JSON.parse(data);
+            if (typeof nested.content === "string" && nested.content.trim()) {
+              content = nested.content.trim();
+            }
+          } catch { /* not nested JSON */ }
+          // If it's just a plain string with enough length, use it
+          if (!content && data.trim().length > 50) {
+            content = data.trim();
+          }
+        }
+      }
+    } catch (parseErr) {
+      console.error("[ai-generate-blog] Failed to read webhook response:", parseErr);
       return new Response(
         JSON.stringify({ error: "AI generation service returned an unexpected response. Please try again later." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const content = data?.content;
-    if (!content || typeof content !== "string") {
-      console.error("[ai-generate-blog] No content field in webhook response");
+    if (!content) {
+      console.error("[ai-generate-blog] No usable content extracted from webhook response");
       return new Response(
         JSON.stringify({ error: "AI generation service returned no content. Please try again later." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
