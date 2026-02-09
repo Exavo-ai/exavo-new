@@ -193,7 +193,9 @@ const App = () => (
                 path="/admin/blog"
                 element={
                   <ProtectedRoute requireRole="admin">
-                    <AdminBlog />
+                    <AdminLayout>
+                      <AdminBlog />
+                    </AdminLayout>
                   </ProtectedRoute>
                 }
               />
