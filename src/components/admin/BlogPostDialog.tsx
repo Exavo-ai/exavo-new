@@ -18,8 +18,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Upload, X, Image, Video } from "lucide-react";
+import { Loader2, Upload, X, Image, Video, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type BlogPost = {
   id: string;
@@ -54,7 +64,10 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
   const [videoUrl, setVideoUrl] = useState("");
   const [status, setStatus] = useState("draft");
   const [uploading, setUploading] = useState(false);
-
+  const [aiTitle, setAiTitle] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
+  const [pendingAiContent, setPendingAiContent] = useState("");
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -265,7 +278,44 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
     saveMutation.mutate();
   };
 
+  const applyAiContent = (generatedContent: string) => {
+    setContent(generatedContent);
+    setStatus("draft");
+    toast.success("AI content inserted as draft");
+  };
+
+  const handleGenerateContent = async () => {
+    if (!aiTitle.trim()) return;
+    setAiGenerating(true);
+    try {
+      const res = await fetch("https://hook.eu1.make.com/sry3zejmtwptrwe9t6ilu7vughlgs1vt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: aiTitle.trim() }),
+      });
+      if (!res.ok) {
+        throw new Error(`Webhook returned ${res.status}`);
+      }
+      const data = await res.json();
+      const generatedContent = data?.content;
+      if (!generatedContent || typeof generatedContent !== "string") {
+        throw new Error("No content returned from webhook");
+      }
+      if (content.trim()) {
+        setPendingAiContent(generatedContent);
+        setShowOverwriteConfirm(true);
+      } else {
+        applyAiContent(generatedContent);
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to generate content");
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -330,6 +380,43 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
                 />
               </label>
             )}
+          </div>
+
+          {/* AI Content Generation */}
+          <div className="space-y-3 p-4 border border-dashed border-primary/30 rounded-lg bg-primary/5">
+            <Label className="flex items-center gap-2 text-sm font-semibold">
+              <Sparkles className="w-4 h-4 text-primary" />
+              AI Article Title
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                value={aiTitle}
+                onChange={(e) => setAiTitle(e.target.value)}
+                placeholder="Enter a title to generate article content..."
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!aiTitle.trim() || aiGenerating}
+                onClick={handleGenerateContent}
+              >
+                {aiGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate Content (AI)
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Generates draft content only — does not save or publish.
+            </p>
           </div>
 
           {/* Content */}
@@ -525,5 +612,27 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={showOverwriteConfirm} onOpenChange={setShowOverwriteConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Overwrite existing content?</AlertDialogTitle>
+          <AlertDialogDescription>
+            The content field already has text. Generating new content will replace it. This cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setPendingAiContent("")}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={() => {
+            applyAiContent(pendingAiContent);
+            setPendingAiContent("");
+            setShowOverwriteConfirm(false);
+          }}>
+            Replace Content
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
