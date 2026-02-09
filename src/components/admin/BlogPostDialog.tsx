@@ -299,6 +299,9 @@ export function BlogPostDialog({ open, onOpenChange, post }: BlogPostDialogProps
       if (res.error) {
         throw new Error(res.error.message || "Failed to generate content");
       }
+      if (res.data?.error) {
+        throw new Error(res.data.error);
+      }
       const generatedContent = res.data?.content;
       if (!generatedContent || typeof generatedContent !== "string") {
         throw new Error("No content returned from generation service");
