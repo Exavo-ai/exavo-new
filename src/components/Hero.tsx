@@ -1,13 +1,10 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Zap, DollarSign, Package, MessageSquare } from "lucide-react";
+import { Zap, DollarSign, Package, MessageSquare } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import DemoRequestDialog from "@/components/DemoRequestDialog";
 import { ConsultationRequestDialog } from "@/components/ConsultationRequestDialog";
 
 const Hero = () => {
   const { language } = useLanguage();
-  const [demoDialogOpen, setDemoDialogOpen] = useState(false);
   const benefits = [
     {
       icon: Package,
@@ -51,7 +48,7 @@ const Hero = () => {
           </p>
 
           {/* Benefits */}
-          <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mb-10">
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mb-12">
             {benefits.map((benefit, index) => (
               <div 
                 key={index}
@@ -63,18 +60,8 @@ const Hero = () => {
             ))}
           </div>
 
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button 
-              size="lg"
-              variant="hero"
-              className="text-base sm:text-lg px-10 h-14 font-semibold"
-              onClick={() => setDemoDialogOpen(true)}
-            >
-              {language === 'ar' ? 'اطلب عرضًا توضيحيًا' : 'Request a Demo'}
-              <ArrowRight className="w-5 h-5" />
-            </Button>
-            
+          {/* CTA */}
+          <div className="flex justify-center">
             <ConsultationRequestDialog
               trigger={
                 <Button 
@@ -90,8 +77,6 @@ const Hero = () => {
           </div>
         </div>
       </div>
-
-      <DemoRequestDialog open={demoDialogOpen} onOpenChange={setDemoDialogOpen} />
     </section>
   );
 };
