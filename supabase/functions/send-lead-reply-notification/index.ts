@@ -36,7 +36,8 @@ const handler = async (req: Request): Promise<Response> => {
         "Authorization": `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Exavo AI <onboarding@resend.dev>",
+        from: "Exavo AI <info@exavoai.io>",
+        reply_to: "info@exavoai.io",
         to: [recipientEmail],
         subject: `Re: ${subject} - Exavo AI Consultation`,
         html: `
