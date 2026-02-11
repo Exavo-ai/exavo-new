@@ -48,6 +48,8 @@ const iconMap: Record<string, any> = {
   'Data Visualization': BarChart3
 };
 
+const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
 const ServiceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -66,22 +68,26 @@ const ServiceDetail = () => {
   useEffect(() => {
     if (id) {
       fetchService();
-      fetchPackages();
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (service?.id) {
+      fetchPackages(service.id);
       
-      // Subscribe to real-time package changes
       const channel = supabase
-        .channel(`service-packages-${id}`)
+        .channel(`service-packages-${service.id}`)
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'service_packages',
-            filter: `service_id=eq.${id}`
+            filter: `service_id=eq.${service.id}`
           },
           () => {
             console.log('Package change detected, refetching...');
-            fetchPackages();
+            fetchPackages(service.id);
           }
         )
         .subscribe();
@@ -90,30 +96,49 @@ const ServiceDetail = () => {
         supabase.removeChannel(channel);
       };
     }
-  }, [id]);
+  }, [service?.id]);
 
   const fetchService = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('services')
-      .select('*')
-      .eq('id', id)
-      .single();
     
-    if (data) {
-      setService(data);
+    if (isUUID(id!)) {
+      // UUID detected — fetch then redirect to slug URL
+      const { data } = await supabase
+        .from('services')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      
+      if (data?.slug) {
+        navigate(`/services/${data.slug}`, { replace: true });
+        return;
+      }
+      if (data) {
+        setService(data);
+      }
+    } else {
+      // Slug-based lookup
+      const { data } = await supabase
+        .from('services')
+        .select('*')
+        .eq('slug', id)
+        .maybeSingle();
+      
+      if (data) {
+        setService(data);
+      }
     }
     setLoading(false);
   };
 
-  const fetchPackages = async () => {
-    if (!id) return;
+  const fetchPackages = async (serviceId: string) => {
+    if (!serviceId) return;
     
     setPackagesLoading(true);
     const { data, error } = await supabase
       .from('service_packages')
       .select('*')
-      .eq('service_id', id)
+      .eq('service_id', serviceId)
       .order('package_order', { ascending: true });
 
     if (error) {

@@ -17,6 +17,7 @@ const FREE_CONSULTATION_SERVICE_NAME = "Free AI Consultation";
 
 interface Service {
   id: string;
+  slug?: string | null;
   name: string;
   name_ar: string;
   description: string;
@@ -268,6 +269,7 @@ const Services = () => {
                       <PremiumServiceCard
                         key={service.id}
                         id={service.id}
+                        slug={service.slug}
                         name={service.name}
                         name_ar={service.name_ar}
                         description={service.description}

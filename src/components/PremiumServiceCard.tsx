@@ -12,6 +12,7 @@ const FREE_CONSULTATION_SERVICE_NAME = "Free AI Consultation";
 
 interface PremiumServiceCardProps {
   id: string;
+  slug?: string | null;
   name: string;
   name_ar: string;
   description: string;
@@ -26,6 +27,7 @@ interface PremiumServiceCardProps {
 
 export const PremiumServiceCard = ({
   id,
+  slug,
   name,
   name_ar,
   description,
@@ -113,7 +115,7 @@ export const PremiumServiceCard = ({
           <Button 
             variant="outline" 
             className="flex-1 rounded-xl hover:bg-secondary transition-all h-9 sm:h-10 text-xs sm:text-sm"
-            onClick={() => onDetails ? onDetails() : navigate(`/services/${id}`)}
+            onClick={() => onDetails ? onDetails() : navigate(`/services/${slug || id}`)}
           >
             {language === 'ar' ? 'التفاصيل' : 'Details'}
           </Button>
