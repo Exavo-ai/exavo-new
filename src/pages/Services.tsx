@@ -6,11 +6,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { PremiumServiceCard } from "@/components/PremiumServiceCard";
 import { PremiumServiceFilters } from "@/components/PremiumServiceFilters";
 import { ServiceDetailsDialog } from "@/components/ServiceDetailsDialog";
+import { ConsultationRequestDialog } from "@/components/ConsultationRequestDialog";
 import { Bot, Workflow, LineChart, Mail, FileText, BarChart3, Brain, Zap, Shield, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SlidersHorizontal } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+
+const FREE_CONSULTATION_SERVICE_NAME = "Free AI Consultation";
 
 interface Service {
   id: string;
@@ -58,6 +61,7 @@ const Services = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [consultationDialogOpen, setConsultationDialogOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   
@@ -265,7 +269,13 @@ const Services = () => {
                         currency={service.currency}
                         image_url={displayImage}
                         Icon={IconComponent}
-                        onBook={() => handleOpenServiceDetails(service)}
+                        onBook={() => {
+                          if (service.name === FREE_CONSULTATION_SERVICE_NAME) {
+                            setConsultationDialogOpen(true);
+                          } else {
+                            handleOpenServiceDetails(service);
+                          }
+                        }}
                       />
                     );
                   })}
@@ -296,6 +306,12 @@ const Services = () => {
           onOpenChange={setDetailsDialogOpen}
         />
       )}
+
+      <ConsultationRequestDialog
+        trigger={<span className="hidden" />}
+        open={consultationDialogOpen}
+        onOpenChange={setConsultationDialogOpen}
+      />
     </div>
   );
 };
