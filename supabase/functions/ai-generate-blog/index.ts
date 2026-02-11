@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { corsHeaders, handleCors } from "../_shared/response.ts";
 
-const MAKE_WEBHOOK_URL = "https://hook.eu1.make.com/sry3zejmtwptrwe9t6ilu7vughlgs1vt";
+const MAKE_WEBHOOK_URL = "https://hook.eu1.make.com/jbt8dq78argmvlpe3gj3kojgb34v83wp";
 
 serve(async (req) => {
   try {
