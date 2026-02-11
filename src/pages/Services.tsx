@@ -142,7 +142,7 @@ const Services = () => {
     // No filtering until data is loaded
     if (!priceRange) return services;
     
-    return services.filter(service => {
+    const filtered = services.filter(service => {
       const matchesSearch = searchQuery === '' || 
         service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         service.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -155,6 +155,13 @@ const Services = () => {
       const matchesPrice = service.price >= priceRange[0] && service.price <= priceRange[1];
 
       return matchesSearch && matchesCategory && matchesPrice;
+    });
+
+    // Pin "Free AI Consultation" to the top
+    return filtered.sort((a, b) => {
+      if (a.name === FREE_CONSULTATION_SERVICE_NAME) return -1;
+      if (b.name === FREE_CONSULTATION_SERVICE_NAME) return 1;
+      return 0;
     });
   }, [services, searchQuery, selectedCategories, priceRange]);
 

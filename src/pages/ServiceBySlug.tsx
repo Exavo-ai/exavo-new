@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useGuestCheckoutGuard } from "@/hooks/useGuestCheckoutGuard";
 import { ServiceImageCarousel } from "@/components/ServiceImageCarousel";
 import { PreCheckoutDialog } from "@/components/PreCheckoutDialog";
+import { ConsultationRequestDialog } from "@/components/ConsultationRequestDialog";
 
 import { 
   Bot, Workflow, LineChart, Mail, FileText, BarChart3, 
@@ -22,6 +23,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+
+const FREE_CONSULTATION_SERVICE_NAME = "Free AI Consultation";
 
 interface ServicePackage {
   id: string;
@@ -59,6 +62,7 @@ const ServiceBySlug = () => {
   const [loading, setLoading] = useState(true);
   const [preCheckoutOpen, setPreCheckoutOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<ServicePackage | null>(null);
+  const [consultationDialogOpen, setConsultationDialogOpen] = useState(false);
 
   useEffect(() => {
     if (slug) {
@@ -304,21 +308,31 @@ const ServiceBySlug = () => {
               <h1 className="text-4xl font-bold mb-4">{serviceName}</h1>
               <p className="text-xl text-muted-foreground mb-6">{serviceDescription}</p>
 
-              <Button 
-                size="lg" 
-                className="w-full sm:w-auto"
-                onClick={() => {
-                  if (packages.length > 0) {
-                    handleSelectPackage(packages[0]);
-                  }
-                }}
-                disabled={checkoutLoading !== null || packages.length === 0}
-              >
-                {checkoutLoading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : null}
-                {language === 'ar' ? 'اشتري الآن' : 'Buy Now'}
-              </Button>
+              {service?.name === FREE_CONSULTATION_SERVICE_NAME ? (
+                <Button 
+                  size="lg" 
+                  className="w-full sm:w-auto"
+                  onClick={() => setConsultationDialogOpen(true)}
+                >
+                  {language === 'ar' ? 'احجز جلسة مجانية' : 'Book Free Session'}
+                </Button>
+              ) : (
+                <Button 
+                  size="lg" 
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    if (packages.length > 0) {
+                      handleSelectPackage(packages[0]);
+                    }
+                  }}
+                  disabled={checkoutLoading !== null || packages.length === 0}
+                >
+                  {checkoutLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : null}
+                  {language === 'ar' ? 'اشتري الآن' : 'Buy Now'}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -409,17 +423,27 @@ const ServiceBySlug = () => {
                           {pkg.notes}
                         </p>
                       )}
-                      <Button 
-                        variant={index === 1 ? 'default' : 'outline'}
-                        className="w-full"
-                        onClick={() => handleSelectPackage(pkg)}
-                        disabled={!hasValidPricing || checkoutLoading !== null}
-                      >
-                        {checkoutLoading === pkg.id && (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        )}
-                        {language === 'ar' ? 'اشتري الآن' : 'Buy Now'}
-                      </Button>
+                      {service?.name === FREE_CONSULTATION_SERVICE_NAME ? (
+                        <Button 
+                          variant={index === 1 ? 'default' : 'outline'}
+                          className="w-full"
+                          onClick={() => setConsultationDialogOpen(true)}
+                        >
+                          {language === 'ar' ? 'احجز جلسة مجانية' : 'Book Free Session'}
+                        </Button>
+                      ) : (
+                        <Button 
+                          variant={index === 1 ? 'default' : 'outline'}
+                          className="w-full"
+                          onClick={() => handleSelectPackage(pkg)}
+                          disabled={!hasValidPricing || checkoutLoading !== null}
+                        >
+                          {checkoutLoading === pkg.id && (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          )}
+                          {language === 'ar' ? 'اشتري الآن' : 'Buy Now'}
+                        </Button>
+                      )}
                     </Card>
                   );
                 })}
@@ -458,6 +482,12 @@ const ServiceBySlug = () => {
         isLoading={checkoutLoading !== null}
         packageName={selectedPackage?.package_name}
         language={language as 'en' | 'ar'}
+      />
+
+      <ConsultationRequestDialog
+        trigger={<span className="hidden" />}
+        open={consultationDialogOpen}
+        onOpenChange={setConsultationDialogOpen}
       />
     </div>
   );
