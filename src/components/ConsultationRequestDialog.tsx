@@ -12,10 +12,18 @@ import { useState } from "react";
 
 interface ConsultationRequestDialogProps {
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function ConsultationRequestDialog({ trigger }: ConsultationRequestDialogProps) {
-  const [open, setOpen] = useState(false);
+export function ConsultationRequestDialog({ trigger, open: controlledOpen, onOpenChange }: ConsultationRequestDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v);
+    if (!isControlled) setInternalOpen(v);
+  };
 
   const handleBookMeeting = () => {
     window.open("https://calendly.com/exavoai-info", "_blank", "noopener,noreferrer");

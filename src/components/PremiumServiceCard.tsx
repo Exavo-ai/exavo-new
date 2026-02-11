@@ -8,6 +8,8 @@ import type { LucideIcon } from "lucide-react";
 import exavoLogo from "@/assets/exavo-logo.png";
 import fallbackImage from "@/assets/ai-pattern.jpg";
 
+const FREE_CONSULTATION_SERVICE_NAME = "Free AI Consultation";
+
 interface PremiumServiceCardProps {
   id: string;
   name: string;
@@ -88,6 +90,13 @@ export const PremiumServiceCard = ({
 
         {/* Tags */}
         <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
+          {name === FREE_CONSULTATION_SERVICE_NAME && (
+            <Badge 
+              className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 font-medium bg-green-500/15 text-green-600 dark:text-green-400 border-0 rounded-full"
+            >
+              {language === 'ar' ? 'شائع' : 'Popular'}
+            </Badge>
+          )}
           {getTags().map((tag, idx) => (
             <Badge 
               key={idx}
@@ -113,7 +122,9 @@ export const PremiumServiceCard = ({
             className="flex-1 rounded-xl bg-gradient-hero hover:opacity-90 shadow-glow transition-all hover:shadow-glow-lg h-9 sm:h-10 text-xs sm:text-sm"
             onClick={onBook}
           >
-            {language === 'ar' ? 'اختر الباقة' : 'Select Package'}
+            {name === FREE_CONSULTATION_SERVICE_NAME
+              ? (language === 'ar' ? 'احجز جلسة مجانية' : 'Book Free Session')
+              : (language === 'ar' ? 'اختر الباقة' : 'Select Package')}
           </Button>
         </div>
       </div>
