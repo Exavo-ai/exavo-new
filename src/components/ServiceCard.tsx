@@ -7,6 +7,7 @@ import type { LucideIcon } from "lucide-react";
 
 interface ServiceCardProps {
   id: string;
+  slug?: string | null;
   name: string;
   name_ar: string;
   description: string;
@@ -21,6 +22,7 @@ interface ServiceCardProps {
 
 export const ServiceCard = ({
   id,
+  slug,
   name,
   name_ar,
   description,
@@ -104,7 +106,7 @@ export const ServiceCard = ({
           <Button 
             variant="outline" 
             className="flex-1"
-            onClick={() => navigate(`/services/${id}`)}
+            onClick={() => navigate(`/services/${slug || id}`)}
           >
             {language === 'ar' ? 'التفاصيل' : 'Details'}
           </Button>

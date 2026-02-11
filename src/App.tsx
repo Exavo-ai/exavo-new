@@ -60,7 +60,7 @@ const App = () => (
         <Route path="/about" element={<About />} />
         <Route path="/services" element={<Services />} />
         <Route path="/services/:id" element={<ServiceDetail />} />
-        <Route path="/s/:slug" element={<ServiceBySlug />} />
+        <Route path="/s/:slug" element={<ServiceBySlug />} /> {/* Legacy slug route - kept for backward compatibility */}
         <Route path="/contact" element={<Contact />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/blog" element={<Blog />} />

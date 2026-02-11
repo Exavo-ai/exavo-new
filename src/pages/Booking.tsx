@@ -78,7 +78,7 @@ const Booking = () => {
 
   const handleBookService = async (service: any) => {
     // Navigate to service detail page which has packages for checkout
-    navigate(`/services/${service.id}`);
+    navigate(`/services/${service.slug || service.id}`);
   };
 
   const handleDirectCheckout = async (serviceId: string) => {
@@ -95,7 +95,7 @@ const Booking = () => {
       if (pkgError) throw pkgError;
       if (!packages || packages.length === 0) {
         // No packages, redirect to service details
-        navigate(`/services/${serviceId}`);
+        navigate(`/services/${serviceId}`); // serviceId may be UUID, ServiceDetail handles redirect
         return;
       }
 
