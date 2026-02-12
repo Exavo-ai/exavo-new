@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Mail, Phone, MapPin, Clock } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Contact = () => {
   const { t } = useLanguage();
@@ -46,41 +47,39 @@ const Contact = () => {
     setIsLoading(true);
 
     try {
-      // Send to Make.com webhook in the background
-      const webhookUrl = "https://hook.eu1.make.com/oisi57ya8s8nzmddbvjxqi7zd3qk92v3";
-      const payload = {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone || "",
-        service: "",
-        message: formData.message,
-        timestamp: new Date().toISOString(),
-      };
-
-      // Non-blocking webhook call
-      fetch(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      // Send email via edge function
+      const { data, error } = await supabase.functions.invoke("send-contact-email", {
+        body: {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone || "",
+          message: formData.message,
         },
-        body: JSON.stringify(payload),
-      }).catch((error) => {
-        console.error("Webhook error (non-blocking):", error);
       });
 
-      // Show success message immediately
+      if (error) throw error;
+      if (data && !data.success) throw new Error(data.error?.message || "Failed to send");
+
+      // Also send to Make.com webhook in the background (non-blocking)
+      fetch("https://hook.eu1.make.com/oisi57ya8s8nzmddbvjxqi7zd3qk92v3", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone || "",
+          service: "",
+          message: formData.message,
+          timestamp: new Date().toISOString(),
+        }),
+      }).catch(() => {});
+
       toast({
         title: "Success!",
         description: "Your message has been sent successfully. We'll get back to you soon.",
       });
 
-      // Reset form
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        message: "",
-      });
+      setFormData({ name: "", email: "", phone: "", message: "" });
     } catch (error) {
       console.error("Form submission error:", error);
       toast({
