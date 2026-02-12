@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         from: "Exavo AI <info@exavoai.io>",
-        to: ["info@exavo.ai"],
+        to: ["info@exavoai.io"],
         reply_to: email,
         subject: "New Contact Form Submission – Exavo AI",
         html: htmlBody,
