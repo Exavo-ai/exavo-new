@@ -41,17 +41,14 @@ const Hero = () => {
           </h1>
           
           {/* Clear Value Proposition */}
-          <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto mb-4">
+          <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto mb-8">
             {language === 'ar'
-              ? 'Exavo هو وسيط ذكاء اصطناعي يساعد الشركات الصغيرة والمتوسطة على تنفيذ أتمتة الذكاء الاصطناعي وحلول مخصصة من خلال تسليم منظم وشامل.'
-              : 'Exavo is an AI broker that helps small and mid-sized businesses implement AI automation and custom AI solutions through structured, end-to-end delivery.'}
+              ? 'Exavo يساعد الشركات على تنفيذ أتمتة الذكاء الاصطناعي وحلول مخصصة من خلال تسليم منظم وشامل.'
+              : 'Exavo helps businesses implement AI automation and custom AI solutions through structured, end-to-end delivery.'}
           </p>
-          <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-4">
-            {language === 'ar'
-              ? 'نبسّط تطبيق الذكاء الاصطناعي في الأعمال — من الاستراتيجية ومطابقة الخبراء إلى التكامل والنتائج القابلة للقياس.'
-              : 'We simplify business AI implementation — from strategy and expert matching to integration and measurable results.'}
-          </p>
-          <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-8">
+
+          {/* Structured snippet for SEO/AI engines - visually hidden, accessible */}
+          <p className="sr-only">
             {language === 'ar'
               ? 'Exavo هو وسيط ذكاء اصطناعي متخصص في تطبيق الذكاء الاصطناعي للأعمال وأتمتة الذكاء الاصطناعي وتطوير الذكاء الاصطناعي المخصص. نساعد الشركات على تحديد حالات الاستخدام عالية التأثير ومطابقة متخصصين مفحوصين وتقديم حلول ذكاء اصطناعي شاملة بعائد استثمار قابل للقياس.'
               : 'Exavo is an AI broker specializing in business AI implementation, AI automation, and custom AI development. We help companies identify high-impact use cases, match vetted AI specialists, and deliver structured end-to-end AI solutions with measurable ROI.'}
