@@ -60,13 +60,15 @@ const SEO = ({
     }
     canonical.href = window.location.href;
 
-    // Add JSON-LD structured data
+    // Add JSON-LD structured data - Organization
     const structuredData = {
       "@context": "https://schema.org",
       "@type": "Organization",
       "name": "Exavo AI",
-      "description": description,
-      "url": window.location.origin,
+      "url": "https://exavo.ai",
+      "description": "Exavo is an AI broker specializing in business AI implementation, AI automation, and custom AI development. We provide structured end-to-end AI solutions for small and mid-sized businesses.",
+      "areaServed": "Global",
+      "foundingDate": "2026",
       "logo": image,
       "sameAs": [
         "https://twitter.com/ExavoAI",
@@ -78,13 +80,41 @@ const SEO = ({
       }
     };
 
-    let scriptTag = document.querySelector('script[type="application/ld+json"]');
+    let scriptTag = document.querySelector('script[data-ld="organization"]');
     if (!scriptTag) {
       scriptTag = document.createElement('script');
       scriptTag.setAttribute('type', 'application/ld+json');
+      scriptTag.setAttribute('data-ld', 'organization');
       document.head.appendChild(scriptTag);
     }
     scriptTag.textContent = JSON.stringify(structuredData);
+
+    // Add JSON-LD structured data - Service types
+    const serviceData = {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      "provider": {
+        "@type": "Organization",
+        "name": "Exavo AI"
+      },
+      "serviceType": [
+        "AI Broker",
+        "AI Automation",
+        "Custom AI Development",
+        "Business AI Implementation"
+      ],
+      "areaServed": "Global",
+      "description": "Exavo is an AI broker specializing in business AI implementation, AI automation, and custom AI development. We provide structured end-to-end AI solutions for small and mid-sized businesses."
+    };
+
+    let serviceScriptTag = document.querySelector('script[data-ld="service"]');
+    if (!serviceScriptTag) {
+      serviceScriptTag = document.createElement('script');
+      serviceScriptTag.setAttribute('type', 'application/ld+json');
+      serviceScriptTag.setAttribute('data-ld', 'service');
+      document.head.appendChild(serviceScriptTag);
+    }
+    serviceScriptTag.textContent = JSON.stringify(serviceData);
 
   }, [title, description, image, keywords, location]);
 
