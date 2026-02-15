@@ -112,7 +112,7 @@ const CaseStudiesPage = () => {
                 Real Work. Real Results.
               </h1>
               <p className="text-base sm:text-lg md:text-xl text-muted-foreground px-4">
-                Explore real AI-powered solutions built and deployed for real businesses.
+                Our AI broker model delivers measurable AI automation and custom AI implementation results across industries.
               </p>
             </motion.div>
           </div>
