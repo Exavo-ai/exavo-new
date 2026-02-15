@@ -15,32 +15,32 @@ const FAQ = () => {
         ? 'ما هو وسيط الذكاء الاصطناعي وكيف يساعد الشركات؟'
         : 'What is an AI broker and how does it help businesses?',
       answer: language === 'ar'
-        ? 'وسيط الذكاء الاصطناعي هو مزود خدمة يربط الشركات بحلول الذكاء الاصطناعي الجاهزة والخبراء المتخصصين، ويدير عملية التنفيذ بالكامل. بدلاً من أن تبحث الشركات عن مطورين وتديرهم بنفسها، يتولى الوسيط الفحص والتوظيف وإدارة المشروع. هذا يسرّع تطبيق الذكاء الاصطناعي في الأعمال ويقلل التكلفة والتعقيد التقني.'
-        : 'An AI broker is a managed service provider that connects businesses with ready-to-deploy AI solutions and vetted specialists, handling the entire implementation process. Instead of navigating the complex AI vendor landscape alone, businesses work with a single partner who manages custom AI development, expert selection, and project delivery. This approach reduces costs and accelerates business AI implementation for companies of all sizes.'
+        ? 'وسيط الذكاء الاصطناعي هو شريك واحد يربط الشركات بحلول ذكاء اصطناعي موثوقة وفرق تنفيذ متخصصة. بدلاً من إدارة عدة موردين، تتعامل الشركات مع مزود منظم يتولى اختيار الحلول وتطوير الذكاء الاصطناعي المخصص والإشراف على التسليم. هذا يبسّط تطبيق الذكاء الاصطناعي في الأعمال ويقلل المخاطر ويسرّع الأتمتة عبر الأقسام.'
+        : 'An AI broker is a single partner that connects businesses with vetted AI solutions and expert implementation teams. Instead of managing multiple vendors, companies work with one structured provider that handles solution selection, custom AI development, and delivery oversight. This simplifies business AI implementation, reduces risk, and accelerates AI automation across departments.'
     },
     {
       question: language === 'ar'
         ? 'لماذا تستخدم وسيط ذكاء اصطناعي بدلاً من توظيف مطور مباشرة؟'
         : 'Why use an AI broker instead of hiring an AI developer directly?',
       answer: language === 'ar'
-        ? 'توظيف مطور ذكاء اصطناعي مباشرة يتطلب وقتاً طويلاً للفحص والتفاوض وإدارة المشروع، مع مخاطر عالية في الجودة. وسيط الذكاء الاصطناعي يوفر خبراء مفحوصين مسبقاً وإدارة مشاريع شاملة وضمانات جودة، مما يقلل المخاطر ويسرّع الحصول على النتائج.'
-        : 'Hiring an AI developer directly requires significant time for vetting candidates, negotiating contracts, and managing technical delivery — with no guaranteed outcome. An AI broker provides pre-vetted experts, structured project management, and quality assurance built into every engagement. For small and mid-sized businesses seeking AI automation without an in-house technical team, this managed approach delivers faster results at lower risk.'
+        ? 'استخدام وسيط ذكاء اصطناعي يقلل مخاطر التوظيف ويحسّن موثوقية التسليم. التوظيف المباشر يتطلب فحصاً تقنياً وإدارة مشاريع والتزاماً طويل الأمد بالموارد. وسيط مثل Exavo يوفر متخصصين مفحوصين مسبقاً وحوكمة منظمة وتسليماً قائماً على المراحل. هذا النهج يضمن نتائج أفضل لمشاريع الأتمتة وتطوير الذكاء الاصطناعي المخصص.'
+        : 'Using an AI broker reduces hiring risk and improves delivery reliability. Direct hiring requires technical vetting, project management, and long-term resource commitment. An AI broker like Exavo provides pre-vetted specialists, structured governance, and milestone-based delivery. This approach ensures better outcomes for AI automation and custom AI development projects.'
     },
     {
       question: language === 'ar'
-        ? 'كيف يتم ضمان نجاح مشاريع الذكاء الاصطناعي؟'
+        ? 'كيف يضمن Exavo نجاح تسليم مشاريع الذكاء الاصطناعي؟'
         : 'How does Exavo ensure successful AI project delivery?',
       answer: language === 'ar'
-        ? 'يتم ضمان نجاح المشاريع من خلال عملية فحص صارمة لاختيار خبراء ذوي سجلات مثبتة، مع اتباع أفضل ممارسات إدارة المشاريع. يشمل ذلك مراجعات دورية وتحديثات شفافة ومعايير جودة صارمة لضمان التسليم في الوقت المحدد وضمن الميزانية.'
-        : 'Successful AI project delivery is ensured through a structured process that includes rigorous expert vetting, milestone-based project management, and continuous quality checks. Every AI solutions engagement follows a clear workflow: requirements gathering, expert matching, iterative development with regular client check-ins, and final delivery validation. This methodology keeps custom AI development projects on time and within budget.'
+        ? 'يضمن Exavo نجاح التنفيذ من خلال إطار تسليم منظم قائم على المراحل. كل مشروع يتبع عملية واضحة: تحليل المتطلبات، مطابقة الخبراء، التطوير التكراري، التحقق من الجودة، ودعم النشر. الإشراف المستمر ومؤشرات الأداء القابلة للقياس تساعد الشركات على تحقيق حلول ذكاء اصطناعي موثوقة تتوافق مع أهدافها التشغيلية.'
+        : 'Exavo ensures successful AI implementation through a structured, milestone-based delivery framework. Every project follows a clear process: requirements analysis, expert matching, iterative development, quality validation, and deployment support. Continuous oversight and measurable KPIs help businesses achieve reliable AI solutions aligned with operational goals.'
     },
     {
       question: language === 'ar'
-        ? 'ما أنواع حلول الذكاء الاصطناعي التي يمكن تنفيذها للشركات؟'
-        : 'What types of AI solutions can be implemented for businesses?',
+        ? 'ما أنواع حلول الذكاء الاصطناعي التي يمكن للشركات تنفيذها؟'
+        : 'What types of AI solutions can businesses implement?',
       answer: language === 'ar'
-        ? 'تشمل حلول الذكاء الاصطناعي للشركات: أتمتة سير العمل، روبوتات الدردشة الذكية، التحليلات التنبؤية، معالجة اللغات الطبيعية، أنظمة CRM المخصصة، وتكامل الذكاء الاصطناعي مع الأنظمة الحالية. يمكن تطبيق هذه الحلول في مختلف القطاعات لتحسين الكفاءة وخفض التكاليف.'
-        : 'Business AI implementation covers a wide range of use cases, including workflow automation, intelligent chatbots, predictive analytics, natural language processing, custom CRM systems, and AI integration with existing tools. Whether a company needs AI automation for repetitive tasks or custom AI development for a unique business challenge, these solutions can be tailored to fit specific industry requirements and operational goals.'
+        ? 'يمكن للشركات تنفيذ حلول ذكاء اصطناعي في مجالات الأتمتة والتحليلات وتفاعل العملاء. تشمل الأمثلة الشائعة أتمتة سير العمل المتكرر، روبوتات الدردشة المدعومة بالذكاء الاصطناعي، أنظمة التحليلات التنبؤية، وتطوير الذكاء الاصطناعي المخصص للاحتياجات الصناعية. تتكامل هذه الحلول مع الأدوات الحالية وتدعم تطبيق الذكاء الاصطناعي القابل للتوسع.'
+        : 'Businesses can implement AI solutions across automation, analytics, and customer engagement. Common examples include AI automation for repetitive workflows, AI-powered chatbots, predictive analytics systems, and custom AI development for industry-specific needs. These solutions integrate with existing tools and support scalable business AI implementation.'
     }
   ];
 
@@ -55,8 +55,8 @@ const FAQ = () => {
         <div className="text-center max-w-3xl mx-auto mb-12 animate-fade-in">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 lg:mb-6">
             {language === 'ar' 
-              ? 'الأسئلة الشائعة'
-              : 'Frequently Asked Questions'}
+              ? 'وسيط الذكاء الاصطناعي وحلول الذكاء الاصطناعي – الأسئلة الشائعة'
+              : 'AI Broker & AI Solutions – Frequently Asked Questions'}
           </h2>
           <p className="text-lg sm:text-xl text-muted-foreground">
             {language === 'ar'
