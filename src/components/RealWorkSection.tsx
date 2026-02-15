@@ -87,8 +87,7 @@ export function RealWorkSection() {
             Real Work. Real Results.
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Explore our case studies showcasing AI-powered solutions that have 
-            transformed businesses across industries.
+            Our AI broker model delivers measurable AI automation results across industries, from e-commerce to technology and professional services.
           </p>
         </motion.div>
 
