@@ -12,35 +12,35 @@ const FAQ = () => {
   const faqs = [
     {
       question: language === 'ar' 
-        ? 'ما الذي يفعله وسيط الذكاء الاصطناعي؟'
-        : 'What does an AI broker do?',
+        ? 'ما هو وسيط الذكاء الاصطناعي وكيف يساعد الشركات؟'
+        : 'What is an AI broker and how does it help businesses?',
       answer: language === 'ar'
-        ? 'وسيط الذكاء الاصطناعي يربط عملك بأفضل خبراء ومطورين الذكاء الاصطناعي، ويدير المشروع بأكمله من الاستراتيجية إلى التنفيذ والتسليم. نحن نتعامل مع الفحص والتوظيف وإدارة المشروع حتى تتمكن من التركيز على عملك الأساسي.'
-        : 'An AI broker connects your business with top AI experts and developers, managing the entire project from strategy to execution and delivery. We handle the vetting, hiring, and project management so you can focus on your core business.'
+        ? 'وسيط الذكاء الاصطناعي هو مزود خدمة يربط الشركات بحلول الذكاء الاصطناعي الجاهزة والخبراء المتخصصين، ويدير عملية التنفيذ بالكامل. بدلاً من أن تبحث الشركات عن مطورين وتديرهم بنفسها، يتولى الوسيط الفحص والتوظيف وإدارة المشروع. هذا يسرّع تطبيق الذكاء الاصطناعي في الأعمال ويقلل التكلفة والتعقيد التقني.'
+        : 'An AI broker is a managed service provider that connects businesses with ready-to-deploy AI solutions and vetted specialists, handling the entire implementation process. Instead of navigating the complex AI vendor landscape alone, businesses work with a single partner who manages custom AI development, expert selection, and project delivery. This approach reduces costs and accelerates business AI implementation for companies of all sizes.'
     },
     {
       question: language === 'ar'
-        ? 'لماذا لا أوظف مطور ذكاء اصطناعي مباشرة؟'
-        : 'Why not hire an AI developer directly?',
+        ? 'لماذا تستخدم وسيط ذكاء اصطناعي بدلاً من توظيف مطور مباشرة؟'
+        : 'Why use an AI broker instead of hiring an AI developer directly?',
       answer: language === 'ar'
-        ? 'التوظيف المباشر يستغرق وقتاً طويلاً، مكلف، ومحفوف بالمخاطر. أنت بحاجة إلى فحص المرشحين، التفاوض على الشروط، وإدارة المشروع. نحن نقدم خبراء مفحوصين مسبقاً، إدارة مشاريع شاملة، وضمانات الجودة - مما يقلل من المخاطر ويسرّع من النتائج.'
-        : 'Direct hiring is time-consuming, expensive, and risky. You need to vet candidates, negotiate terms, and manage the project yourself. We provide pre-vetted experts, end-to-end project management, and quality guarantees—reducing risk and accelerating results.'
+        ? 'توظيف مطور ذكاء اصطناعي مباشرة يتطلب وقتاً طويلاً للفحص والتفاوض وإدارة المشروع، مع مخاطر عالية في الجودة. وسيط الذكاء الاصطناعي يوفر خبراء مفحوصين مسبقاً وإدارة مشاريع شاملة وضمانات جودة، مما يقلل المخاطر ويسرّع الحصول على النتائج.'
+        : 'Hiring an AI developer directly requires significant time for vetting candidates, negotiating contracts, and managing technical delivery — with no guaranteed outcome. An AI broker provides pre-vetted experts, structured project management, and quality assurance built into every engagement. For small and mid-sized businesses seeking AI automation without an in-house technical team, this managed approach delivers faster results at lower risk.'
     },
     {
       question: language === 'ar'
-        ? 'كيف تضمنون نجاح المشروع؟'
-        : 'How do you ensure project success?',
+        ? 'كيف يتم ضمان نجاح مشاريع الذكاء الاصطناعي؟'
+        : 'How does Exavo ensure successful AI project delivery?',
       answer: language === 'ar'
-        ? 'نحن نستخدم عملية فحص صارمة لاختيار خبراء ذوي سجل حافل فقط. يتبع فريقنا أفضل الممارسات في إدارة المشاريع، مع مراجعات منتظمة، تحديثات شفافة، ومعايير جودة صارمة لضمان تسليم مشروعك في الوقت المحدد وضمن الميزانية.'
-        : 'We use a rigorous vetting process to select only experts with proven track records. Our team follows best practices in project management, with regular check-ins, transparent updates, and strict quality standards to ensure your project is delivered on time and within budget.'
+        ? 'يتم ضمان نجاح المشاريع من خلال عملية فحص صارمة لاختيار خبراء ذوي سجلات مثبتة، مع اتباع أفضل ممارسات إدارة المشاريع. يشمل ذلك مراجعات دورية وتحديثات شفافة ومعايير جودة صارمة لضمان التسليم في الوقت المحدد وضمن الميزانية.'
+        : 'Successful AI project delivery is ensured through a structured process that includes rigorous expert vetting, milestone-based project management, and continuous quality checks. Every AI solutions engagement follows a clear workflow: requirements gathering, expert matching, iterative development with regular client check-ins, and final delivery validation. This methodology keeps custom AI development projects on time and within budget.'
     },
     {
       question: language === 'ar'
-        ? 'ما نوع مشاريع الذكاء الاصطناعي التي تتعاملون معها؟'
-        : 'What kind of AI projects do you handle?',
+        ? 'ما أنواع حلول الذكاء الاصطناعي التي يمكن تنفيذها للشركات؟'
+        : 'What types of AI solutions can be implemented for businesses?',
       answer: language === 'ar'
-        ? 'نتعامل مع مجموعة واسعة من مشاريع الذكاء الاصطناعي: نماذج الذكاء الاصطناعي المخصصة، معالجة اللغات الطبيعية، رؤية الكمبيوتر، التحليلات التنبؤية، روبوتات الدردشة، أتمتة العمليات، وتكامل الذكاء الاصطناعي في الأنظمة الحالية. إذا كان يتعلق بالذكاء الاصطناعي، يمكننا مساعدتك.'
-        : 'We handle a wide range of AI projects: custom AI models, natural language processing, computer vision, predictive analytics, chatbots, process automation, and AI integration into existing systems. If it involves AI, we can help you succeed.'
+        ? 'تشمل حلول الذكاء الاصطناعي للشركات: أتمتة سير العمل، روبوتات الدردشة الذكية، التحليلات التنبؤية، معالجة اللغات الطبيعية، أنظمة CRM المخصصة، وتكامل الذكاء الاصطناعي مع الأنظمة الحالية. يمكن تطبيق هذه الحلول في مختلف القطاعات لتحسين الكفاءة وخفض التكاليف.'
+        : 'Business AI implementation covers a wide range of use cases, including workflow automation, intelligent chatbots, predictive analytics, natural language processing, custom CRM systems, and AI integration with existing tools. Whether a company needs AI automation for repetitive tasks or custom AI development for a unique business challenge, these solutions can be tailored to fit specific industry requirements and operational goals.'
     }
   ];
 
