@@ -36,15 +36,20 @@ const Hero = () => {
           {/* Main Headline */}
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
             {language === 'ar' 
-              ? 'أتمتة الذكاء الاصطناعي وحلول ذكية للأعمال'
-              : 'AI Automation & Intelligent Solutions for Businesses'}
+              ? 'وسيط ذكاء اصطناعي لأتمتة الأعمال وحلول الذكاء الاصطناعي المخصصة'
+              : 'AI Broker for Business Automation & Custom AI Solutions'}
           </h1>
           
           {/* Clear Value Proposition */}
-          <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto mb-8">
+          <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto mb-4">
             {language === 'ar'
-              ? 'نساعد الشركات الصغيرة والمتوسطة على تبني الذكاء الاصطناعي بسهولة — بدون تعقيدات تقنية أو تكاليف باهظة.'
-              : 'Helping small and mid-sized businesses adopt AI easily — no technical complexity, no big budgets required.'}
+              ? 'Exavo هو وسيط ذكاء اصطناعي يساعد الشركات الصغيرة والمتوسطة على تنفيذ أتمتة الذكاء الاصطناعي وحلول مخصصة من خلال تسليم منظم وشامل.'
+              : 'Exavo is an AI broker that helps small and mid-sized businesses implement AI automation and custom AI solutions through structured, end-to-end delivery.'}
+          </p>
+          <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-8">
+            {language === 'ar'
+              ? 'نبسّط تطبيق الذكاء الاصطناعي في الأعمال — من الاستراتيجية ومطابقة الخبراء إلى التكامل والنتائج القابلة للقياس.'
+              : 'We simplify business AI implementation — from strategy and expert matching to integration and measurable results.'}
           </p>
 
           {/* Benefits */}

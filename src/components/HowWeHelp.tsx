@@ -51,8 +51,8 @@ const HowWeHelp = () => {
           </h2>
           <p className="text-lg sm:text-xl text-muted-foreground mb-6">
             {language === 'ar'
-              ? 'نموذج الوساطة الخاص بنا يقدم نتائج مذهلة بدون أي متاعب.'
-              : 'Our brokerage model delivers amazing results with none of the hassle.'}
+              ? 'يعمل Exavo كوسيط ذكاء اصطناعي، يقدم تنفيذاً منظماً للذكاء الاصطناعي بدون تشتت الموردين أو مخاطر التوظيف أو التعقيد التقني.'
+              : 'Exavo operates as an AI broker, delivering structured AI implementation without vendor fragmentation, hiring risk, or technical complexity.'}
           </p>
         </div>
 

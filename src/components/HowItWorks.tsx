@@ -7,34 +7,34 @@ const HowItWorks = () => {
   const steps = [
     {
       icon: Database,
-      title: language === 'ar' ? 'البيانات' : 'Data',
+      title: language === 'ar' ? 'اكتشف وحدّد' : 'Discover & Define',
       description: language === 'ar' 
-        ? 'نجمع ونحلل بياناتك من مصادر متعددة'
-        : 'Collect and analyze your data from multiple sources',
+        ? 'حدّد فرص أتمتة الذكاء الاصطناعي عالية التأثير والمتوافقة مع أهداف عملك.'
+        : 'Identify high-impact AI automation opportunities aligned with your business goals.',
       number: '01'
     },
     {
       icon: Brain,
-      title: language === 'ar' ? 'النمذجة' : 'Model',
+      title: language === 'ar' ? 'طابق وصمّم' : 'Match & Design',
       description: language === 'ar'
-        ? 'نبني نماذج الذكاء الاصطناعي المخصصة لاحتياجاتك'
-        : 'Build custom AI models tailored to your needs',
+        ? 'نطابقك مع متخصصي ذكاء اصطناعي مفحوصين ونصمم خارطة طريق منظمة لتطوير الذكاء الاصطناعي المخصص.'
+        : 'We match you with vetted AI specialists and design a structured custom AI development roadmap.',
       number: '02'
     },
     {
       icon: Repeat,
-      title: language === 'ar' ? 'التكامل' : 'Integrate',
+      title: language === 'ar' ? 'ابنِ وادمج' : 'Build & Integrate',
       description: language === 'ar'
-        ? 'ندمج الحلول بسلاسة مع أنظمتك الحالية'
-        : 'Seamlessly integrate solutions with your existing systems',
+        ? 'نطوّر وندمج حلول الذكاء الاصطناعي بسلاسة مع أنظمتك وسير عملك الحالي.'
+        : 'Develop and integrate AI solutions seamlessly into your existing systems and workflows.',
       number: '03'
     },
     {
       icon: BarChart,
-      title: language === 'ar' ? 'التقارير' : 'Report',
+      title: language === 'ar' ? 'قِس وحسّن' : 'Measure & Optimize',
       description: language === 'ar'
-        ? 'احصل على رؤى قابلة للتنفيذ وتقارير في الوقت الفعلي'
-        : 'Get actionable insights and real-time reports',
+        ? 'تتبّع مؤشرات الأداء، تحقق من النتائج، وحسّن تنفيذ الذكاء الاصطناعي باستمرار لتحقيق عائد استثمار قابل للقياس.'
+        : 'Track KPIs, validate performance, and continuously optimize AI implementation for measurable ROI.',
       number: '04'
     }
   ];
