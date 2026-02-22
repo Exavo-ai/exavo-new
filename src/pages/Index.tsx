@@ -1,11 +1,13 @@
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
+import SocialProof from "@/components/SocialProof";
 import HowItWorks from "@/components/HowItWorks";
+import TrustBanner from "@/components/TrustBanner";
 import HowWeHelp from "@/components/HowWeHelp";
 import { RealWorkSection } from "@/components/RealWorkSection";
 import Testimonials from "@/components/Testimonials";
-import FAQ from "@/components/FAQ";
 import CTA from "@/components/CTA";
+import FAQ from "@/components/FAQ";
 import Footer from "@/components/Footer";
 import ChatWidget from "@/components/ChatWidget";
 import SEO from "@/components/SEO";
@@ -21,12 +23,14 @@ const Index = () => {
       <Navigation />
       <main>
         <Hero />
+        <SocialProof />
         <HowItWorks />
+        <TrustBanner />
         <HowWeHelp />
         <RealWorkSection />
         <Testimonials />
-        <FAQ />
         <CTA />
+        <FAQ />
       </main>
       <Newsletter />
       <Footer />

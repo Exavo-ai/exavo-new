@@ -23,13 +23,13 @@ const CTA = () => {
         <div className="max-w-4xl mx-auto text-center space-y-8">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground animate-fade-in">
             {language === 'ar' 
-              ? 'هل أنت مستعد لتحويل أعمالك؟'
-              : 'Ready to Transform Your Business?'}
+              ? 'هل أنت مستعد لتنفيذ ذكاء اصطناعي يحقق نتائج؟'
+              : 'Ready to Implement AI That Delivers Results?'}
           </h2>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {language === 'ar'
-              ? 'احجز عرضًا توضيحيًا مجانيًا واكتشف كيف يمكننا مساعدتك'
-              : 'Book a free demo and discover how we can help your business grow with AI'}
+              ? 'احجز استشارة مجانية لتحديد أفضل فرص الذكاء الاصطناعي لأعمالك'
+              : 'Schedule a free consultation to identify your highest-impact AI opportunities'}
           </p>
           <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <Button 
@@ -38,7 +38,7 @@ const CTA = () => {
               className="text-base sm:text-lg px-10 h-14 font-semibold"
               onClick={() => setDemoDialogOpen(true)}
             >
-              {language === 'ar' ? 'اطلب عرضًا توضيحيًا' : 'Request a Demo'}
+              {language === 'ar' ? 'احجز استشارة مجانية' : 'Book a Free Consultation'}
               <ArrowRight className="w-5 h-5" />
             </Button>
           </div>
