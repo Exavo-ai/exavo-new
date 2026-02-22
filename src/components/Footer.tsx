@@ -14,7 +14,7 @@ const Footer = () => {
               <img src={exavoLogo} alt="Exavo AI" className="h-8 w-8" />
               <h3 className="text-lg font-bold bg-gradient-hero bg-clip-text text-transparent">Exavo AI</h3>
             </div>
-            <p className="text-sm text-muted-foreground">Making AI accessible for every business.</p>
+            <p className="text-sm text-muted-foreground">Your AI implementation partner — from strategy to delivery.</p>
             <div className="flex gap-4">
               <a href="#" className="text-muted-foreground hover:text-primary transition-colors" aria-label="Twitter"><Twitter className="w-5 h-5" /></a>
               <a href="https://www.linkedin.com/company/exavo/posts/?feedView=all" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors" aria-label="LinkedIn"><Linkedin className="w-5 h-5" /></a>

@@ -51,10 +51,10 @@ const Testimonials = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-12 animate-fade-in">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
-            Trusted by <span className="bg-gradient-hero bg-clip-text text-transparent">Industry Leaders</span>
+            What Our <span className="bg-gradient-hero bg-clip-text text-transparent">Clients Say</span>
           </h2>
           <p className="text-lg text-muted-foreground">
-            See what our clients say about transforming their businesses with AI
+            Real feedback from businesses using Exavo for AI implementation
           </p>
         </div>
         

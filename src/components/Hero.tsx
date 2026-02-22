@@ -8,15 +8,15 @@ const Hero = () => {
   const benefits = [
     {
       icon: Package,
-      text: language === 'ar' ? 'أدوات ذكاء اصطناعي جاهزة للاستخدام' : 'Ready-to-use AI tools'
+      text: language === 'ar' ? 'تنفيذ ذكاء اصطناعي شامل' : 'End-to-end AI implementation'
     },
     {
       icon: Zap,
-      text: language === 'ar' ? 'لا تحتاج خبرة تقنية' : 'No technical skills needed'
+      text: language === 'ar' ? 'لا تحتاج فريق ذكاء اصطناعي داخلي' : 'No in-house AI team needed'
     },
     {
       icon: DollarSign,
-      text: language === 'ar' ? 'أسعار مناسبة للشركات الصغيرة' : 'Affordable for small businesses'
+      text: language === 'ar' ? 'عائد استثمار قابل للقياس وتسليم منظم' : 'Measurable ROI, structured delivery'
     }
   ];
 

@@ -51,8 +51,8 @@ const HowItWorks = () => {
           </h2>
           <p className="text-lg text-muted-foreground">
             {language === 'ar'
-              ? 'عملية بسيطة ومثبتة لتحويل بياناتك إلى رؤى قابلة للتنفيذ'
-              : 'A simple, proven process to transform your data into actionable insights'}
+              ? 'عملية منظمة لتحديد وبناء وتقديم حلول ذكاء اصطناعي عالية التأثير'
+              : 'A structured process to identify, build, and deliver high-impact AI solutions'}
           </p>
         </div>
 
