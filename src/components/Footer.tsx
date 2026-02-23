@@ -36,6 +36,7 @@ const Footer = () => {
               <li><a href="/blog" className="hover:text-primary transition-colors">Blog</a></li>
               <li><a href="/faq" className="hover:text-primary transition-colors">FAQ</a></li>
               <li><a href="/contact" className="hover:text-primary transition-colors">{t('nav.contact')}</a></li>
+              <li><a href="https://surl.lt/lqurse" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Privacy Policy</a></li>
             </ul>
           </div>
           <div>
