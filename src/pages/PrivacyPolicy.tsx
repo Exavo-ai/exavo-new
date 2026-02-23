@@ -64,8 +64,8 @@ const PrivacyPolicy = () => {
             </ul>
             <p className="mt-2">
               To exercise any of these rights, please contact us at{" "}
-              <a href="mailto:support@exavo.ai" className="text-primary hover:underline">
-                support@exavo.ai
+              <a href="mailto:info@exavoai.com" className="text-primary hover:underline">
+                info@exavoai.com
               </a>.
             </p>
           </section>
@@ -85,8 +85,8 @@ const PrivacyPolicy = () => {
             <p className="mt-2">
               <strong>Exavo AI</strong><br />
               Email:{" "}
-              <a href="mailto:support@exavo.ai" className="text-primary hover:underline">
-                support@exavo.ai
+              <a href="mailto:info@exavoai.com" className="text-primary hover:underline">
+                info@exavoai.com
               </a>
             </p>
           </section>
