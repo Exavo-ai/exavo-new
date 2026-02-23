@@ -23,10 +23,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Search, Edit, Trash2, Eye, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { BlogPostDialog } from "@/components/admin/BlogPostDialog";
+import { ScheduledPostsTab } from "@/components/admin/ScheduledPostsTab";
+
+const ENABLE_SCHEDULED_POSTS = import.meta.env.VITE_ENABLE_SCHEDULED_POSTS !== "false";
 
 type BlogPost = {
   id: string;
@@ -153,108 +157,38 @@ export default function AdminBlog() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <CardTitle>Blog Posts</CardTitle>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Search posts..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          ) : filteredPosts?.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No blog posts found
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredPosts?.map((post) => (
-                    <TableRow key={post.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          {post.featured_image && (
-                            <img
-                              src={post.featured_image}
-                              alt=""
-                              className="w-10 h-10 rounded object-cover"
-                            />
-                          )}
-                          <div>
-                            <p className="font-medium">{post.title}</p>
-                            <p className="text-sm text-muted-foreground">
-                              /{post.slug}
-                            </p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            post.status === "published"
-                              ? "default"
-                              : "secondary"
-                          }
-                        >
-                          {post.status === "published" ? "Published" : "Draft"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(post.created_at), "MMM d, yyyy")}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => togglePublish(post)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(post)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(post)}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {ENABLE_SCHEDULED_POSTS ? (
+        <Tabs defaultValue="posts">
+          <TabsList>
+            <TabsTrigger value="posts">All Posts</TabsTrigger>
+            <TabsTrigger value="scheduled">Scheduled Posts</TabsTrigger>
+          </TabsList>
+          <TabsContent value="posts">
+            <BlogPostsTable
+              posts={filteredPosts}
+              isLoading={isLoading}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onTogglePublish={togglePublish}
+            />
+          </TabsContent>
+          <TabsContent value="scheduled">
+            <ScheduledPostsTab />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <BlogPostsTable
+          posts={filteredPosts}
+          isLoading={isLoading}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onTogglePublish={togglePublish}
+        />
+      )}
 
       <BlogPostDialog
         open={dialogOpen}
@@ -283,5 +217,129 @@ export default function AdminBlog() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+// Extracted to avoid duplication
+function BlogPostsTable({
+  posts,
+  isLoading,
+  searchTerm,
+  setSearchTerm,
+  onEdit,
+  onDelete,
+  onTogglePublish,
+}: {
+  posts: BlogPost[] | undefined;
+  isLoading: boolean;
+  searchTerm: string;
+  setSearchTerm: (v: string) => void;
+  onEdit: (post: BlogPost) => void;
+  onDelete: (post: BlogPost) => void;
+  onTogglePublish: (post: BlogPost) => void;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <CardTitle>Blog Posts</CardTitle>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              placeholder="Search posts..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : posts?.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No blog posts found
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {posts?.map((post) => (
+                  <TableRow key={post.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {post.featured_image && (
+                          <img
+                            src={post.featured_image}
+                            alt=""
+                            className="w-10 h-10 rounded object-cover"
+                          />
+                        )}
+                        <div>
+                          <p className="font-medium">{post.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            /{post.slug}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          post.status === "published"
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {post.status === "published" ? "Published" : "Draft"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(post.created_at), "MMM d, yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onTogglePublish(post)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEdit(post)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDelete(post)}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
