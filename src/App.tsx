@@ -41,6 +41,7 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import Analytics from "./pages/Analytics";
 import Landing from "./pages/Landing";
 import FAQ from "./pages/FAQ";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 import NotFound from "./pages/NotFound";
 import ChatWidget from "./components/ChatWidget";
@@ -63,6 +64,7 @@ const App = () => (
         <Route path="/s/:slug" element={<ServiceBySlug />} /> {/* Legacy slug route - kept for backward compatibility */}
         <Route path="/contact" element={<Contact />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/case-studies" element={<CaseStudiesPage />} />
