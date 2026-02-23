@@ -13,7 +13,7 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-xl font-semibold mb-3">1. Introduction</h2>
             <p>
-              Exavo AI ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your personal information when you use our website and services.
+              Exavo AI is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your personal information when you use our website and services.
             </p>
           </section>
 
