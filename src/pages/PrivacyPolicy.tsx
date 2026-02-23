@@ -23,8 +23,7 @@ const PrivacyPolicy = () => {
             <ul className="list-disc pl-6 space-y-1">
               <li>Full name</li>
               <li>Email address</li>
-              <li>Messages and content sent through our chat widget</li>
-              <li>Information provided through contact and booking forms</li>
+              <li>Messages submitted through our chat or contact forms</li>
             </ul>
           </section>
 
@@ -33,23 +32,22 @@ const PrivacyPolicy = () => {
             <p className="mb-2">We use the information we collect to:</p>
             <ul className="list-disc pl-6 space-y-1">
               <li>Provide customer support and respond to inquiries</li>
-              <li>Deliver and manage the AI services you request</li>
-              <li>Improve our services and user experience</li>
-              <li>Send relevant updates about your projects or bookings</li>
+              <li>Operate and improve our services</li>
+              <li>Communicate with users regarding their projects or requests</li>
             </ul>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold mb-3">4. Third-Party Services</h2>
             <p>
-              We may use third-party platforms including Meta (Facebook) and Instagram for marketing and communication purposes. These platforms have their own privacy policies that govern how they handle your data. We encourage you to review their policies.
+              We may use third-party platforms and APIs including Meta (Facebook), Instagram, and related services for marketing, communication, and integration purposes where applicable. These platforms have their own privacy policies that govern how they handle your data. We encourage you to review their respective policies.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold mb-3">5. Data Retention</h2>
             <p>
-              We retain your personal data only for as long as necessary to fulfill the purposes for which it was collected, or as required by applicable laws. Chat messages and support data are retained for up to 12 months unless you request earlier deletion.
+              We retain your personal data only for as long as necessary to provide our services or comply with legal obligations. When data is no longer needed, it is securely deleted or anonymized.
             </p>
           </section>
 
@@ -64,8 +62,8 @@ const PrivacyPolicy = () => {
             </ul>
             <p className="mt-2">
               To exercise any of these rights, please contact us at{" "}
-              <a href="mailto:info@exavoai.com" className="text-primary hover:underline">
-                info@exavoai.com
+              <a href="mailto:info@exavo.ai" className="text-primary hover:underline">
+                info@exavo.ai
               </a>.
             </p>
           </section>
@@ -85,8 +83,12 @@ const PrivacyPolicy = () => {
             <p className="mt-2">
               <strong>Exavo AI</strong><br />
               Email:{" "}
-              <a href="mailto:info@exavoai.com" className="text-primary hover:underline">
-                info@exavoai.com
+              <a href="mailto:info@exavo.ai" className="text-primary hover:underline">
+                info@exavo.ai
+              </a><br />
+              Website:{" "}
+              <a href="https://exavo.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                https://exavo.ai
               </a>
             </p>
           </section>
