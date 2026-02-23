@@ -11,8 +11,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Loader2, Trash2, RefreshCw, Clock, CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { Plus, Loader2, Trash2, RefreshCw, Clock, CalendarIcon, AlertTriangle } from "lucide-react";
+import { format, startOfDay } from "date-fns";
 import { toast } from "sonner";
 import { useScheduledPosts, ScheduledBlogPost } from "@/hooks/useScheduledPosts";
 import { cn } from "@/lib/utils";
@@ -33,7 +33,9 @@ export function ScheduledPostsTab() {
   const [slug, setSlug] = useState("");
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
   const [scheduledTime, setScheduledTime] = useState("09:00");
+  const [pastTimeWarning, setPastTimeWarning] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ScheduledBlogPost | null>(null);
+  const today = startOfDay(new Date());
 
   const generateSlug = (text: string) =>
     text.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").trim();
@@ -52,10 +54,8 @@ export function ScheduledPostsTab() {
     const scheduledAt = new Date(scheduledDate);
     scheduledAt.setHours(hours, minutes, 0, 0);
 
-    if (scheduledAt <= new Date()) {
-      toast.error("Scheduled time must be in the future");
-      return;
-    }
+    const isPastTime = scheduledAt < new Date();
+    setPastTimeWarning(isPastTime);
 
     try {
       await create({ title: title.trim(), slug: slug.trim(), scheduled_at: scheduledAt.toISOString() });
@@ -100,8 +100,8 @@ export function ScheduledPostsTab() {
                     <Calendar
                       mode="single"
                       selected={scheduledDate}
-                      onSelect={setScheduledDate}
-                      disabled={(date) => date < new Date()}
+                      onSelect={(d) => { setScheduledDate(d); setPastTimeWarning(false); }}
+                      disabled={(date) => date < today}
                       initialFocus
                       className={cn("p-3 pointer-events-auto")}
                     />
@@ -110,9 +110,15 @@ export function ScheduledPostsTab() {
               </div>
               <div className="space-y-2">
                 <Label>Schedule Time</Label>
-                <Input type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} />
+                <Input type="time" value={scheduledTime} onChange={(e) => { setScheduledTime(e.target.value); setPastTimeWarning(false); }} />
               </div>
             </div>
+            {pastTimeWarning && (
+              <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-md px-3 py-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Selected time is in the past. Post will publish immediately.</span>
+              </div>
+            )}
             <div className="flex gap-2">
               <Button onClick={handleSave} disabled={isCreating}>
                 {isCreating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : <>Save Scheduled Post</>}
