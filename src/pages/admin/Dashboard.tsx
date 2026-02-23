@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Briefcase, Calendar, DollarSign, TrendingUp, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Bar, BarChart } from "recharts";
+import { useScheduledPostsTrigger } from "@/hooks/useScheduledPostsTrigger";
 
 interface Stats {
   totalUsers: number;
@@ -14,6 +15,7 @@ interface Stats {
 }
 
 export default function Dashboard() {
+  useScheduledPostsTrigger();
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
     totalServices: 0,

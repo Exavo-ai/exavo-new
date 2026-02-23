@@ -1286,6 +1286,42 @@ export type Database = {
           },
         ]
       }
+      scheduled_blog_posts: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          generated_content: string | null
+          id: string
+          scheduled_at: string
+          slug: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          generated_content?: string | null
+          id?: string
+          scheduled_at: string
+          slug: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          generated_content?: string | null
+          id?: string
+          scheduled_at?: string
+          slug?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       service_metrics: {
         Row: {
           bookings_count: number
