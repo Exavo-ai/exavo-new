@@ -3,8 +3,13 @@ import { corsHeaders, handleCors, successResponse, errors } from "../_shared/res
 import { authenticateRequest, requireAdminRole, getServiceClient } from "../_shared/auth.ts";
 
 const MAKE_WEBHOOK_URL = "https://hook.eu1.make.com/jbt8dq78argmvlpe3gj3kojgb34v83wp";
+const STUCK_THRESHOLD_MINUTES = 10;
+const BATCH_LIMIT = 5;
 
 serve(async (req) => {
+  const executionId = crypto.randomUUID();
+  const startTime = Date.now();
+
   try {
     const corsResponse = handleCors(req);
     if (corsResponse) return corsResponse;
@@ -26,53 +31,85 @@ serve(async (req) => {
 
     const supabase = getServiceClient();
 
-    // Fetch pending posts that are due, using FOR UPDATE SKIP LOCKED for concurrency safety
-    const { data: pendingPosts, error: fetchError } = await supabase
-      .rpc("get_and_lock_scheduled_posts" as any);
+    console.log(`[scheduled-posts][${executionId}] START — server_time=${new Date().toISOString()}`);
 
-    // Fallback: if the RPC doesn't exist yet, use a standard query
-    let postsToProcess = pendingPosts;
-    if (fetchError || !pendingPosts) {
-      console.log("[run-scheduled-posts] RPC not available, using standard query");
-      const { data, error } = await supabase
-        .from("scheduled_blog_posts")
-        .select("*")
-        .eq("status", "pending")
-        .lte("scheduled_at", new Date().toISOString())
-        .order("scheduled_at", { ascending: true })
-        .limit(5);
+    // ── STEP 3: Recover stuck rows ──
+    const stuckCutoff = new Date(Date.now() - STUCK_THRESHOLD_MINUTES * 60 * 1000).toISOString();
+    const { data: stuckRows, error: stuckErr } = await supabase
+      .from("scheduled_blog_posts")
+      .update({ status: "pending" } as any)
+      .eq("status", "processing")
+      .lt("updated_at", stuckCutoff)
+      .select("id");
 
-      if (error) {
-        console.error("[run-scheduled-posts] Failed to fetch posts:", error);
-        return errors.internal("Failed to fetch scheduled posts");
-      }
-      postsToProcess = data;
+    const stuckRecovered = stuckRows?.length ?? 0;
+    if (stuckRecovered > 0) {
+      console.log(`[scheduled-posts][${executionId}] Recovered ${stuckRecovered} stuck row(s)`);
+    }
+    if (stuckErr) {
+      console.warn(`[scheduled-posts][${executionId}] Stuck recovery error:`, stuckErr.message);
+    }
+
+    // ── STEP 2: Fetch pending posts using UTC-safe comparison ──
+    const { data: postsToProcess, error: fetchError } = await supabase
+      .from("scheduled_blog_posts")
+      .select("*")
+      .eq("status", "pending")
+      .lte("scheduled_at", new Date().toISOString())
+      .order("scheduled_at", { ascending: true })
+      .limit(BATCH_LIMIT);
+
+    if (fetchError) {
+      console.error(`[scheduled-posts][${executionId}] Fetch error:`, fetchError.message);
+      return errors.internal("Failed to fetch scheduled posts");
     }
 
     if (!postsToProcess || postsToProcess.length === 0) {
-      return successResponse({ processed: 0, message: "No pending posts to process" });
+      const duration = Date.now() - startTime;
+      console.log(`[scheduled-posts][${executionId}] END — no pending posts — ${duration}ms`);
+      return successResponse({ execution_id: executionId, processed: 0, stuck_recovered: stuckRecovered, duration_ms: duration, message: "No pending posts to process" });
     }
 
-    console.log(`[run-scheduled-posts] Processing ${postsToProcess.length} scheduled post(s)`);
+    console.log(`[scheduled-posts][${executionId}] Found ${postsToProcess.length} post(s) to process`);
 
-    const results: Array<{ id: string; status: string; error?: string }> = [];
+    const results: Array<{ id: string; title: string; status: string; error?: string }> = [];
 
     for (const post of postsToProcess) {
       try {
-        // Mark as processing (optimistic lock)
-        const { error: lockError } = await supabase
-          .from("scheduled_blog_posts")
-          .update({ status: "processing" })
-          .eq("id", post.id)
-          .eq("status", "pending"); // Only update if still pending
+        console.log(`[scheduled-posts][${executionId}] Processing: "${post.title}" (scheduled_at=${post.scheduled_at})`);
 
-        if (lockError) {
-          console.error(`[run-scheduled-posts] Failed to lock post ${post.id}:`, lockError);
-          results.push({ id: post.id, status: "skipped", error: "Failed to acquire lock" });
+        // ── Optimistic lock ──
+        const { data: lockResult, error: lockError } = await supabase
+          .from("scheduled_blog_posts")
+          .update({ status: "processing" } as any)
+          .eq("id", post.id)
+          .eq("status", "pending")
+          .select("id");
+
+        if (lockError || !lockResult || lockResult.length === 0) {
+          console.warn(`[scheduled-posts][${executionId}] Skipping "${post.title}" — lock failed`);
+          results.push({ id: post.id, title: post.title, status: "skipped", error: "Lock failed" });
           continue;
         }
 
-        // Generate AI content via existing webhook
+        // ── STEP 4: Idempotency — check if slug already exists in blog_posts ──
+        const { data: existingPost } = await supabase
+          .from("blog_posts")
+          .select("id")
+          .eq("slug", post.slug)
+          .maybeSingle();
+
+        if (existingPost) {
+          console.log(`[scheduled-posts][${executionId}] Slug "${post.slug}" already exists — marking published`);
+          await supabase
+            .from("scheduled_blog_posts")
+            .update({ status: "published" } as any)
+            .eq("id", post.id);
+          results.push({ id: post.id, title: post.title, status: "published_dedup" });
+          continue;
+        }
+
+        // ── Generate AI content via webhook ──
         let content: string | undefined;
         try {
           const webhookRes = await fetch(MAKE_WEBHOOK_URL, {
@@ -87,7 +124,7 @@ serve(async (req) => {
 
           const rawText = await webhookRes.text();
 
-          // Multi-stage parsing (reuse existing pattern from ai-generate-blog)
+          // Multi-stage parsing
           try {
             const data = JSON.parse(rawText);
             if (typeof data.content === "string" && data.content.trim()) {
@@ -120,7 +157,7 @@ serve(async (req) => {
         const plainText = content.replace(/<[^>]*>/g, "").replace(/\n+/g, " ");
         const excerpt = plainText.substring(0, 200).trim() + (plainText.length > 200 ? "..." : "");
 
-        // Insert into existing blog_posts table (reuse existing blog system)
+        // ── Insert blog post ──
         const { error: insertError } = await supabase
           .from("blog_posts")
           .insert({
@@ -132,52 +169,51 @@ serve(async (req) => {
           });
 
         if (insertError) {
-          throw new Error(`Failed to create blog post: ${insertError.message}`);
+          throw new Error(`Blog insert failed: ${insertError.message}`);
         }
 
-        // Update scheduled post as published
+        // ── Mark scheduled post as published ──
         await supabase
           .from("scheduled_blog_posts")
-          .update({
-            status: "published",
-            generated_content: content,
-          })
+          .update({ status: "published", generated_content: content } as any)
           .eq("id", post.id);
 
-        console.log(`[run-scheduled-posts] Published: ${post.title}`);
-        results.push({ id: post.id, status: "published" });
+        console.log(`[scheduled-posts][${executionId}] Published: "${post.title}"`);
+        results.push({ id: post.id, title: post.title, status: "published" });
 
       } catch (postErr) {
         const errorMessage = (postErr as Error).message || "Unknown error";
-        console.error(`[run-scheduled-posts] Failed for post ${post.id}:`, errorMessage);
+        console.error(`[scheduled-posts][${executionId}] FAILED "${post.title}": ${errorMessage}`);
 
-        // Mark as failed
+        // ── Mark as failed (self-healing: next invocation won't retry failed) ──
         await supabase
           .from("scheduled_blog_posts")
-          .update({
-            status: "failed",
-            error_message: errorMessage,
-          })
+          .update({ status: "failed", error_message: errorMessage } as any)
           .eq("id", post.id);
 
-        results.push({ id: post.id, status: "failed", error: errorMessage });
+        results.push({ id: post.id, title: post.title, status: "failed", error: errorMessage });
       }
     }
 
-    const published = results.filter(r => r.status === "published").length;
+    const published = results.filter(r => r.status === "published" || r.status === "published_dedup").length;
     const failed = results.filter(r => r.status === "failed").length;
+    const duration = Date.now() - startTime;
 
-    console.log(`[run-scheduled-posts] Done. Published: ${published}, Failed: ${failed}`);
+    console.log(`[scheduled-posts][${executionId}] END — published=${published} failed=${failed} stuck_recovered=${stuckRecovered} duration=${duration}ms`);
 
     return successResponse({
+      execution_id: executionId,
       processed: results.length,
       published,
       failed,
+      stuck_recovered: stuckRecovered,
+      duration_ms: duration,
       results,
     });
 
   } catch (err) {
-    console.error("[run-scheduled-posts] Unhandled error:", err);
+    const duration = Date.now() - startTime;
+    console.error(`[scheduled-posts][${executionId}] UNHANDLED ERROR (${duration}ms):`, err);
     return errors.internal("An unexpected error occurred");
   }
 });
