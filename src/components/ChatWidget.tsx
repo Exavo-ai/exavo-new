@@ -236,23 +236,39 @@ const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
     };
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = inputValue.trim();
     if (!text) return;
 
-    // Add user message
     const userMessage: ChatMessage = { role: 'user', content: text };
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate brief typing delay for natural feel
-    setTimeout(() => {
-      const intent = detectIntent(text);
-      const response = intent ? getResponseForIntent(intent) : getFallbackResponse();
-      setMessages(prev => [...prev, response]);
+    try {
+      const res = await fetch("https://api.exavo.app/customer-service", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, platform: "website" }),
+      });
+
+      if (!res.ok) throw new Error("API error");
+
+      const data = await res.json();
+      const assistantMessage: ChatMessage = {
+        role: 'assistant',
+        content: data.reply || "I'm sorry, I didn't get a response. Please try again.",
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch {
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: "Sorry, I'm having trouble connecting. Please try again.",
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 500);
+    }
   };
 
   const handleButtonClick = (button: ChatMessage['buttons'][0]) => {
