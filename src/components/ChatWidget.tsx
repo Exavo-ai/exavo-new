@@ -245,14 +245,35 @@ const ChatWidget = ({ onSelectPackage }: ChatWidgetProps) => {
     setInputValue('');
     setIsTyping(true);
 
-    try {
-      const res = await fetch("https://api.exavo.app/customer-service", {
+    const fetchWithTimeout = (signal?: AbortSignal) =>
+      fetch("https://api.exavo.app/customer-service", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, platform: "website" }),
+        signal,
       });
 
-      if (!res.ok) throw new Error("API error");
+    const attempt = async (): Promise<Response> => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120000);
+      try {
+        const res = await fetchWithTimeout(controller.signal);
+        if (!res.ok) throw new Error("API error");
+        return res;
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
+    try {
+      let res: Response;
+      try {
+        res = await attempt();
+      } catch {
+        // Retry once after 2 seconds
+        await new Promise(r => setTimeout(r, 2000));
+        res = await attempt();
+      }
 
       const data = await res.json();
       const assistantMessage: ChatMessage = {
