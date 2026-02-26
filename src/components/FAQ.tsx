@@ -12,15 +12,15 @@ const FAQ = () => {
   const faqs = [
     {
       question: language === 'ar' 
-        ? 'ما هو وسيط الذكاء الاصطناعي؟'
-        : 'What is an AI broker?',
+        ? 'ما هو شريك البنية التحتية وتنفيذ الذكاء الاصطناعي؟'
+        : 'What is an AI infrastructure & implementation partner?',
       answer: language === 'ar'
         ? <>
-            <strong>وسيط الذكاء الاصطناعي هو شريك استراتيجي يدير تنفيذ الذكاء الاصطناعي من البداية إلى النهاية.</strong>{' '}
+            <strong>شريك البنية التحتية وتنفيذ الذكاء الاصطناعي هو شريك استراتيجي يدير تنفيذ الذكاء الاصطناعي من البداية إلى النهاية.</strong>{' '}
             بدلاً من التعامل مع عدة موردين أو التوظيف الداخلي، تعتمد الشركات على مزود واحد لاختيار حلول الذكاء الاصطناعي ومطابقة الخبراء المفحوصين وإدارة التسليم المنظم. هذا يقلل المخاطر ويسرّع تطبيق الذكاء الاصطناعي في الأعمال.
           </>
         : <>
-            <strong>An AI broker is a strategic partner that manages AI implementation end-to-end.</strong>{' '}
+            <strong>An AI infrastructure & implementation partner is a strategic partner that manages AI implementation end-to-end.</strong>{' '}
             Instead of working with multiple vendors or hiring internally, businesses rely on a single provider to select AI solutions, match vetted experts, and manage structured delivery. This reduces risk and accelerates business AI implementation.
           </>
     },
@@ -30,11 +30,11 @@ const FAQ = () => {
         : 'How does Exavo differ from AI consultants?',
       answer: language === 'ar'
         ? <>
-            <strong>Exavo يعمل كوسيط ذكاء اصطناعي وليس مجرد مستشار.</strong>{' '}
+            <strong>Exavo يعمل كشريك بنية تحتية وتنفيذ للذكاء الاصطناعي وليس مجرد مستشار.</strong>{' '}
             بينما يقدم المستشارون استراتيجية فقط، يدير Exavo مطابقة الخبراء وتطوير الذكاء الاصطناعي المخصص والتكامل ومراحل التسليم. هذا يضمن انتقال أتمتة الذكاء الاصطناعي من التخطيط إلى التنفيذ القابل للقياس.
           </>
         : <>
-            <strong>Exavo operates as an AI broker, not just an advisor.</strong>{' '}
+            <strong>Exavo operates as an AI infrastructure & implementation partner, not just an advisor.</strong>{' '}
             While consultants provide strategy, Exavo manages expert matching, custom AI development, integration, and delivery milestones. This ensures AI automation moves from planning to measurable execution.
           </>
     },
@@ -73,11 +73,11 @@ const FAQ = () => {
       answer: language === 'ar'
         ? <>
             <strong>تختلف تكاليف تنفيذ الذكاء الاصطناعي حسب نطاق التخصيص والتكامل.</strong>{' '}
-            تتراوح المشاريع من حلول أتمتة خفيفة إلى أنظمة ذكاء اصطناعي على مستوى المؤسسات. نموذج وسيط الذكاء الاصطناعي المنظم يساعد في مواءمة الميزانية مع عائد استثمار قابل للقياس.
+            تتراوح المشاريع من حلول أتمتة خفيفة إلى أنظمة ذكاء اصطناعي على مستوى المؤسسات. نموذج شراكة البنية التحتية المنظم يساعد في مواءمة الميزانية مع عائد استثمار قابل للقياس.
           </>
         : <>
             <strong>AI implementation costs vary based on customization and integration scope.</strong>{' '}
-            Projects range from lightweight automation solutions to enterprise-grade AI systems. A structured AI broker model helps align budget with measurable ROI.
+            Projects range from lightweight automation solutions to enterprise-grade AI systems. A structured implementation partnership model helps align budget with measurable ROI.
           </>
     },
     {
@@ -86,11 +86,11 @@ const FAQ = () => {
         : 'Do businesses need in-house technical expertise?',
       answer: language === 'ar'
         ? <>
-            <strong>لا يلزم فريق ذكاء اصطناعي داخلي عند العمل مع وسيط ذكاء اصطناعي.</strong>{' '}
+            <strong>لا يلزم فريق ذكاء اصطناعي داخلي عند العمل مع شريك بنية تحتية وتنفيذ للذكاء الاصطناعي.</strong>{' '}
             يوفر Exavo متخصصين مفحوصين وحوكمة منظمة وتسليماً شاملاً، مما يسمح للشركات بتبني حلول الذكاء الاصطناعي بدون تعقيدات التوظيف التقني.
           </>
         : <>
-            <strong>No in-house AI team is required when working with an AI broker.</strong>{' '}
+            <strong>No in-house AI team is required when working with an AI infrastructure & implementation partner.</strong>{' '}
             Exavo provides vetted AI specialists, structured governance, and full-cycle delivery, allowing businesses to adopt AI solutions without technical hiring complexity.
           </>
     }
@@ -107,8 +107,8 @@ const FAQ = () => {
         <div className="text-center max-w-3xl mx-auto mb-12 animate-fade-in">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 lg:mb-6">
             {language === 'ar' 
-              ? 'وسيط الذكاء الاصطناعي وحلول الذكاء الاصطناعي – الأسئلة الشائعة'
-              : 'AI Broker & AI Solutions – Frequently Asked Questions'}
+              ? 'أنظمة وبنية تحتية للذكاء الاصطناعي – الأسئلة الشائعة'
+              : 'AI Systems & Infrastructure – Frequently Asked Questions'}
           </h2>
           <p className="text-lg sm:text-xl text-muted-foreground">
             {language === 'ar'

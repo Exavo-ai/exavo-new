@@ -66,7 +66,7 @@ const SEO = ({
       "@type": "Organization",
       "name": "Exavo AI",
       "url": "https://exavo.ai",
-      "description": "Exavo is an AI broker specializing in business AI implementation, AI automation, and custom AI development. We provide structured end-to-end AI solutions for small and mid-sized businesses.",
+      "description": "Exavo is an AI infrastructure & implementation partner specializing in business AI implementation, AI automation, and custom AI development. We provide structured end-to-end AI solutions for growth-stage companies.",
       "areaServed": "Global",
       "foundingDate": "2026",
       "logo": image,
@@ -98,13 +98,13 @@ const SEO = ({
         "name": "Exavo AI"
       },
       "serviceType": [
-        "AI Broker",
+        "AI Infrastructure & Implementation Partner",
         "AI Automation",
         "Custom AI Development",
         "Business AI Implementation"
       ],
       "areaServed": "Global",
-      "description": "Exavo is an AI broker specializing in business AI implementation, AI automation, and custom AI development. We provide structured end-to-end AI solutions for small and mid-sized businesses."
+      "description": "Exavo is an AI infrastructure & implementation partner specializing in business AI implementation, AI automation, and custom AI development. We provide structured end-to-end AI solutions for growth-stage companies."
     };
 
     let serviceScriptTag = document.querySelector('script[data-ld="service"]');

@@ -87,7 +87,7 @@ export function RealWorkSection() {
             Real Work. Real Results.
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Our AI broker model delivers measurable AI automation results across industries, from e-commerce to technology and professional services.
+            Our AI infrastructure & implementation model delivers measurable AI automation results across industries, from e-commerce to technology and professional services.
           </p>
         </motion.div>
 
