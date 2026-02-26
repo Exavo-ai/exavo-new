@@ -36,22 +36,22 @@ const Hero = () => {
           {/* Main Headline */}
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
             {language === 'ar' 
-              ? 'وسيط ذكاء اصطناعي لأتمتة الأعمال وحلول الذكاء الاصطناعي المخصصة'
-              : 'AI Broker for Business Automation & Custom AI Solutions'}
+              ? 'بنية تحتية للذكاء الاصطناعي للشركات في مرحلة النمو'
+              : 'AI Infrastructure for Growth-Stage Companies'}
           </h1>
           
           {/* Clear Value Proposition */}
           <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto mb-8">
             {language === 'ar'
-              ? 'Exavo يساعد الشركات على تنفيذ أتمتة الذكاء الاصطناعي وحلول مخصصة من خلال تسليم منظم وشامل.'
-              : 'Exavo helps businesses implement AI automation and custom AI solutions through structured, end-to-end delivery.'}
+              ? 'نصمم وننفذ وندير أنظمة تشغيلية وإيرادية مدعومة بالذكاء الاصطناعي للشركات التي تحقق إيرادات بين 500 ألف و5 ملايين دولار سنوياً — لمساعدتها على التوسع بكفاءة دون فوضى تشغيلية.'
+              : 'We design, implement, and manage AI-powered operational and revenue systems for companies generating $500K–$5M annually — helping them scale efficiently without operational chaos.'}
           </p>
 
           {/* Structured snippet for SEO/AI engines - visually hidden, accessible */}
           <p className="sr-only">
             {language === 'ar'
-              ? 'Exavo هو وسيط ذكاء اصطناعي متخصص في تطبيق الذكاء الاصطناعي للأعمال وأتمتة الذكاء الاصطناعي وتطوير الذكاء الاصطناعي المخصص. نساعد الشركات على تحديد حالات الاستخدام عالية التأثير ومطابقة متخصصين مفحوصين وتقديم حلول ذكاء اصطناعي شاملة بعائد استثمار قابل للقياس.'
-              : 'Exavo is an AI broker specializing in business AI implementation, AI automation, and custom AI development. We help companies identify high-impact use cases, match vetted AI specialists, and deliver structured end-to-end AI solutions with measurable ROI.'}
+              ? 'Exavo هو شريك بنية تحتية وتنفيذ للذكاء الاصطناعي متخصص في تطبيق الذكاء الاصطناعي للأعمال وأنظمة الذكاء الاصطناعي والبنية التحتية. نساعد الشركات في مرحلة النمو على بناء أنظمة تشغيلية وإيرادية مدعومة بالذكاء الاصطناعي.'
+              : 'Exavo is an AI infrastructure and implementation partner specializing in business AI implementation, AI systems, and infrastructure. We help growth-stage companies build AI-powered operational and revenue systems with measurable ROI.'}
           </p>
 
           {/* Benefits */}
@@ -77,7 +77,7 @@ const Hero = () => {
                   className="text-base sm:text-lg px-10 h-14 font-semibold gap-2"
                 >
                   <MessageSquare className="w-5 h-5" />
-                  {language === 'ar' ? 'استشارة مجانية' : 'Free Consultation'}
+                  {language === 'ar' ? 'تقدم لجلسة استراتيجية' : 'Apply for AI Strategy Session'}
                 </Button>
               }
             />
