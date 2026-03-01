@@ -43,41 +43,55 @@ async function embedText(
   text: string,
   taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_QUERY"
 ): Promise<number[]> {
+  const models = [
+    "text-embedding-004",
+    "text-embedding-005",
+    "embedding-001",
+  ];
   const bases = [
-    "https://generativelanguage.googleapis.com/v1",
     "https://generativelanguage.googleapis.com/v1beta",
+    "https://generativelanguage.googleapis.com/v1",
   ];
 
-  for (const base of bases) {
-    const url = `${base}/models/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
-    console.info("[EMBED TRY]", url);
+  for (const model of models) {
+    for (const base of bases) {
+      const url = `${base}/models/${model}:embedContent?key=${GEMINI_API_KEY}`;
+      console.info("[EMBED TRY]", model, base);
 
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: `models/${EMBEDDING_MODEL}`,
-        content: { parts: [{ text: text.slice(0, 8000) }] },
-        taskType,
-      }),
-    });
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: { parts: [{ text: text.slice(0, 8000) }] },
+          taskType,
+        }),
+      });
 
-    if (resp.ok) {
-      console.info("[EMBED SUCCESS USING]", base);
-      const data = await resp.json();
-      return data.embedding.values;
-    }
+      if (resp.ok) {
+        console.info("[EMBED SUCCESS]", model, base);
+        const data = await resp.json();
+        if (data?.embedding?.values) {
+          return data.embedding.values;
+        }
+        console.warn("[EMBED] Unexpected response structure:", JSON.stringify(data).slice(0, 300));
+        continue;
+      }
 
-    if (resp.status !== 404) {
+      if (resp.status === 404) {
+        console.warn(`[EMBED 404] ${model} on ${base} — trying next`);
+        // consume body to avoid leak
+        await resp.text();
+        continue;
+      }
+
+      // Non-404 error — fatal
       const errBody = await resp.text();
       console.error(`[EMBED FATAL] ${resp.status}: ${errBody.substring(0, 500)}`);
       throw new Error(`Embedding failed (${resp.status}): ${errBody.substring(0, 500)}`);
     }
-
-    console.warn("[EMBED 404 — RETRYING NEXT VERSION]");
   }
 
-  throw new Error("Embedding model not available on v1 or v1beta");
+  throw new Error("No embedding model available (tried text-embedding-004, text-embedding-005, embedding-001 on v1beta and v1)");
 }
 
 async function embedTextsInBatches(
