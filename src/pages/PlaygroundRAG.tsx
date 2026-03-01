@@ -37,19 +37,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const DAILY_LIMIT = 7;
 const ALLOWED_EXTENSIONS = ["pdf", "txt", "docx"];
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      // Remove data URL prefix
-      const base64 = result.split(",")[1];
-      resolve(base64);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+const RAG_BUCKET = "rag-files";
 
 const PlaygroundRAG = () => {
   const { user, loading: authLoading } = useAuth();
@@ -162,13 +150,19 @@ const PlaygroundRAG = () => {
     setDocuments((prev) => [...prev, newDoc]);
 
     try {
-      const fileData = await fileToBase64(file);
+      // Step 1: Upload file to storage bucket
+      const storagePath = `${user!.id}/${crypto.randomUUID()}_${file.name}`;
+      const { error: uploadErr } = await supabase.storage
+        .from(RAG_BUCKET)
+        .upload(storagePath, file);
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
+      if (uploadErr) {
+        throw new Error(`Storage upload failed: ${uploadErr.message}`);
+      }
 
+      // Step 2: Call edge function with storage path (no base64!)
       const resp = await supabase.functions.invoke("rag-upload", {
-        body: { file_name: file.name, file_data: fileData },
+        body: { file_name: file.name, file_path: storagePath },
       });
 
       const result = resp.data;
