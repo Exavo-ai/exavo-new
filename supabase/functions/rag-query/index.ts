@@ -79,11 +79,14 @@ async function generateAnswer(systemPrompt: string, userMessage: string): Promis
       generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
     }),
   });
+  console.info("[GENERATE STATUS]", resp.status);
+  const rawBody = await resp.text();
+  console.info("[GENERATE RAW BODY]", rawBody);
   if (!resp.ok) {
-    const errBody = await resp.text();
-    throw new Error(`Gemini generation failed (${resp.status}): ${errBody.substring(0, 500)}`);
+    throw new Error(`Gemini generation failed (${resp.status}): ${rawBody.substring(0, 1000)}`);
   }
-  const data = await resp.json();
+  const data = JSON.parse(rawBody);
+  console.info("[GENERATE PARSED]", JSON.stringify(data).substring(0, 500));
   return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
 }
 
