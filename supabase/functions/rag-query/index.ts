@@ -37,7 +37,12 @@ function okResp(data: Record<string, unknown>) {
 
 // ── Gemini ──────────────────────────────────────────────────────────────────
 
-async function embedText(text: string): Promise<number[]> {
+const EMBED_CONCURRENCY = 5;
+
+async function embedText(
+  text: string,
+  taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_QUERY"
+): Promise<number[]> {
   const url = `${GEMINI_BASE}/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
   const resp = await fetch(url, {
     method: "POST",
@@ -45,12 +50,35 @@ async function embedText(text: string): Promise<number[]> {
     body: JSON.stringify({
       model: EMBEDDING_MODEL,
       content: { parts: [{ text: text.slice(0, 8000) }] },
-      taskType: "RETRIEVAL_QUERY",
+      taskType,
     }),
   });
   if (!resp.ok) throw new Error(`Embedding error: ${await resp.text()}`);
   const data = await resp.json();
   return data.embedding.values;
+}
+
+async function embedTextsInBatches(
+  texts: string[],
+  taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_DOCUMENT"
+): Promise<number[][]> {
+  console.log("Embedding started, chunks:", texts.length);
+  const results: number[][] = new Array(texts.length);
+  const totalBatches = Math.ceil(texts.length / EMBED_CONCURRENCY);
+
+  for (let i = 0; i < texts.length; i += EMBED_CONCURRENCY) {
+    const batchNum = Math.floor(i / EMBED_CONCURRENCY) + 1;
+    console.log(`Embedding batch ${batchNum}/${totalBatches}`);
+    const batch = texts.slice(i, i + EMBED_CONCURRENCY);
+    const batchResults = await Promise.all(
+      batch.map((t) => embedText(t, taskType))
+    );
+    for (let j = 0; j < batchResults.length; j++) {
+      results[i + j] = batchResults[j];
+    }
+  }
+  console.log("Embedding finished");
+  return results;
 }
 
 async function generateAnswer(
@@ -266,6 +294,45 @@ Deno.serve(async (req) => {
         questions_used: newUsed,
         questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
       });
+    }
+
+    // PHASE 2: Lazy embedding — generate embeddings for chunks that don't have them yet
+    const unembeddedChunks = chunks.filter(
+      (c) => !c.embedding_json || c.embedding_json === "" || c.embedding_json === "null"
+    );
+
+    if (unembeddedChunks.length > 0) {
+      console.log(`Lazy embedding: ${unembeddedChunks.length} chunks need embeddings`);
+      try {
+        const texts = unembeddedChunks.map((c) => c.chunk_text);
+        const embeddings = await embedTextsInBatches(texts, "RETRIEVAL_DOCUMENT");
+
+        // Use service role client to update chunks (RLS doesn't allow UPDATE for rag_chunks)
+        const serviceClient = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+
+        for (let i = 0; i < unembeddedChunks.length; i++) {
+          await serviceClient
+            .from("rag_chunks")
+            .update({ embedding_json: JSON.stringify(embeddings[i]) })
+            .eq("id", unembeddedChunks[i].id);
+        }
+
+        // Update local chunk data
+        for (let i = 0; i < unembeddedChunks.length; i++) {
+          unembeddedChunks[i].embedding_json = JSON.stringify(embeddings[i]);
+        }
+      } catch (e) {
+        // Refund usage on embedding failure
+        await supabase
+          .from("rag_usage")
+          .update({ questions_used: Math.max(0, newUsed - 1) })
+          .eq("user_id", userId)
+          .eq("date", today);
+        return errorResp(`Embedding error during lazy processing: ${(e as Error).message}`, 502);
+      }
     }
 
     // Cosine similarity

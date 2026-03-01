@@ -346,15 +346,9 @@ Deno.serve(async (req) => {
       return errorResp("No text chunks could be generated.", 422);
     }
 
-    // Embed
-    let embeddings: number[][];
-    try {
-      embeddings = await embedTexts(chunks, "RETRIEVAL_DOCUMENT");
-    } catch (e) {
-      return errorResp(`Embedding API error: ${(e as Error).message}`, 502);
-    }
+    console.log("Upload started for:", fileName, "Chunks:", chunks.length);
 
-    // Insert document
+    // Insert document (NO embedding — lazy embedding on first query)
     const safeName = sanitizeFilename(fileName);
     const { data: docRow, error: docErr } = await supabase
       .from("rag_documents")
@@ -368,12 +362,12 @@ Deno.serve(async (req) => {
 
     const documentId = docRow.id;
 
-    // Insert chunks
-    const chunkRows = chunks.map((text, idx) => ({
+    // Insert chunks with embedding_json = NULL (will be filled lazily on first query)
+    const chunkRows = chunks.map((text) => ({
       document_id: documentId,
       user_id: userId,
       chunk_text: text,
-      embedding_json: JSON.stringify(embeddings[idx]),
+      embedding_json: "",
     }));
 
     const { error: chunkErr } = await supabase
