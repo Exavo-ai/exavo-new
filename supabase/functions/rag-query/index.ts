@@ -11,9 +11,9 @@ const TOP_K = 5;
 const MAX_QUESTION_LENGTH = 2000;
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
-const EMBEDDING_MODEL = "models/text-embedding-004";
-const GEMINI_MODEL = "gemini-2.0-flash";
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
+const GEMINI_MODEL = "gemini-2.0-flash";
+const EMBEDDING_MODEL = "text-embedding-004";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -43,20 +43,22 @@ async function embedText(
   text: string,
   taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_QUERY"
 ): Promise<number[]> {
-  const url = `${GEMINI_BASE}/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
+  console.info("[STEP Q4] Embedding model:", EMBEDDING_MODEL);
+  const url = `${GEMINI_BASE}/models/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: EMBEDDING_MODEL,
+      model: `models/${EMBEDDING_MODEL}`,
       content: { parts: [{ text: text.slice(0, 8000) }] },
       taskType,
     }),
   });
   if (!resp.ok) {
     const errBody = await resp.text();
-    console.error(`[STEP Q4] Embedding API error: ${resp.status} body: ${errBody.substring(0, 300)}`);
-    throw new Error(`Embedding error: ${resp.status} - ${errBody.substring(0, 200)}`);
+    console.error(`[STEP Q4] Embedding API error: ${resp.status}`);
+    console.error(`[STEP Q4] Embedding API error body: ${errBody.substring(0, 300)}`);
+    throw Object.assign(new Error(`Embedding error: ${resp.status}`), { step: "embedding", status: resp.status, body: errBody.substring(0, 300) });
   }
   const data = await resp.json();
   return data.embedding.values;
@@ -89,7 +91,7 @@ async function generateAnswer(
   systemPrompt: string,
   userMessage: string
 ): Promise<string> {
-  console.info("[STEP Q6] Calling Gemini for answer, model:", GEMINI_MODEL);
+  console.info("[STEP Q6] Answer model:", GEMINI_MODEL);
   const url = `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
   const resp = await fetch(url, {
     method: "POST",
@@ -107,8 +109,8 @@ async function generateAnswer(
   if (!resp.ok) {
     const errBody = await resp.text();
     console.error(`[STEP Q6] Gemini API error: ${resp.status}`);
-    console.error(`[STEP Q6] Gemini API error body (first 300 chars): ${errBody.substring(0, 300)}`);
-    throw new Error(JSON.stringify({ step: "gemini_answer", message: `Gemini API error: ${resp.status} - ${errBody.substring(0, 300)}` }));
+    console.error(`[STEP Q6] Gemini API error body: ${errBody.substring(0, 300)}`);
+    throw Object.assign(new Error(`Gemini API error: ${resp.status}`), { step: "gemini_answer", status: resp.status, body: errBody.substring(0, 300) });
   }
   const data = await resp.json();
   const answer = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
