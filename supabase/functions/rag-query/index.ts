@@ -43,55 +43,42 @@ async function embedText(
   text: string,
   taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_QUERY"
 ): Promise<number[]> {
-  const models = [
-    "text-embedding-004",
-    "text-embedding-005",
-    "embedding-001",
-  ];
   const bases = [
-    "https://generativelanguage.googleapis.com/v1beta",
     "https://generativelanguage.googleapis.com/v1",
+    "https://generativelanguage.googleapis.com/v1beta",
   ];
 
-  for (const model of models) {
-    for (const base of bases) {
-      const url = `${base}/models/${model}:embedContent?key=${GEMINI_API_KEY}`;
-      console.info("[EMBED TRY]", model, base);
+  for (const base of bases) {
+    const url = `${base}/models/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
+    console.info("[EMBED TRY]", url);
 
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: { parts: [{ text: text.slice(0, 8000) }] },
-          taskType,
-        }),
-      });
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: { parts: [{ text: text.slice(0, 8000) }] },
+        taskType,
+      }),
+    });
 
-      if (resp.ok) {
-        console.info("[EMBED SUCCESS]", model, base);
-        const data = await resp.json();
-        if (data?.embedding?.values) {
-          return data.embedding.values;
-        }
-        console.warn("[EMBED] Unexpected response structure:", JSON.stringify(data).slice(0, 300));
-        continue;
-      }
-
-      if (resp.status === 404) {
-        console.warn(`[EMBED 404] ${model} on ${base} — trying next`);
-        // consume body to avoid leak
-        await resp.text();
-        continue;
-      }
-
-      // Non-404 error — fatal
-      const errBody = await resp.text();
-      console.error(`[EMBED FATAL] ${resp.status}: ${errBody.substring(0, 500)}`);
-      throw new Error(`Embedding failed (${resp.status}): ${errBody.substring(0, 500)}`);
+    if (resp.ok) {
+      console.info("[EMBED SUCCESS USING]", base);
+      const data = await resp.json();
+      return data.embedding.values;
     }
+
+    if (resp.status === 404) {
+      console.warn("[EMBED 404 — RETRYING NEXT VERSION]");
+      await resp.text();
+      continue;
+    }
+
+    // Non-404 error — fatal
+    const errBody = await resp.text();
+    throw new Error(`Embedding failed (${resp.status}): ${errBody.substring(0, 500)}`);
   }
 
-  throw new Error("No embedding model available (tried text-embedding-004, text-embedding-005, embedding-001 on v1beta and v1)");
+  throw new Error("Embedding model not available on v1 or v1beta");
 }
 
 async function embedTextsInBatches(
@@ -124,16 +111,16 @@ async function generateAnswer(
   console.info("[STEP Q6] Answer model:", GEMINI_MODEL);
   const url = `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
   console.info("[STEP Q6] Answer request URL:", url);
+  const combinedPrompt = systemPrompt + "\n\n" + userMessage;
   const reqBody = JSON.stringify({
     contents: [
       {
         role: "user",
-        parts: [{ text: systemPrompt + "\n\n" + userMessage }],
+        parts: [{ text: combinedPrompt }],
       },
     ],
     generationConfig: {
       temperature: 0.1,
-      topP: 0.9,
       maxOutputTokens: 2048,
     },
   });
@@ -148,11 +135,7 @@ async function generateAnswer(
     const errBody = await resp.text();
     console.error(`[STEP Q6] Gemini API error: ${resp.status}`);
     console.error(`[STEP Q6] Gemini API error body: ${errBody.substring(0, 1000)}`);
-    throw Object.assign(new Error(`Gemini API error: ${resp.status}`), {
-      step: "gemini_answer",
-      status: resp.status,
-      body: errBody.substring(0, 1000),
-    });
+    throw new Error(`Gemini API error: ${resp.status}`);
   }
   const data = await resp.json();
   console.info("[GEMINI RESPONSE STRUCTURE]", Object.keys(data));
@@ -294,6 +277,19 @@ Deno.serve(async (req) => {
     const userId = userData.user.id;
     console.info("[STEP Q1] Auth validation — userId:", userId);
     console.info("[CHECKPOINT 1] Auth passed");
+
+    // [HEALTH CHECK] Validate Gemini API key before processing
+    debugStep = "api_health_check";
+    const healthCheck = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models?key=${GEMINI_API_KEY}`
+    );
+    console.info("[MODEL HEALTH STATUS]", healthCheck.status);
+    if (healthCheck.status !== 200) {
+      const healthBody = await healthCheck.text();
+      console.error("[HEALTH CHECK FAILED]", healthBody.substring(0, 500));
+      throw new Error("Gemini API key not valid or API not enabled");
+    }
+    await healthCheck.text(); // consume body
 
     // Parse body
     debugStep = "parse_request";
