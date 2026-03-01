@@ -43,32 +43,41 @@ async function embedText(
   text: string,
   taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_QUERY"
 ): Promise<number[]> {
-  console.info("[STEP Q4] Embedding model:", EMBEDDING_MODEL);
-  const EMBEDDING_BASE = "https://generativelanguage.googleapis.com/v1";
-  const url = `${EMBEDDING_BASE}/models/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
-  console.info("[STEP Q4] Embedding request URL:", url);
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: `models/${EMBEDDING_MODEL}`,
-      content: { parts: [{ text: text.slice(0, 8000) }] },
-      taskType,
-    }),
-  });
-  console.info("[STEP Q4] Embedding response status:", resp.status);
-  if (!resp.ok) {
-    const errBody = await resp.text();
-    console.error(`[STEP Q4] Embedding API error: ${resp.status}`);
-    console.error(`[STEP Q4] Embedding API error body: ${errBody.substring(0, 500)}`);
-    throw Object.assign(new Error(`Embedding error: ${resp.status}`), {
-      step: "embedding",
-      status: resp.status,
-      body: errBody.substring(0, 500),
+  const bases = [
+    "https://generativelanguage.googleapis.com/v1",
+    "https://generativelanguage.googleapis.com/v1beta",
+  ];
+
+  for (const base of bases) {
+    const url = `${base}/models/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
+    console.info("[EMBED TRY]", url);
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: `models/${EMBEDDING_MODEL}`,
+        content: { parts: [{ text: text.slice(0, 8000) }] },
+        taskType,
+      }),
     });
+
+    if (resp.ok) {
+      console.info("[EMBED SUCCESS USING]", base);
+      const data = await resp.json();
+      return data.embedding.values;
+    }
+
+    if (resp.status !== 404) {
+      const errBody = await resp.text();
+      console.error(`[EMBED FATAL] ${resp.status}: ${errBody.substring(0, 500)}`);
+      throw new Error(`Embedding failed (${resp.status}): ${errBody.substring(0, 500)}`);
+    }
+
+    console.warn("[EMBED 404 — RETRYING NEXT VERSION]");
   }
-  const data = await resp.json();
-  return data.embedding.values;
+
+  throw new Error("Embedding model not available on v1 or v1beta");
 }
 
 async function embedTextsInBatches(
