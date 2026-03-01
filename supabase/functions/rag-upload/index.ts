@@ -11,10 +11,7 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set(["pdf", "txt", "docx"]);
 const CHUNK_SIZE = 800;
 const CHUNK_OVERLAP = 150;
-
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
-const EMBEDDING_MODEL = "models/text-embedding-004";
-const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
+const RAG_BUCKET = "rag-files";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -78,12 +75,7 @@ function extractPdf(data: Uint8Array): string {
 }
 
 function extractDocx(data: Uint8Array): string {
-  // DOCX is a ZIP; we need to find word/document.xml
-  // Use a minimal approach: search for <w:t> tags
-  // First, find the ZIP local file headers for word/document.xml
   const text = new TextDecoder("utf-8", { fatal: false }).decode(data);
-
-  // Simple approach: find all <w:t> content
   const matches = text.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || [];
   const parts: string[] = [];
   for (const m of matches) {
@@ -155,55 +147,6 @@ function chunkText(
   return chunks.filter((c) => c.trim());
 }
 
-// ── Gemini embedding ────────────────────────────────────────────────────────
-
-async function embedText(
-  text: string,
-  taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_DOCUMENT"
-): Promise<number[]> {
-  const url = `${GEMINI_BASE}/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: EMBEDDING_MODEL,
-      content: { parts: [{ text: text.slice(0, 8000) }] },
-      taskType,
-    }),
-  });
-  if (!resp.ok) {
-    const errBody = await resp.text();
-    throw new Error(`Gemini embedding error ${resp.status}: ${errBody}`);
-  }
-  const data = await resp.json();
-  return data.embedding.values;
-}
-
-const EMBED_CONCURRENCY = 5;
-
-async function embedTexts(
-  texts: string[],
-  taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_DOCUMENT"
-): Promise<number[][]> {
-  console.log("Chunks count:", texts.length);
-  const results: number[][] = new Array(texts.length);
-  const totalBatches = Math.ceil(texts.length / EMBED_CONCURRENCY);
-
-  for (let i = 0; i < texts.length; i += EMBED_CONCURRENCY) {
-    const batchNum = Math.floor(i / EMBED_CONCURRENCY) + 1;
-    console.log(`Embedding batch ${batchNum}/${totalBatches}`);
-    const batch = texts.slice(i, i + EMBED_CONCURRENCY);
-    const batchResults = await Promise.all(
-      batch.map((t) => embedText(t, taskType))
-    );
-    for (let j = 0; j < batchResults.length; j++) {
-      results[i + j] = batchResults[j];
-    }
-  }
-
-  return results;
-}
-
 // ── SHA-256 ─────────────────────────────────────────────────────────────────
 
 async function sha256(data: Uint8Array): Promise<string> {
@@ -216,17 +159,6 @@ async function sha256(data: Uint8Array): Promise<string> {
 function sanitizeFilename(name: string): string {
   const base = name.split("/").pop()!.split("\\").pop()!;
   return base.replace(/[^\w\s\-_.]/g, "").slice(0, 255) || "unnamed";
-}
-
-// ── Base64 decode ───────────────────────────────────────────────────────────
-
-function base64ToUint8Array(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
 }
 
 // ── Main handler ────────────────────────────────────────────────────────────
@@ -250,7 +182,7 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // serviceClient: for database writes (bypasses RLS)
+    // serviceClient: for database writes and storage reads (bypasses RLS)
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -264,13 +196,19 @@ Deno.serve(async (req) => {
     }
     const userId = claimsData.user.id;
 
-    // Parse body
+    // Parse body — now expects file_name + file_path (storage path)
     const body = await req.json();
     const fileName: string = (body.file_name || "").trim();
-    const fileDataB64: string = body.file_data || "";
+    const filePath: string = (body.file_path || "").trim();
 
     if (!fileName) return errorResp("Missing file_name");
-    if (!fileDataB64) return errorResp("Missing file_data");
+    if (!filePath) return errorResp("Missing file_path");
+
+    // Validate the storage path belongs to this user
+    const expectedPrefix = `${userId}/`;
+    if (!filePath.startsWith(expectedPrefix)) {
+      return errorResp("Invalid file path — access denied", 403);
+    }
 
     // Validate extension
     const ext = fileName.includes(".")
@@ -282,32 +220,37 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Decode
-    let fileBytes: Uint8Array;
-    try {
-      fileBytes = base64ToUint8Array(fileDataB64);
-    } catch {
-      return errorResp("file_data must be valid base64");
+    console.log("Upload started for:", fileName, "path:", filePath);
+
+    // Download file from storage using service client
+    const { data: fileData, error: downloadErr } = await serviceClient
+      .storage
+      .from(RAG_BUCKET)
+      .download(filePath);
+
+    if (downloadErr || !fileData) {
+      console.error("Storage download error:", downloadErr?.message);
+      return errorResp(`Failed to download file from storage: ${downloadErr?.message}`, 500);
     }
 
+    const fileBytes = new Uint8Array(await fileData.arrayBuffer());
+
     if (fileBytes.length > MAX_FILE_SIZE_BYTES) {
+      // Clean up storage file
+      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
       return errorResp("File too large. Maximum allowed size is 5MB.", 413);
     }
 
     // Check quota (read via userClient — respects RLS)
-    const { error: countErr } = await userClient
+    const { count, error: countErr } = await userClient
       .from("rag_documents")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
 
     if (countErr) return errorResp(`Database error: ${countErr.message}`, 500);
 
-    const { count } = await userClient
-      .from("rag_documents")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
-
     if ((count ?? 0) >= MAX_FILES_PER_USER) {
+      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
       return errorResp(
         `Document limit reached (${MAX_FILES_PER_USER} files). Delete one first.`,
         429
@@ -324,6 +267,8 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existing) {
+      // Clean up storage file since it's a duplicate
+      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
       return okResp({
         success: true,
         document_id: existing.id,
@@ -338,20 +283,23 @@ Deno.serve(async (req) => {
     try {
       rawText = extractText(fileName, fileBytes);
     } catch (e) {
+      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
       return errorResp(`Text extraction failed: ${(e as Error).message}`, 422);
     }
 
     if (!rawText.trim()) {
+      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
       return errorResp("File appears empty or contains no readable text.", 422);
     }
 
     // Chunk
     const chunks = chunkText(rawText);
     if (chunks.length === 0) {
+      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
       return errorResp("No text chunks could be generated.", 422);
     }
 
-    console.log("Upload started for:", fileName, "Chunks:", chunks.length);
+    console.log("Chunks:", chunks.length);
 
     // Insert document (NO embedding — lazy embedding on first query)
     const safeName = sanitizeFilename(fileName);
@@ -363,12 +311,13 @@ Deno.serve(async (req) => {
 
     if (docErr || !docRow) {
       console.error("Failed to create document:", docErr?.message);
+      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
       return errorResp(`Failed to create document: ${docErr?.message}`, 500);
     }
 
     const documentId = docRow.id;
 
-    // Insert chunks with embedding_json empty (will be filled lazily on first query)
+    // Insert chunks with empty embedding_json (will be filled lazily on first query)
     const chunkRows = chunks.map((text) => ({
       document_id: documentId,
       user_id: userId,
@@ -381,11 +330,16 @@ Deno.serve(async (req) => {
       .insert(chunkRows);
 
     if (chunkErr) {
-      // Rollback document
       console.error("Failed to store chunks:", chunkErr.message);
       await serviceClient.from("rag_documents").delete().eq("id", documentId);
+      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
       return errorResp(`Failed to store chunks: ${chunkErr.message}`, 500);
     }
+
+    // Clean up storage file after successful processing
+    await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
+
+    console.log("Upload complete. Document:", documentId, "Chunks:", chunks.length);
 
     return okResp({
       success: true,
@@ -393,6 +347,7 @@ Deno.serve(async (req) => {
       chunks_created: chunks.length,
     });
   } catch (e) {
+    console.error("Unexpected error:", (e as Error).message);
     return errorResp(`Unexpected error: ${(e as Error).message}`, 500);
   }
 });
