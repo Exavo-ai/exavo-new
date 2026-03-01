@@ -97,8 +97,12 @@ async function generateAnswer(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ role: "user", parts: [{ text: userMessage }] }],
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: systemPrompt + "\n\n" + userMessage }],
+        },
+      ],
       generationConfig: {
         temperature: 0.1,
         topP: 0.9,
