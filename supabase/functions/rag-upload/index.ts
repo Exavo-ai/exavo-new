@@ -30,74 +30,62 @@ function okResp(data: Record<string, unknown>, status = 200) {
   });
 }
 
-// ── Text extraction ─────────────────────────────────────────────────────────
+// ── MIME type detection ──────────────────────────────────────────────────────
 
-function extractTxt(data: Uint8Array): string {
-  return new TextDecoder("utf-8", { fatal: false }).decode(data);
+function getMimeType(filename: string): string {
+  const ext = filename.includes(".") ? filename.split(".").pop()!.toLowerCase() : "";
+  const map: Record<string, string> = {
+    pdf: "application/pdf",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    txt: "text/plain",
+  };
+  return map[ext] ?? "application/octet-stream";
 }
 
-function extractPdf(data: Uint8Array): string {
-  const content = new TextDecoder("latin1").decode(data);
-  const btBlocks = content.match(/BT([\s\S]*?)ET/g) || [];
-  const parts: string[] = [];
-  for (const block of btBlocks) {
-    const tjStrings = block.match(/\((.*?)\)\s*Tj/g) || [];
-    for (const s of tjStrings) {
-      const match = s.match(/\((.*?)\)\s*Tj/);
-      if (match) {
-        parts.push(
-          match[1]
-            .replace(/\\n/g, "\n")
-            .replace(/\\r/g, "\r")
-            .replace(/\\t/g, "\t")
-            .replace(/\\\\/g, "\\")
-            .replace(/\(/g, "(")
-            .replace(/\)/g, ")")
-        );
-      }
-    }
-    const tjArrayStrings = block.match(/\[(.*?)\]\s*TJ/g) || [];
-    for (const s of tjArrayStrings) {
-      const innerMatch = s.match(/\[(.*?)\]\s*TJ/);
-      if (innerMatch) {
-        const innerStrings = innerMatch[1].match(/\((.*?)\)/g) || [];
-        for (const is of innerStrings) {
-          const m = is.match(/\((.*?)\)/);
-          if (m) parts.push(m[1]);
-        }
-      }
-    }
+// ── Gemini text extraction ──────────────────────────────────────────────────
+
+async function extractTextWithGemini(filename: string, fileBytes: Uint8Array): Promise<string> {
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+
+  const mimeType = getMimeType(filename);
+
+  // For plain text, just decode directly — no need for AI
+  if (mimeType === "text/plain") {
+    return new TextDecoder("utf-8", { fatal: false }).decode(fileBytes);
   }
-  return parts
-    .join(" ")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
 
-function extractDocx(data: Uint8Array): string {
-  const text = new TextDecoder("utf-8", { fatal: false }).decode(data);
-  const matches = text.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || [];
-  const parts: string[] = [];
-  for (const m of matches) {
-    const inner = m.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/);
-    if (inner) parts.push(inner[1]);
+  // Convert bytes to base64
+  let base64File = "";
+  const SLICE = 8192;
+  for (let i = 0; i < fileBytes.length; i += SLICE) {
+    base64File += String.fromCharCode(...fileBytes.subarray(i, i + SLICE));
   }
-  return parts
-    .join(" ")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
+  base64File = btoa(base64File);
 
-function extractText(filename: string, data: Uint8Array): string {
-  const ext = filename.includes(".")
-    ? filename.split(".").pop()!.toLowerCase()
-    : "";
-  if (ext === "txt") return extractTxt(data);
-  if (ext === "pdf") return extractPdf(data);
-  if (ext === "docx") return extractDocx(data);
-  throw new Error(`Unsupported file type '.${ext}'`);
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inlineData: { mimeType, data: base64File } },
+            { text: "Extract ALL readable text from this document exactly as written. Return only raw text with no commentary." },
+          ],
+        }],
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errBody = await response.text();
+    throw new Error(`Gemini API error ${response.status}: ${errBody.slice(0, 200)}`);
+  }
+
+  const geminiJson = await response.json();
+  return geminiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
 // ── Chunking ────────────────────────────────────────────────────────────────
@@ -334,15 +322,15 @@ Deno.serve(async (req) => {
       return errorResp({ step: "duplicate_check", message: (e as Error).message }, 500);
     }
 
-    // ── STEP 9: Text extraction ──
-    console.info("[STEP 9] TEXT_EXTRACTION — start");
+    // ── STEP 9: Text extraction (Gemini) ──
+    console.info("[STEP 9] TEXT_EXTRACTION — start (Gemini)");
     let rawText: string;
     try {
-      rawText = extractText(fileName, fileBytes);
+      rawText = await extractTextWithGemini(fileName, fileBytes);
       console.info("[STEP 9] TEXT_EXTRACTION — done, chars:", rawText.length);
       if (!rawText.trim()) {
         await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
-        return errorResp({ step: "text_extraction", message: "File appears empty" }, 422);
+        return errorResp({ step: "text_extraction", message: "Gemini returned no text from file" }, 422);
       }
     } catch (e) {
       console.error("[STEP 9] TEXT_EXTRACTION FAILED:", (e as Error).message);
