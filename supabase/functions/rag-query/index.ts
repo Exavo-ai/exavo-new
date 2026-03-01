@@ -45,6 +45,7 @@ async function embedText(
 ): Promise<number[]> {
   console.info("[STEP Q4] Embedding model:", EMBEDDING_MODEL);
   const url = `https://generativelanguage.googleapis.com/v1/models/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
+  console.info("[STEP Q4] Embedding request URL:", url);
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -54,11 +55,16 @@ async function embedText(
       taskType,
     }),
   });
+  console.info("[STEP Q4] Embedding response status:", resp.status);
   if (!resp.ok) {
     const errBody = await resp.text();
     console.error(`[STEP Q4] Embedding API error: ${resp.status}`);
-    console.error(`[STEP Q4] Embedding API error body: ${errBody.substring(0, 300)}`);
-    throw Object.assign(new Error(`Embedding error: ${resp.status}`), { step: "embedding", status: resp.status, body: errBody.substring(0, 300) });
+    console.error(`[STEP Q4] Embedding API error body: ${errBody.substring(0, 500)}`);
+    throw Object.assign(new Error(`Embedding error: ${resp.status}`), {
+      step: "embedding",
+      status: resp.status,
+      body: errBody.substring(0, 500),
+    });
   }
   const data = await resp.json();
   return data.embedding.values;
@@ -93,6 +99,7 @@ async function generateAnswer(
 ): Promise<string> {
   console.info("[STEP Q6] Answer model:", GEMINI_MODEL);
   const url = `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  console.info("[STEP Q6] Answer request URL:", url);
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -110,11 +117,16 @@ async function generateAnswer(
       },
     }),
   });
+  console.info("[STEP Q6] Answer response status:", resp.status);
   if (!resp.ok) {
     const errBody = await resp.text();
     console.error(`[STEP Q6] Gemini API error: ${resp.status}`);
-    console.error(`[STEP Q6] Gemini API error body: ${errBody.substring(0, 300)}`);
-    throw Object.assign(new Error(`Gemini API error: ${resp.status}`), { step: "gemini_answer", status: resp.status, body: errBody.substring(0, 300) });
+    console.error(`[STEP Q6] Gemini API error body: ${errBody.substring(0, 500)}`);
+    throw Object.assign(new Error(`Gemini API error: ${resp.status}`), {
+      step: "gemini_answer",
+      status: resp.status,
+      body: errBody.substring(0, 500),
+    });
   }
   const data = await resp.json();
   const answer = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
@@ -220,12 +232,15 @@ function buildUserMessage(
 // ── Main handler ────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  let debugStep = "top_level_handler";
 
   try {
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
+    }
+
     // [STEP Q1] Auth validation
+    debugStep = "auth_validation";
     console.info("[STEP Q1] Auth validation — start");
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -248,8 +263,10 @@ Deno.serve(async (req) => {
     }
     const userId = userData.user.id;
     console.info("[STEP Q1] Auth validation — userId:", userId);
+    console.info("[CHECKPOINT 1] Auth passed");
 
     // Parse body
+    debugStep = "parse_request";
     const body = await req.json();
     const question = (body.question || "").trim();
     if (!question) return errorResp("Missing or empty question");
@@ -291,23 +308,31 @@ Deno.serve(async (req) => {
     }
 
     // [STEP Q2] Fetch user documents / embed question
+    debugStep = "question_embedding";
     console.info("[STEP Q2] Embedding question");
     let queryVector: number[];
     try {
       queryVector = await embedText(question);
       console.info("[STEP Q2] Question embedded, vector length:", queryVector.length);
+      console.info("[CHECKPOINT 2] Question embedded");
     } catch (e) {
-      console.error("[STEP Q2] Embedding failed:", (e as Error).message);
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error("[STEP Q2] Embedding failed:", err.message);
       // Refund
       await supabase
         .from("rag_usage")
         .update({ questions_used: Math.max(0, newUsed - 1) })
         .eq("user_id", userId)
         .eq("date", today);
-      return errorResp(`Embedding error: ${(e as Error).message}`, 502);
+      return okResp({
+        answer: "DEBUG MODE: Failure occurred.",
+        debug_step: "question_embedding",
+        error_message: err.message,
+      });
     }
 
     // [STEP Q3] Fetch chunks
+    debugStep = "fetch_chunks";
     console.info("[STEP Q3] Fetching chunks for user:", userId);
     const { data: chunks, error: chunkErr } = await supabase
       .from("rag_chunks")
@@ -326,6 +351,7 @@ Deno.serve(async (req) => {
     }
 
     console.info("[STEP Q3] Chunks fetched:", chunks?.length ?? 0);
+    console.info("[CHECKPOINT 3] Chunks fetched count:", chunks?.length ?? 0);
 
     if (!chunks || chunks.length === 0) {
       return okResp({
@@ -338,6 +364,7 @@ Deno.serve(async (req) => {
     }
 
     // [STEP Q4] Lazy embedding — generate embeddings for chunks that don't have them yet
+    debugStep = "lazy_embedding";
     const unembeddedChunks = chunks.filter(
       (c) => !c.embedding_json || c.embedding_json === "" || c.embedding_json === "null"
     );
@@ -367,23 +394,31 @@ Deno.serve(async (req) => {
         }
         console.info("[STEP Q4] Lazy embedding complete");
       } catch (e) {
-        console.error("[STEP Q4] Lazy embedding failed:", (e as Error).message);
+        const err = e instanceof Error ? e : new Error(String(e));
+        console.error("[STEP Q4] Lazy embedding failed:", err.message);
         // Refund usage on embedding failure
         await supabase
           .from("rag_usage")
           .update({ questions_used: Math.max(0, newUsed - 1) })
           .eq("user_id", userId)
           .eq("date", today);
-        return errorResp(`Embedding error during lazy processing: ${(e as Error).message}`, 502);
+        return okResp({
+          answer: "DEBUG MODE: Failure occurred.",
+          debug_step: "lazy_embedding",
+          error_message: err.message,
+        });
       }
     } else {
       console.info("[STEP Q4] All chunks already embedded");
     }
+    console.info("[CHECKPOINT 4] Lazy embedding completed");
 
     // [STEP Q5] Similarity search
+    debugStep = "similarity_search";
     console.info("[STEP Q5] Running similarity search, TOP_K:", TOP_K);
     const topChunks = topKChunks(queryVector, chunks, TOP_K);
     console.info("[STEP Q5] Top chunks found:", topChunks.length, "best similarity:", topChunks[0]?.similarity ?? 0);
+    console.info("[CHECKPOINT 5] Similarity results count:", topChunks.length);
 
     if (topChunks.length === 0) {
       console.info("[STEP Q5] No relevant chunks found");
@@ -399,6 +434,7 @@ Deno.serve(async (req) => {
     }
 
     // [STEP Q6] Generate answer
+    debugStep = "gemini_answer_generation";
     let answer: string;
     const sources: Array<{
       document_id: string;
@@ -422,14 +458,14 @@ Deno.serve(async (req) => {
     try {
       const userMessage = buildUserMessage(question, topChunks);
       answer = await generateAnswer(SYSTEM_PROMPT, userMessage);
+      console.info("[CHECKPOINT 6] Gemini answer generated");
     } catch (e) {
-      console.error("[STEP Q6] Generation failed:", (e as Error).message);
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error("[STEP Q6] Generation failed:", err.message);
       return okResp({
-        answer: "An error occurred while generating the answer. Please try again later.",
-        sources,
-        debug: `Gemini call failed: ${(e as Error).message}`,
-        questions_used: newUsed,
-        questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
+        answer: "DEBUG MODE: Failure occurred.",
+        debug_step: "gemini_answer_generation",
+        error_message: err.message,
       });
     }
 
@@ -449,6 +485,7 @@ Deno.serve(async (req) => {
     console.info("[STEP Q7] Building response, answer chars:", answer.length);
 
     console.info("[STEP Q7] Response ready, sources:", sources.length);
+    console.info("[CHECKPOINT 7] Response returned");
     return okResp({
       answer,
       sources,
@@ -456,7 +493,12 @@ Deno.serve(async (req) => {
       questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
     });
   } catch (e) {
-    console.error("[RAG FATAL] Uncaught error:", (e as Error).stack || (e as Error).message);
-    return errorResp(`Unexpected error: ${(e as Error).message}`, 500);
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.error("[RAG FULL ERROR]", err.stack || err.message);
+    return okResp({
+      answer: "DEBUG MODE: Failure occurred.",
+      debug_step: debugStep,
+      error_message: err.message,
+    });
   }
 });
