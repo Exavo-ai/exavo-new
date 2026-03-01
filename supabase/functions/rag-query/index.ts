@@ -28,6 +28,7 @@ function okResp(data: Record<string, unknown>) {
 }
 
 Deno.serve(async (req) => {
+  console.log("RAG REQUEST RECEIVED");
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
