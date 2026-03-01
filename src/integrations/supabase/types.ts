@@ -1210,6 +1210,83 @@ export type Database = {
           },
         ]
       }
+      rag_chunks: {
+        Row: {
+          chunk_text: string
+          created_at: string
+          document_id: string
+          embedding_json: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          chunk_text: string
+          created_at?: string
+          document_id: string
+          embedding_json: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          chunk_text?: string
+          created_at?: string
+          document_id?: string
+          embedding_json?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rag_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "rag_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rag_documents: {
+        Row: {
+          created_at: string
+          file_hash: string
+          file_name: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_hash: string
+          file_name: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_hash?: string
+          file_name?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      rag_usage: {
+        Row: {
+          date: string
+          questions_used: number
+          user_id: string
+        }
+        Insert: {
+          date: string
+          questions_used?: number
+          user_id: string
+        }
+        Update: {
+          date?: string
+          questions_used?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       reviews: {
         Row: {
           client_company: string | null
