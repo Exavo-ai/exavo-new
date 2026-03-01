@@ -153,13 +153,23 @@ function topKChunks(
 }> {
   const scored: Array<{ chunk: (typeof chunks)[0]; score: number }> = [];
   for (const chunk of chunks) {
+    let vec: number[];
     try {
-      const vec = JSON.parse(chunk.embedding_json) as number[];
-      const score = cosineSimilarity(queryVec, vec);
-      scored.push({ chunk, score });
+      vec = JSON.parse(chunk.embedding_json);
+      if (!Array.isArray(vec) || vec.length === 0) {
+        console.warn("[STEP Q5] Invalid or empty embedding array for chunk:", chunk.id);
+        continue;
+      }
     } catch {
-      continue; // skip malformed
+      console.warn("[STEP Q5] Invalid embedding JSON for chunk:", chunk.id);
+      continue;
     }
+    if (queryVec.length !== vec.length) {
+      console.warn("[STEP Q5] Vector length mismatch:", queryVec.length, vec.length, "chunk:", chunk.id);
+      continue;
+    }
+    const score = cosineSimilarity(queryVec, vec);
+    scored.push({ chunk, score });
   }
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, k).map(({ chunk, score }) => ({
@@ -386,26 +396,14 @@ Deno.serve(async (req) => {
 
     // [STEP Q6] Generate answer
     let answer: string;
-    try {
-      const userMessage = buildUserMessage(question, topChunks);
-      answer = await generateAnswer(SYSTEM_PROMPT, userMessage);
-    } catch (e) {
-      console.error("[STEP Q6] Generation failed:", (e as Error).message);
-      return errorResp(`LLM generation error: ${(e as Error).message}`, 502, {
-        step: "gemini_answer",
-      });
-    }
-
-    // [STEP Q7] Return response
-    console.info("[STEP Q7] Building response, answer chars:", answer.length);
-
-    // Build sources
-    const seenDocs = new Set<string>();
     const sources: Array<{
       document_id: string;
       preview_text: string;
       similarity: number;
     }> = [];
+
+    // Pre-build sources so they're available even if Gemini fails
+    const seenDocs = new Set<string>();
     for (const chunk of topChunks) {
       if (!seenDocs.has(chunk.document_id)) {
         seenDocs.add(chunk.document_id);
@@ -417,6 +415,35 @@ Deno.serve(async (req) => {
       }
     }
 
+    try {
+      const userMessage = buildUserMessage(question, topChunks);
+      answer = await generateAnswer(SYSTEM_PROMPT, userMessage);
+    } catch (e) {
+      console.error("[STEP Q6] Generation failed:", (e as Error).message);
+      return okResp({
+        answer: "An error occurred while generating the answer. Please try again later.",
+        sources,
+        debug: `Gemini call failed: ${(e as Error).message}`,
+        questions_used: newUsed,
+        questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
+      });
+    }
+
+    // Guard empty answer
+    if (!answer || answer.trim().length === 0) {
+      console.warn("[STEP Q6] Empty LLM response");
+      return okResp({
+        answer: "The requested information is not found in the provided documents.",
+        sources,
+        debug: "Empty LLM response",
+        questions_used: newUsed,
+        questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
+      });
+    }
+
+    // [STEP Q7] Return response
+    console.info("[STEP Q7] Building response, answer chars:", answer.length);
+
     console.info("[STEP Q7] Response ready, sources:", sources.length);
     return okResp({
       answer,
@@ -425,7 +452,7 @@ Deno.serve(async (req) => {
       questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
     });
   } catch (e) {
-    console.error("[RAG-QUERY] Unexpected error:", (e as Error).message);
+    console.error("[RAG FATAL] Uncaught error:", (e as Error).stack || (e as Error).message);
     return errorResp(`Unexpected error: ${(e as Error).message}`, 500);
   }
 });
