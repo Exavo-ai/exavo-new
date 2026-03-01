@@ -9,19 +9,15 @@ const corsHeaders = {
 const DAILY_LIMIT = 7;
 const TOP_K = 5;
 const MAX_QUESTION_LENGTH = 2000;
+const EMBED_CONCURRENCY = 5;
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
-const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
-const GEMINI_MODEL = "gemini-2.0-flash";
-const EMBEDDING_MODEL = "text-embedding-004";
+const EMBED_URL = `https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent?key=${GEMINI_API_KEY}`;
+const GENERATE_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-function errorResp(
-  message: string,
-  status = 400,
-  extra: Record<string, unknown> = {}
-) {
+function errorResp(message: string, status = 400, extra: Record<string, unknown> = {}) {
   return new Response(JSON.stringify({ error: message, ...extra }), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -35,131 +31,67 @@ function okResp(data: Record<string, unknown>) {
   });
 }
 
-// ── Gemini ──────────────────────────────────────────────────────────────────
-
-const EMBED_CONCURRENCY = 5;
+// ── Gemini: Embed ───────────────────────────────────────────────────────────
 
 async function embedText(
   text: string,
   taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_QUERY"
 ): Promise<number[]> {
-  const models = ["text-embedding-004", "embedding-001"];
-  const bases = [
-    "https://generativelanguage.googleapis.com/v1",
-    "https://generativelanguage.googleapis.com/v1beta",
-  ];
-
-  for (const model of models) {
-    for (const base of bases) {
-      const url = `${base}/models/${model}:embedContent?key=${GEMINI_API_KEY}`;
-      console.info("[EMBED TRY]", model, base);
-
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: { parts: [{ text: text.slice(0, 8000) }] },
-          taskType,
-        }),
-      });
-
-      if (resp.ok) {
-        console.info("[EMBED SUCCESS]", model, base);
-        const data = await resp.json();
-        if (data?.embedding?.values) {
-          return data.embedding.values;
-        }
-        console.warn("[EMBED] Unexpected response structure");
-        continue;
-      }
-
-      if (resp.status === 404) {
-        console.warn(`[EMBED 404] ${model} on ${base} — trying next`);
-        await resp.text();
-        continue;
-      }
-
-      const errBody = await resp.text();
-      throw new Error(`Embedding failed (${resp.status}): ${errBody.substring(0, 500)}`);
-    }
+  const resp = await fetch(EMBED_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content: { parts: [{ text: text.slice(0, 8000) }] },
+      taskType,
+    }),
+  });
+  if (!resp.ok) {
+    const errBody = await resp.text();
+    throw new Error(`Embedding failed (${resp.status}): ${errBody.substring(0, 500)}`);
   }
-
-  throw new Error("No embedding model available (tried text-embedding-004, embedding-001 on v1 and v1beta)");
+  const data = await resp.json();
+  return data.embedding.values;
 }
 
 async function embedTextsInBatches(
   texts: string[],
   taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_DOCUMENT"
 ): Promise<number[][]> {
-  console.info("[STEP Q4] Embedding started, chunks:", texts.length);
   const results: number[][] = new Array(texts.length);
-  const totalBatches = Math.ceil(texts.length / EMBED_CONCURRENCY);
-
   for (let i = 0; i < texts.length; i += EMBED_CONCURRENCY) {
-    const batchNum = Math.floor(i / EMBED_CONCURRENCY) + 1;
-    console.info(`[STEP Q4] Embedding batch ${batchNum}/${totalBatches}`);
     const batch = texts.slice(i, i + EMBED_CONCURRENCY);
-    const batchResults = await Promise.all(
-      batch.map((t) => embedText(t, taskType))
-    );
+    const batchResults = await Promise.all(batch.map((t) => embedText(t, taskType)));
     for (let j = 0; j < batchResults.length; j++) {
       results[i + j] = batchResults[j];
     }
   }
-  console.info("[STEP Q4] Embedding finished");
   return results;
 }
 
-async function generateAnswer(
-  systemPrompt: string,
-  userMessage: string
-): Promise<string> {
-  console.info("[STEP Q6] Answer model:", GEMINI_MODEL);
-  const url = `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  console.info("[STEP Q6] Answer request URL:", url);
-  const combinedPrompt = systemPrompt + "\n\n" + userMessage;
-  const reqBody = JSON.stringify({
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: combinedPrompt }],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 2048,
-    },
-  });
-  console.info("[GEMINI REQUEST BODY]", reqBody.slice(0, 1000));
-  const resp = await fetch(url, {
+// ── Gemini: Generate ────────────────────────────────────────────────────────
+
+async function generateAnswer(systemPrompt: string, userMessage: string): Promise<string> {
+  const resp = await fetch(GENERATE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: reqBody,
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + userMessage }] }],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
+    }),
   });
-  console.info("[GEMINI STATUS]", resp.status);
   if (!resp.ok) {
     const errBody = await resp.text();
-    console.error(`[STEP Q6] Gemini API error: ${resp.status}`);
-    console.error(`[STEP Q6] Gemini API error body: ${errBody.substring(0, 1000)}`);
-    throw new Error(`Gemini API error: ${resp.status}`);
+    throw new Error(`Gemini generation failed (${resp.status}): ${errBody.substring(0, 500)}`);
   }
   const data = await resp.json();
-  console.info("[GEMINI RESPONSE STRUCTURE]", Object.keys(data));
-  const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-  if (!answer) {
-    console.warn("[GEMINI EMPTY RESPONSE]");
-  }
-  console.info("[STEP Q6] Gemini answer chars:", answer.length);
-  return answer;
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
 }
 
 // ── Similarity ──────────────────────────────────────────────────────────────
 
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
-  let dot = 0,
-    magA = 0,
-    magB = 0;
+  let dot = 0, magA = 0, magB = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
     magA += a[i] * a[i];
@@ -173,38 +105,20 @@ function cosineSimilarity(a: number[], b: number[]): number {
 
 function topKChunks(
   queryVec: number[],
-  chunks: Array<{
-    id: string;
-    document_id: string;
-    chunk_text: string;
-    embedding_json: string;
-  }>,
+  chunks: Array<{ id: string; document_id: string; chunk_text: string; embedding_json: string }>,
   k: number
-): Array<{
-  id: string;
-  document_id: string;
-  chunk_text: string;
-  similarity: number;
-}> {
+) {
   const scored: Array<{ chunk: (typeof chunks)[0]; score: number }> = [];
   for (const chunk of chunks) {
     let vec: number[];
     try {
       vec = JSON.parse(chunk.embedding_json);
-      if (!Array.isArray(vec) || vec.length === 0) {
-        console.warn("[STEP Q5] Invalid or empty embedding array for chunk:", chunk.id);
-        continue;
-      }
+      if (!Array.isArray(vec) || vec.length === 0) continue;
     } catch {
-      console.warn("[STEP Q5] Invalid embedding JSON for chunk:", chunk.id);
       continue;
     }
-    if (queryVec.length !== vec.length) {
-      console.warn("[STEP Q5] Vector length mismatch:", queryVec.length, vec.length, "chunk:", chunk.id);
-      continue;
-    }
-    const score = cosineSimilarity(queryVec, vec);
-    scored.push({ chunk, score });
+    if (queryVec.length !== vec.length) continue;
+    scored.push({ chunk, score: cosineSimilarity(queryVec, vec) });
   }
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, k).map(({ chunk, score }) => ({
@@ -215,7 +129,7 @@ function topKChunks(
   }));
 }
 
-// ── Prompt building ─────────────────────────────────────────────────────────
+// ── Prompt ───────────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are an enterprise document assistant. Your only job is to answer questions based strictly on the document excerpts provided to you.
 
@@ -229,11 +143,7 @@ Rules you must always follow:
 
 function buildUserMessage(
   question: string,
-  chunks: Array<{
-    document_id: string;
-    chunk_text: string;
-    similarity: number;
-  }>
+  chunks: Array<{ document_id: string; chunk_text: string; similarity: number }>
 ): string {
   if (chunks.length === 0) {
     return `CONTEXT EXCERPTS\n================\n(No relevant excerpts were found.)\n================\n\nQUESTION\n========\n${question}\n\nAnswer using only the context excerpts above.`;
@@ -244,28 +154,20 @@ function buildUserMessage(
         `[Excerpt ${i + 1}] Document: ${c.document_id} | Relevance: ${c.similarity.toFixed(3)}\n--- BEGIN EXCERPT ---\n${c.chunk_text.trim()}\n--- END EXCERPT ---`
     )
     .join("\n\n");
-
   return `CONTEXT EXCERPTS\n================\n${excerpts}\n================\nEND OF CONTEXT EXCERPTS\n\nQUESTION\n========\n${question}\n\nAnswer using only the context excerpts above.\nIf the answer is not there, say: "The requested information is not found in the provided documents."`;
 }
 
 // ── Main handler ────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
-  let debugStep = "top_level_handler";
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   try {
-    if (req.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders });
-    }
-
-    // [STEP Q1] Auth validation
-    debugStep = "auth_validation";
-    console.info("[STEP Q1] Auth validation — start");
+    // Auth
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      console.error("[STEP Q1] Auth validation — no Bearer token");
-      return errorResp("Unauthorized", 401);
-    }
+    if (!authHeader?.startsWith("Bearer ")) return errorResp("Unauthorized", 401);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -274,37 +176,15 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: authErr } =
-      await supabase.auth.getUser(token);
-    if (authErr || !userData.user) {
-      console.error("[STEP Q1] Auth validation — failed:", authErr?.message);
-      return errorResp("Unauthorized", 401);
-    }
+    const { data: userData, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !userData.user) return errorResp("Unauthorized", 401);
     const userId = userData.user.id;
-    console.info("[STEP Q1] Auth validation — userId:", userId);
-    console.info("[CHECKPOINT 1] Auth passed");
 
-    // [HEALTH CHECK] List ALL models from Gemini API
-    debugStep = "api_health_check";
-    const healthCheck = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${GEMINI_API_KEY}`
-    );
-    console.info("[MODEL LIST STATUS]", healthCheck.status);
-    const healthBody = await healthCheck.text();
-    console.info("[MODEL LIST FULL RESPONSE]", healthBody);
-    if (healthCheck.status !== 200) {
-      throw new Error("Gemini API key not valid or API not enabled");
-    }
-
-    // Parse body
-    debugStep = "parse_request";
+    // Parse request
     const body = await req.json();
     const question = (body.question || "").trim();
     if (!question) return errorResp("Missing or empty question");
-    if (question.length > MAX_QUESTION_LENGTH) {
-      return errorResp(`Question too long (max ${MAX_QUESTION_LENGTH} chars)`);
-    }
-    console.info("[STEP Q1] Question length:", question.length);
+    if (question.length > MAX_QUESTION_LENGTH) return errorResp(`Question too long (max ${MAX_QUESTION_LENGTH} chars)`);
 
     // Check usage
     const today = new Date().toISOString().split("T")[0];
@@ -316,258 +196,91 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const currentUsed = Number(usageRow?.questions_used ?? 0);
-    console.info("[USAGE DEBUG]", {
-      currentUsed,
-      DAILY_LIMIT,
-      type_currentUsed: typeof currentUsed,
-      raw_value: usageRow?.questions_used,
-    });
     if (currentUsed >= DAILY_LIMIT) {
-      console.info("[STEP Q1] Daily limit reached:", currentUsed);
       return errorResp("Daily question limit reached. Resets tomorrow.", 429, {
         questions_used: DAILY_LIMIT,
         questions_remaining: 0,
       });
     }
 
-    // Increment usage BEFORE processing (will refund on failure)
-    const newUsed = Number(currentUsed) + 1;
+    // Increment usage
+    const newUsed = currentUsed + 1;
     if (usageRow) {
-      await supabase
-        .from("rag_usage")
-        .update({ questions_used: newUsed })
-        .eq("user_id", userId)
-        .eq("date", today);
+      await supabase.from("rag_usage").update({ questions_used: newUsed }).eq("user_id", userId).eq("date", today);
     } else {
-      await supabase
-        .from("rag_usage")
-        .insert({ user_id: userId, date: today, questions_used: 1 });
+      await supabase.from("rag_usage").insert({ user_id: userId, date: today, questions_used: 1 });
     }
 
-    // [STEP Q2] Fetch user documents / embed question
-    debugStep = "question_embedding";
-    console.info("[STEP Q2] Embedding question");
-    let queryVector: number[];
-    try {
-      queryVector = await embedText(question);
-      console.info("[STEP Q2] Question embedded, vector length:", queryVector.length);
-      console.info("[CHECKPOINT 2] Question embedded");
-    } catch (e) {
-      const err = e instanceof Error ? e : new Error(String(e));
-      console.error("[STEP Q2] Embedding failed:", err.message);
-      // Refund
-      await supabase
-        .from("rag_usage")
-        .update({ questions_used: Math.max(0, newUsed - 1) })
-        .eq("user_id", userId)
-        .eq("date", today);
-      return okResp({
-        answer: "DEBUG MODE: Failure occurred.",
-        debug_step: "question_embedding",
-        error_message: err.message,
-        questions_used: Number(newUsed) - 1,
-        questions_remaining: Math.max(0, DAILY_LIMIT - (Number(newUsed) - 1)),
-      });
-    }
+    // Embed question
+    const queryVector = await embedText(question);
 
-    // [STEP Q3] Fetch chunks
-    debugStep = "fetch_chunks";
-    console.info("[STEP Q3] Fetching chunks for user:", userId);
+    // Fetch chunks
     const { data: chunks, error: chunkErr } = await supabase
       .from("rag_chunks")
       .select("id, document_id, chunk_text, embedding_json")
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
 
-    if (chunkErr) {
-      console.error("[STEP Q3] Chunk fetch error:", chunkErr.message);
-      await supabase
-        .from("rag_usage")
-        .update({ questions_used: Math.max(0, newUsed - 1) })
-        .eq("user_id", userId)
-        .eq("date", today);
-      return errorResp(`Database error: ${chunkErr.message}`, 500);
-    }
-
-    console.info("[STEP Q3] Chunks fetched:", chunks?.length ?? 0);
-    console.info("[CHECKPOINT 3] Chunks fetched count:", chunks?.length ?? 0);
+    if (chunkErr) return errorResp(`Database error: ${chunkErr.message}`, 500);
 
     if (!chunks || chunks.length === 0) {
       return okResp({
-        answer:
-          "You have not uploaded any documents yet. Please upload a document before asking questions.",
+        answer: "You have not uploaded any documents yet. Please upload a document before asking questions.",
         sources: [],
         questions_used: newUsed,
         questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
       });
     }
 
-    // [STEP Q4] Lazy embedding — generate embeddings for chunks that don't have them yet
-    debugStep = "lazy_embedding";
-    const unembeddedChunks = chunks.filter(
-      (c) => !c.embedding_json || c.embedding_json === "" || c.embedding_json === "null"
-    );
-
-    if (unembeddedChunks.length > 0) {
-      console.info(`[STEP Q4] Lazy embedding: ${unembeddedChunks.length} chunks need embeddings`);
-      try {
-        const texts = unembeddedChunks.map((c) => c.chunk_text);
-        const embeddings = await embedTextsInBatches(texts, "RETRIEVAL_DOCUMENT");
-
-        // Use service role client to update chunks (RLS doesn't allow UPDATE for rag_chunks)
-        const serviceClient = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-        );
-
-        for (let i = 0; i < unembeddedChunks.length; i++) {
-          await serviceClient
-            .from("rag_chunks")
-            .update({ embedding_json: JSON.stringify(embeddings[i]) })
-            .eq("id", unembeddedChunks[i].id);
-        }
-
-        // Update local chunk data
-        for (let i = 0; i < unembeddedChunks.length; i++) {
-          unembeddedChunks[i].embedding_json = JSON.stringify(embeddings[i]);
-        }
-        console.info("[STEP Q4] Lazy embedding complete");
-      } catch (e) {
-        const err = e instanceof Error ? e : new Error(String(e));
-        console.error("[STEP Q4] Lazy embedding failed:", err.message);
-        // Refund usage on embedding failure
-        await supabase
-          .from("rag_usage")
-          .update({ questions_used: Math.max(0, newUsed - 1) })
-          .eq("user_id", userId)
-          .eq("date", today);
-        return okResp({
-          answer: "DEBUG MODE: Failure occurred.",
-          debug_step: "lazy_embedding",
-          error_message: err.message,
-          questions_used: Number(newUsed) - 1,
-          questions_remaining: Math.max(0, DAILY_LIMIT - (Number(newUsed) - 1)),
-        });
+    // Lazy embedding for chunks without embeddings
+    const unembedded = chunks.filter((c) => !c.embedding_json || c.embedding_json === "" || c.embedding_json === "null");
+    if (unembedded.length > 0) {
+      const embeddings = await embedTextsInBatches(unembedded.map((c) => c.chunk_text), "RETRIEVAL_DOCUMENT");
+      const serviceClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      for (let i = 0; i < unembedded.length; i++) {
+        await serviceClient.from("rag_chunks").update({ embedding_json: JSON.stringify(embeddings[i]) }).eq("id", unembedded[i].id);
+        unembedded[i].embedding_json = JSON.stringify(embeddings[i]);
       }
-    } else {
-      console.info("[STEP Q4] All chunks already embedded");
-    }
-    console.info("[CHECKPOINT 4] Lazy embedding completed");
-
-    // [STEP Q5] Similarity search
-    debugStep = "similarity_search";
-
-    // VECTOR DEBUG
-    console.info("[VECTOR DEBUG]", {
-      queryVectorLength: queryVector?.length,
-      firstChunkEmbeddingLength: chunks?.[0]?.embedding_json
-        ? (() => { try { return JSON.parse(chunks[0].embedding_json).length; } catch { return "PARSE_ERROR"; } })()
-        : null,
-      chunksCount: chunks?.length,
-    });
-    if (queryVector?.length && chunks?.[0]?.embedding_json) {
-      try {
-        const firstLen = JSON.parse(chunks[0].embedding_json).length;
-        if (queryVector.length !== firstLen) {
-          console.error("[VECTOR ERROR] Dimension mismatch detected:", queryVector.length, "vs", firstLen);
-        }
-      } catch { /* already logged */ }
     }
 
-    console.info("[STEP Q5] Running similarity search, TOP_K:", TOP_K);
+    // Similarity search
     const topChunks = topKChunks(queryVector, chunks, TOP_K);
-    console.info("[STEP Q5] Top chunks found:", topChunks.length, "best similarity:", topChunks[0]?.similarity ?? 0);
-    console.info("[CHECKPOINT 5] Similarity results count:", topChunks.length);
-
-    if (topChunks.length > 0) {
-      console.info("[SIMILARITY TEST] Passed");
-    } else {
-      console.warn("[SIMILARITY TEST] No chunks returned");
-    }
 
     if (topChunks.length === 0) {
-      console.info("[STEP Q5] No relevant chunks found");
       return okResp({
-        success: false,
-        answer:
-          "The requested information is not found in the provided documents.",
-        message: "No relevant context found",
+        answer: "The requested information is not found in the provided documents.",
         sources: [],
         questions_used: newUsed,
         questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
       });
     }
 
-    // [STEP Q6] Generate answer
-    debugStep = "gemini_answer_generation";
-    let answer: string;
-    const sources: Array<{
-      document_id: string;
-      preview_text: string;
-      similarity: number;
-    }> = [];
+    // Generate answer
+    const userMessage = buildUserMessage(question, topChunks);
+    const answer = await generateAnswer(SYSTEM_PROMPT, userMessage);
 
-    // Pre-build sources so they're available even if Gemini fails
+    // Build sources
     const seenDocs = new Set<string>();
+    const sources: Array<{ document_id: string; preview_text: string; similarity: number }> = [];
     for (const chunk of topChunks) {
       if (!seenDocs.has(chunk.document_id)) {
         seenDocs.add(chunk.document_id);
-        sources.push({
-          document_id: chunk.document_id,
-          preview_text: chunk.chunk_text.slice(0, 300),
-          similarity: chunk.similarity,
-        });
+        sources.push({ document_id: chunk.document_id, preview_text: chunk.chunk_text.slice(0, 300), similarity: chunk.similarity });
       }
     }
 
-    try {
-      const userMessage = buildUserMessage(question, topChunks);
-      answer = await generateAnswer(SYSTEM_PROMPT, userMessage);
-      console.info("[CHECKPOINT 6] Gemini answer generated");
-    } catch (e) {
-      const err = e instanceof Error ? e : new Error(String(e));
-      console.error("[STEP Q6] Generation failed:", err.message);
-      return okResp({
-        answer: "DEBUG MODE: Failure occurred.",
-        debug_step: "gemini_answer_generation",
-        error_message: err.message,
-        questions_used: Number(newUsed),
-        questions_remaining: Math.max(0, DAILY_LIMIT - Number(newUsed)),
-      });
-    }
-
-    // Guard empty answer
-    if (!answer || answer.trim().length === 0) {
-      console.warn("[STEP Q6] Empty LLM response");
-      return okResp({
-        answer: "The requested information is not found in the provided documents.",
-        sources,
-        debug: "Empty LLM response",
-        questions_used: newUsed,
-        questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
-      });
-    }
-
-    // [STEP Q7] Return response
-    console.info("[STEP Q7] Building response, answer chars:", answer.length);
-
-    console.info("[STEP Q7] Response ready, sources:", sources.length);
-    console.info("[CHECKPOINT 7] Response returned");
     return okResp({
-      answer,
+      answer: answer || "The requested information is not found in the provided documents.",
       sources,
       questions_used: newUsed,
       questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
     });
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
-    console.error("[RAG FULL ERROR]", err.stack || err.message);
-    return okResp({
-      answer: "DEBUG MODE: Failure occurred.",
-      debug_step: debugStep,
-      error_message: err.message,
-      questions_used: typeof newUsed !== "undefined" ? Number(newUsed) : 0,
-      questions_remaining: typeof newUsed !== "undefined" ? Math.max(0, DAILY_LIMIT - Number(newUsed)) : DAILY_LIMIT,
+    console.error("[RAG ERROR]", err.message);
+    return errorResp("An error occurred processing your question. Please try again.", 500, {
+      questions_used: 0,
+      questions_remaining: DAILY_LIMIT,
     });
   }
 });
