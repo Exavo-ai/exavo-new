@@ -1,0 +1,378 @@
+import { useState, useRef, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import {
+  Upload, FileText, Trash2, RefreshCw, Send, Loader2,
+  AlertCircle, CheckCircle2, ArrowLeft
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { Link, Navigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import Navigation from "@/components/Navigation";
+import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
+
+interface UploadedDoc {
+  id: string;
+  name: string;
+  size: number;
+  status: "processing" | "ready" | "error";
+}
+
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+}
+
+const MAX_DOCS = 3;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const DAILY_LIMIT = 7;
+
+// Mock delay helper
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const PlaygroundRAG = () => {
+  const { user, loading: authLoading } = useAuth();
+  const [documents, setDocuments] = useState<UploadedDoc[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [questionsUsed, setQuestionsUsed] = useState(0);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const questionsRemaining = DAILY_LIMIT - questionsUsed;
+  const hasReadyDocs = documents.some((d) => d.status === "ready");
+  const canSend = hasReadyDocs && questionsRemaining > 0 && !isSending && input.trim().length > 0;
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/register" replace />;
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      return; // silently reject oversized files
+    }
+
+    if (documents.length >= MAX_DOCS) return;
+
+    const newDoc: UploadedDoc = {
+      id: crypto.randomUUID(),
+      name: file.name,
+      size: file.size,
+      status: "processing",
+    };
+
+    setDocuments((prev) => [...prev, newDoc]);
+
+    // Mock processing
+    await delay(2000 + Math.random() * 1500);
+
+    setDocuments((prev) =>
+      prev.map((d) =>
+        d.id === newDoc.id ? { ...d, status: Math.random() > 0.1 ? "ready" : "error" } : d
+      )
+    );
+
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleDeleteDoc = (id: string) => {
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const handleReplaceDoc = (id: string) => {
+    handleDeleteDoc(id);
+    fileInputRef.current?.click();
+  };
+
+  const handleSend = async () => {
+    if (!canSend) return;
+
+    const userMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: input.trim(),
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setIsSending(true);
+
+    // Mock AI response
+    await delay(1500 + Math.random() * 2000);
+
+    const aiMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: `Based on your uploaded documents, here is a synthesized response to your question about "${userMsg.content.slice(0, 50)}...":\n\nThis is a mock response simulating the RAG pipeline. When the backend is connected, this will retrieve relevant chunks from your documents and generate a contextual answer using our AI infrastructure.\n\nThe system uses enterprise-grade retrieval with per-user isolation and secure multi-tenant architecture.`,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, aiMsg]);
+    setQuestionsUsed((prev) => prev + 1);
+    setIsSending(false);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const statusConfig = {
+    processing: { icon: Loader2, label: "Processing...", className: "text-yellow-600 animate-spin" },
+    ready: { icon: CheckCircle2, label: "Ready", className: "text-green-600" },
+    error: { icon: AlertCircle, label: "Error", className: "text-destructive" },
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <SEO
+        title="Document Intelligence (RAG) – AI Playground | Exavo AI"
+        description="Upload documents and ask questions powered by secure AI retrieval."
+      />
+      <Navigation />
+
+      <main className="py-8 sm:py-12">
+        <div className="container mx-auto px-4 sm:px-6">
+          {/* Header */}
+          <div className="mb-6 sm:mb-8">
+            <Link
+              to="/playground"
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Playground
+            </Link>
+            <h1 className="text-2xl sm:text-3xl font-bold">Document Intelligence (RAG)</h1>
+            <p className="text-muted-foreground mt-1">
+              Upload documents and ask questions using enterprise-grade AI retrieval.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
+            {/* LEFT COLUMN – Document Management */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Documents</CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Upload up to {MAX_DOCS} documents (max 5 MB each)
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {documents.map((doc) => {
+                    const StatusIcon = statusConfig[doc.status].icon;
+                    return (
+                      <div
+                        key={doc.id}
+                        className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30"
+                      >
+                        <FileText className="h-5 w-5 text-primary shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{doc.name}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{formatFileSize(doc.size)}</span>
+                            <span className="flex items-center gap-1">
+                              <StatusIcon className={`h-3 w-3 ${statusConfig[doc.status].className}`} />
+                              {statusConfig[doc.status].label}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleReplaceDoc(doc.id)}
+                            title="Replace"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteDoc(doc.id)}
+                            title="Delete"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {documents.length < MAX_DOCS && (
+                    <Button
+                      variant="outline"
+                      className="w-full border-dashed"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Document
+                    </Button>
+                  )}
+
+                  {documents.length >= MAX_DOCS && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Maximum {MAX_DOCS} documents reached. Delete one to upload a new file.
+                    </p>
+                  )}
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.txt,.md,.docx"
+                    onChange={handleFileUpload}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* RIGHT COLUMN – Chat Interface */}
+            <Card className="flex flex-col min-h-[500px] lg:min-h-[600px]">
+              <CardHeader className="pb-3 border-b border-border">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Chat</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      Questions remaining today:
+                    </span>
+                    <Badge
+                      variant={questionsRemaining > 0 ? "secondary" : "destructive"}
+                      className="text-xs"
+                    >
+                      {questionsRemaining} / {DAILY_LIMIT}
+                    </Badge>
+                  </div>
+                </div>
+                {questionsRemaining <= 0 && (
+                  <div className="mt-2 p-2 rounded-md bg-destructive/10 border border-destructive/20 flex items-center justify-between">
+                    <span className="text-xs text-destructive">Daily limit reached.</span>
+                    <Button variant="outline" size="sm" className="h-6 text-xs">
+                      Upgrade
+                    </Button>
+                  </div>
+                )}
+              </CardHeader>
+
+              <CardContent className="flex-1 flex flex-col p-0">
+                {/* Chat messages area */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {messages.length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-12">
+                      <FileText className="h-10 w-10 mb-3 opacity-40" />
+                      {!hasReadyDocs ? (
+                        <>
+                          <p className="text-sm font-medium">No documents uploaded</p>
+                          <p className="text-xs mt-1">
+                            Upload at least one document to start asking questions.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm font-medium">Ready to answer</p>
+                          <p className="text-xs mt-1">
+                            Ask a question about your uploaded documents.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {messages.map((msg) => (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-lg px-4 py-2.5 text-sm whitespace-pre-wrap ${
+                          msg.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted border border-border"
+                        }`}
+                      >
+                        {msg.content}
+                      </div>
+                    </motion.div>
+                  ))}
+
+                  {isSending && (
+                    <div className="flex justify-start">
+                      <div className="bg-muted border border-border rounded-lg px-4 py-2.5 text-sm flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Analyzing documents...
+                      </div>
+                    </div>
+                  )}
+
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Input area */}
+                <div className="border-t border-border p-3">
+                  <form
+                    className="flex items-center gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSend();
+                    }}
+                  >
+                    <Input
+                      placeholder={
+                        !hasReadyDocs
+                          ? "Upload a document first..."
+                          : questionsRemaining <= 0
+                          ? "Daily limit reached"
+                          : "Ask a question about your documents..."
+                      }
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      disabled={!hasReadyDocs || questionsRemaining <= 0 || isSending}
+                      className="flex-1"
+                    />
+                    <Button type="submit" size="icon" disabled={!canSend}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </form>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default PlaygroundRAG;

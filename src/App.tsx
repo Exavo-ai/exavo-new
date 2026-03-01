@@ -43,6 +43,8 @@ import Landing from "./pages/Landing";
 import FAQ from "./pages/FAQ";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 
+import Playground from "./pages/Playground";
+import PlaygroundRAG from "./pages/PlaygroundRAG";
 import NotFound from "./pages/NotFound";
 import ChatWidget from "./components/ChatWidget";
 import SEO from "./components/SEO";
@@ -68,6 +70,8 @@ const App = () => (
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/case-studies" element={<CaseStudiesPage />} />
+        <Route path="/playground" element={<Playground />} />
+        <Route path="/playground/rag" element={<PlaygroundRAG />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/client/invite/accept" element={<AcceptInvitation />} />

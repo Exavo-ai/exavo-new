@@ -55,6 +55,9 @@ const Navigation = () => {
               <a href="/case-studies" className="text-sm font-medium hover:text-primary transition-all hover:scale-105">
                 Case Studies
               </a>
+              <a href="/playground" className="text-sm font-medium hover:text-primary transition-all hover:scale-105">
+                AI Playground
+              </a>
               <a href="/blog" className="text-sm font-medium hover:text-primary transition-all hover:scale-105">
                 Blog
               </a>
@@ -110,6 +113,7 @@ const Navigation = () => {
             <a href="/about" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">{t('nav.about')}</a>
             <a href="/services" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">{t('nav.services')}</a>
             <a href="/case-studies" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">Case Studies</a>
+            <a href="/playground" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">AI Playground</a>
             <a href="/blog" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">Blog</a>
             <a href="/contact" className="block text-sm font-medium hover:text-primary transition-colors hover:translate-x-2">{t('nav.contact')}</a>
             <div className="flex flex-col gap-2 pt-4">
