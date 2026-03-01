@@ -284,7 +284,13 @@ Deno.serve(async (req) => {
       .eq("date", today)
       .maybeSingle();
 
-    const currentUsed = usageRow?.questions_used ?? 0;
+    const currentUsed = Number(usageRow?.questions_used ?? 0);
+    console.info("[USAGE DEBUG]", {
+      currentUsed,
+      DAILY_LIMIT,
+      type_currentUsed: typeof currentUsed,
+      raw_value: usageRow?.questions_used,
+    });
     if (currentUsed >= DAILY_LIMIT) {
       console.info("[STEP Q1] Daily limit reached:", currentUsed);
       return errorResp("Daily question limit reached. Resets tomorrow.", 429, {
@@ -294,7 +300,7 @@ Deno.serve(async (req) => {
     }
 
     // Increment usage BEFORE processing (will refund on failure)
-    const newUsed = currentUsed + 1;
+    const newUsed = Number(currentUsed) + 1;
     if (usageRow) {
       await supabase
         .from("rag_usage")
