@@ -243,15 +243,22 @@ Deno.serve(async (req) => {
       return errorResp("Unauthorized", 401);
     }
 
-    const supabase = createClient(
+    // userClient: for auth validation and reads (respects RLS)
+    const userClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    // serviceClient: for database writes (bypasses RLS)
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } =
-      await supabase.auth.getUser(token);
+      await userClient.auth.getUser(token);
     if (claimsError || !claimsData.user) {
       return errorResp("Unauthorized", 401);
     }
@@ -287,17 +294,15 @@ Deno.serve(async (req) => {
       return errorResp("File too large. Maximum allowed size is 5MB.", 413);
     }
 
-    // Check quota
-    const { data: docCountData, error: countErr } = await supabase
+    // Check quota (read via userClient — respects RLS)
+    const { error: countErr } = await userClient
       .from("rag_documents")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
 
     if (countErr) return errorResp(`Database error: ${countErr.message}`, 500);
 
-    const docCount = docCountData?.length ?? 0;
-    // Use the count from headers
-    const { count } = await supabase
+    const { count } = await userClient
       .from("rag_documents")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
@@ -311,7 +316,7 @@ Deno.serve(async (req) => {
 
     // Check duplicate by hash
     const fileHash = await sha256(fileBytes);
-    const { data: existing } = await supabase
+    const { data: existing } = await userClient
       .from("rag_documents")
       .select("id")
       .eq("user_id", userId)
@@ -350,19 +355,20 @@ Deno.serve(async (req) => {
 
     // Insert document (NO embedding — lazy embedding on first query)
     const safeName = sanitizeFilename(fileName);
-    const { data: docRow, error: docErr } = await supabase
+    const { data: docRow, error: docErr } = await serviceClient
       .from("rag_documents")
       .insert({ user_id: userId, file_name: safeName, file_hash: fileHash })
       .select("id")
       .single();
 
     if (docErr || !docRow) {
+      console.error("Failed to create document:", docErr?.message);
       return errorResp(`Failed to create document: ${docErr?.message}`, 500);
     }
 
     const documentId = docRow.id;
 
-    // Insert chunks with embedding_json = NULL (will be filled lazily on first query)
+    // Insert chunks with embedding_json empty (will be filled lazily on first query)
     const chunkRows = chunks.map((text) => ({
       document_id: documentId,
       user_id: userId,
@@ -370,13 +376,14 @@ Deno.serve(async (req) => {
       embedding_json: "",
     }));
 
-    const { error: chunkErr } = await supabase
+    const { error: chunkErr } = await serviceClient
       .from("rag_chunks")
       .insert(chunkRows);
 
     if (chunkErr) {
       // Rollback document
-      await supabase.from("rag_documents").delete().eq("id", documentId);
+      console.error("Failed to store chunks:", chunkErr.message);
+      await serviceClient.from("rag_documents").delete().eq("id", documentId);
       return errorResp(`Failed to store chunks: ${chunkErr.message}`, 500);
     }
 
