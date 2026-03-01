@@ -15,8 +15,9 @@ const RAG_BUCKET = "rag-files";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-function errorResp(message: string, status = 400) {
-  return new Response(JSON.stringify({ error: message }), {
+function errorResp(body: string | { step: string; message: string }, status = 400) {
+  const payload = typeof body === "string" ? { error: body } : { error: body.message, step: body.step };
+  return new Response(JSON.stringify(payload), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
@@ -50,8 +51,8 @@ function extractPdf(data: Uint8Array): string {
             .replace(/\\r/g, "\r")
             .replace(/\\t/g, "\t")
             .replace(/\\\\/g, "\\")
-            .replace(/\\\(/g, "(")
-            .replace(/\\\)/g, ")")
+            .replace(/\(/g, "(")
+            .replace(/\)/g, ")")
         );
       }
     }
@@ -158,7 +159,7 @@ async function sha256(data: Uint8Array): Promise<string> {
 
 function sanitizeFilename(name: string): string {
   const base = name.split("/").pop()!.split("\\").pop()!;
-  return base.replace(/[^\w\s\-_.]/g, "").slice(0, 255) || "unnamed";
+  return base.replace(/[^\\w\\s\\-_.]/g, "").slice(0, 255) || "unnamed";
 }
 
 // ── Main handler ────────────────────────────────────────────────────────────
@@ -169,177 +170,266 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return errorResp("Unauthorized", 401);
+    // ── STEP 1: Auth validation ──
+    console.info("[STEP 1] AUTH_VALIDATION — start");
+    let authHeader: string | null;
+    try {
+      authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        console.error("[STEP 1] AUTH_VALIDATION FAILED: missing Bearer token");
+        return errorResp({ step: "auth_validation", message: "Unauthorized — no Bearer token" }, 401);
+      }
+      console.info("[STEP 1] AUTH_VALIDATION — Bearer token present");
+    } catch (e) {
+      console.error("[STEP 1] AUTH_VALIDATION FAILED:", (e as Error).message);
+      return errorResp({ step: "auth_validation", message: (e as Error).message }, 500);
     }
 
-    // userClient: for auth validation and reads (respects RLS)
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    // ── STEP 2: Create clients ──
+    console.info("[STEP 2] CREATE_CLIENTS — start");
+    let userClient: ReturnType<typeof createClient>;
+    let serviceClient: ReturnType<typeof createClient>;
+    try {
+      const sbUrl = Deno.env.get("SUPABASE_URL");
+      const sbAnon = Deno.env.get("SUPABASE_ANON_KEY");
+      const sbService = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      console.info("[STEP 2] ENV check — URL:", !!sbUrl, "ANON:", !!sbAnon, "SERVICE:", !!sbService);
 
-    // serviceClient: for database writes and storage reads (bypasses RLS)
-    const serviceClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } =
-      await userClient.auth.getUser(token);
-    if (claimsError || !claimsData.user) {
-      return errorResp("Unauthorized", 401);
-    }
-    const userId = claimsData.user.id;
-
-    // Parse body — now expects file_name + file_path (storage path)
-    const body = await req.json();
-    const fileName: string = (body.file_name || "").trim();
-    const filePath: string = (body.file_path || "").trim();
-
-    if (!fileName) return errorResp("Missing file_name");
-    if (!filePath) return errorResp("Missing file_path");
-
-    // Validate the storage path belongs to this user
-    const expectedPrefix = `${userId}/`;
-    if (!filePath.startsWith(expectedPrefix)) {
-      return errorResp("Invalid file path — access denied", 403);
-    }
-
-    // Validate extension
-    const ext = fileName.includes(".")
-      ? fileName.split(".").pop()!.toLowerCase()
-      : "";
-    if (!ALLOWED_EXTENSIONS.has(ext)) {
-      return errorResp(
-        `Unsupported file type '.${ext}'. Allowed: PDF, TXT, DOCX`
-      );
-    }
-
-    console.log("Upload started for:", fileName, "path:", filePath);
-
-    // Download file from storage using service client
-    const { data: fileData, error: downloadErr } = await serviceClient
-      .storage
-      .from(RAG_BUCKET)
-      .download(filePath);
-
-    if (downloadErr || !fileData) {
-      console.error("Storage download error:", downloadErr?.message);
-      return errorResp(`Failed to download file from storage: ${downloadErr?.message}`, 500);
-    }
-
-    const fileBytes = new Uint8Array(await fileData.arrayBuffer());
-
-    if (fileBytes.length > MAX_FILE_SIZE_BYTES) {
-      // Clean up storage file
-      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
-      return errorResp("File too large. Maximum allowed size is 5MB.", 413);
-    }
-
-    // Check quota (read via userClient — respects RLS)
-    const { count, error: countErr } = await userClient
-      .from("rag_documents")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
-
-    if (countErr) return errorResp(`Database error: ${countErr.message}`, 500);
-
-    if ((count ?? 0) >= MAX_FILES_PER_USER) {
-      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
-      return errorResp(
-        `Document limit reached (${MAX_FILES_PER_USER} files). Delete one first.`,
-        429
-      );
-    }
-
-    // Check duplicate by hash
-    const fileHash = await sha256(fileBytes);
-    const { data: existing } = await userClient
-      .from("rag_documents")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("file_hash", fileHash)
-      .maybeSingle();
-
-    if (existing) {
-      // Clean up storage file since it's a duplicate
-      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
-      return okResp({
-        success: true,
-        document_id: existing.id,
-        chunks_created: 0,
-        message: "File already indexed — skipping re-embedding.",
-        duplicate: true,
+      userClient = createClient(sbUrl!, sbAnon!, {
+        global: { headers: { Authorization: authHeader! } },
       });
+      serviceClient = createClient(sbUrl!, sbService!);
+      console.info("[STEP 2] CREATE_CLIENTS — done");
+    } catch (e) {
+      console.error("[STEP 2] CREATE_CLIENTS FAILED:", (e as Error).message);
+      return errorResp({ step: "create_clients", message: (e as Error).message }, 500);
     }
 
-    // Extract text
+    // ── STEP 3: Verify user ──
+    console.info("[STEP 3] VERIFY_USER — start");
+    let userId: string;
+    try {
+      const token = authHeader!.replace("Bearer ", "");
+      const { data: claimsData, error: claimsError } = await userClient.auth.getUser(token);
+      if (claimsError || !claimsData.user) {
+        console.error("[STEP 3] VERIFY_USER FAILED:", claimsError?.message ?? "no user");
+        return errorResp({ step: "verify_user", message: claimsError?.message ?? "Unauthorized" }, 401);
+      }
+      userId = claimsData.user.id;
+      console.info("[STEP 3] VERIFY_USER — userId:", userId);
+    } catch (e) {
+      console.error("[STEP 3] VERIFY_USER FAILED:", (e as Error).message);
+      return errorResp({ step: "verify_user", message: (e as Error).message }, 500);
+    }
+
+    // ── STEP 4: Parse body ──
+    console.info("[STEP 4] PARSE_BODY — start");
+    let fileName: string;
+    let filePath: string;
+    try {
+      const body = await req.json();
+      fileName = (body.file_name || "").trim();
+      filePath = (body.file_path || "").trim();
+      console.info("[STEP 4] PARSE_BODY — fileName:", fileName, "filePath:", filePath);
+
+      if (!fileName) return errorResp({ step: "parse_body", message: "Missing file_name" });
+      if (!filePath) return errorResp({ step: "parse_body", message: "Missing file_path" });
+
+      const expectedPrefix = `${userId}/`;
+      if (!filePath.startsWith(expectedPrefix)) {
+        console.error("[STEP 4] PARSE_BODY — path does not match user");
+        return errorResp({ step: "parse_body", message: "Invalid file path — access denied" }, 403);
+      }
+
+      const ext = fileName.includes(".") ? fileName.split(".").pop()!.toLowerCase() : "";
+      if (!ALLOWED_EXTENSIONS.has(ext)) {
+        return errorResp({ step: "parse_body", message: `Unsupported file type '.${ext}'` });
+      }
+      console.info("[STEP 4] PARSE_BODY — done, ext:", ext);
+    } catch (e) {
+      console.error("[STEP 4] PARSE_BODY FAILED:", (e as Error).message);
+      return errorResp({ step: "parse_body", message: (e as Error).message }, 500);
+    }
+
+    // ── STEP 5: Storage download ──
+    console.info("[STEP 5] STORAGE_DOWNLOAD — start, path:", filePath);
+    let fileBytes: Uint8Array;
+    try {
+      const { data: fileData, error: downloadErr } = await serviceClient
+        .storage
+        .from(RAG_BUCKET)
+        .download(filePath);
+
+      if (downloadErr || !fileData) {
+        console.error("[STEP 5] STORAGE_DOWNLOAD FAILED:", downloadErr?.message);
+        return errorResp({ step: "storage_download", message: `Download failed: ${downloadErr?.message}` }, 500);
+      }
+
+      fileBytes = new Uint8Array(await fileData.arrayBuffer());
+      console.info("[STEP 5] STORAGE_DOWNLOAD — done, bytes:", fileBytes.length);
+    } catch (e) {
+      console.error("[STEP 5] STORAGE_DOWNLOAD FAILED:", (e as Error).message);
+      return errorResp({ step: "storage_download", message: (e as Error).message }, 500);
+    }
+
+    // ── STEP 6: File size validation ──
+    console.info("[STEP 6] FILE_SIZE_CHECK — bytes:", fileBytes.length, "max:", MAX_FILE_SIZE_BYTES);
+    if (fileBytes.length > MAX_FILE_SIZE_BYTES) {
+      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
+      return errorResp({ step: "file_size_check", message: "File too large (max 5MB)" }, 413);
+    }
+    console.info("[STEP 6] FILE_SIZE_CHECK — passed");
+
+    // ── STEP 7: Quota check ──
+    console.info("[STEP 7] QUOTA_CHECK — start");
+    try {
+      const { count, error: countErr } = await userClient
+        .from("rag_documents")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+
+      if (countErr) {
+        console.error("[STEP 7] QUOTA_CHECK FAILED:", countErr.message);
+        return errorResp({ step: "quota_check", message: countErr.message }, 500);
+      }
+
+      console.info("[STEP 7] QUOTA_CHECK — current count:", count);
+      if ((count ?? 0) >= MAX_FILES_PER_USER) {
+        await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
+        return errorResp({ step: "quota_check", message: `Limit reached (${MAX_FILES_PER_USER})` }, 429);
+      }
+    } catch (e) {
+      console.error("[STEP 7] QUOTA_CHECK FAILED:", (e as Error).message);
+      return errorResp({ step: "quota_check", message: (e as Error).message }, 500);
+    }
+
+    // ── STEP 8: Duplicate check ──
+    console.info("[STEP 8] DUPLICATE_CHECK — start");
+    let fileHash: string;
+    try {
+      fileHash = await sha256(fileBytes);
+      console.info("[STEP 8] DUPLICATE_CHECK — hash:", fileHash.slice(0, 12) + "...");
+
+      const { data: existing } = await userClient
+        .from("rag_documents")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("file_hash", fileHash)
+        .maybeSingle();
+
+      if (existing) {
+        await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
+        console.info("[STEP 8] DUPLICATE_CHECK — duplicate found:", existing.id);
+        return okResp({
+          success: true,
+          document_id: existing.id,
+          chunks_created: 0,
+          message: "File already indexed — skipping.",
+          duplicate: true,
+        });
+      }
+      console.info("[STEP 8] DUPLICATE_CHECK — no duplicate");
+    } catch (e) {
+      console.error("[STEP 8] DUPLICATE_CHECK FAILED:", (e as Error).message);
+      return errorResp({ step: "duplicate_check", message: (e as Error).message }, 500);
+    }
+
+    // ── STEP 9: Text extraction ──
+    console.info("[STEP 9] TEXT_EXTRACTION — start");
     let rawText: string;
     try {
       rawText = extractText(fileName, fileBytes);
+      console.info("[STEP 9] TEXT_EXTRACTION — done, chars:", rawText.length);
+      if (!rawText.trim()) {
+        await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
+        return errorResp({ step: "text_extraction", message: "File appears empty" }, 422);
+      }
     } catch (e) {
+      console.error("[STEP 9] TEXT_EXTRACTION FAILED:", (e as Error).message);
       await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
-      return errorResp(`Text extraction failed: ${(e as Error).message}`, 422);
+      return errorResp({ step: "text_extraction", message: (e as Error).message }, 422);
     }
 
-    if (!rawText.trim()) {
+    // ── STEP 10: Chunking ──
+    console.info("[STEP 10] CHUNKING — start");
+    let chunks: string[];
+    try {
+      chunks = chunkText(rawText);
+      console.info("[STEP 10] CHUNKING — done, chunks:", chunks.length);
+      if (chunks.length === 0) {
+        await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
+        return errorResp({ step: "chunking", message: "No chunks generated" }, 422);
+      }
+    } catch (e) {
+      console.error("[STEP 10] CHUNKING FAILED:", (e as Error).message);
       await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
-      return errorResp("File appears empty or contains no readable text.", 422);
+      return errorResp({ step: "chunking", message: (e as Error).message }, 500);
     }
 
-    // Chunk
-    const chunks = chunkText(rawText);
-    if (chunks.length === 0) {
+    // ── STEP 11: Insert rag_documents ──
+    console.info("[STEP 11] DOC_INSERT — start");
+    let documentId: string;
+    try {
+      const safeName = sanitizeFilename(fileName);
+      console.info("[STEP 11] DOC_INSERT — safeName:", safeName, "hash:", fileHash!.slice(0, 12));
+
+      const { data: docRow, error: docErr } = await serviceClient
+        .from("rag_documents")
+        .insert({ user_id: userId, file_name: safeName, file_hash: fileHash! })
+        .select("id")
+        .single();
+
+      if (docErr || !docRow) {
+        console.error("[STEP 11] DOC_INSERT FAILED:", docErr?.message, "code:", docErr?.code, "details:", docErr?.details);
+        await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
+        return errorResp({ step: "doc_insert", message: docErr?.message ?? "Unknown insert error" }, 500);
+      }
+      documentId = docRow.id;
+      console.info("[STEP 11] DOC_INSERT — done, id:", documentId);
+    } catch (e) {
+      console.error("[STEP 11] DOC_INSERT FAILED:", (e as Error).message);
       await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
-      return errorResp("No text chunks could be generated.", 422);
+      return errorResp({ step: "doc_insert", message: (e as Error).message }, 500);
     }
 
-    console.log("Chunks:", chunks.length);
+    // ── STEP 12: Insert rag_chunks ──
+    console.info("[STEP 12] CHUNK_INSERT — start, count:", chunks.length);
+    try {
+      const chunkRows = chunks.map((text) => ({
+        document_id: documentId,
+        user_id: userId,
+        chunk_text: text,
+        embedding_json: "",
+      }));
 
-    // Insert document (NO embedding — lazy embedding on first query)
-    const safeName = sanitizeFilename(fileName);
-    const { data: docRow, error: docErr } = await serviceClient
-      .from("rag_documents")
-      .insert({ user_id: userId, file_name: safeName, file_hash: fileHash })
-      .select("id")
-      .single();
+      const { error: chunkErr } = await serviceClient
+        .from("rag_chunks")
+        .insert(chunkRows);
 
-    if (docErr || !docRow) {
-      console.error("Failed to create document:", docErr?.message);
-      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
-      return errorResp(`Failed to create document: ${docErr?.message}`, 500);
-    }
-
-    const documentId = docRow.id;
-
-    // Insert chunks with empty embedding_json (will be filled lazily on first query)
-    const chunkRows = chunks.map((text) => ({
-      document_id: documentId,
-      user_id: userId,
-      chunk_text: text,
-      embedding_json: "",
-    }));
-
-    const { error: chunkErr } = await serviceClient
-      .from("rag_chunks")
-      .insert(chunkRows);
-
-    if (chunkErr) {
-      console.error("Failed to store chunks:", chunkErr.message);
+      if (chunkErr) {
+        console.error("[STEP 12] CHUNK_INSERT FAILED:", chunkErr.message, "code:", chunkErr.code, "details:", chunkErr.details);
+        await serviceClient.from("rag_documents").delete().eq("id", documentId);
+        await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
+        return errorResp({ step: "chunk_insert", message: chunkErr.message }, 500);
+      }
+      console.info("[STEP 12] CHUNK_INSERT — done");
+    } catch (e) {
+      console.error("[STEP 12] CHUNK_INSERT FAILED:", (e as Error).message);
       await serviceClient.from("rag_documents").delete().eq("id", documentId);
       await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
-      return errorResp(`Failed to store chunks: ${chunkErr.message}`, 500);
+      return errorResp({ step: "chunk_insert", message: (e as Error).message }, 500);
     }
 
-    // Clean up storage file after successful processing
-    await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
+    // ── STEP 13: Storage cleanup ──
+    console.info("[STEP 13] STORAGE_CLEANUP — start");
+    try {
+      await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
+      console.info("[STEP 13] STORAGE_CLEANUP — done");
+    } catch (e) {
+      console.error("[STEP 13] STORAGE_CLEANUP FAILED (non-fatal):", (e as Error).message);
+    }
 
-    console.log("Upload complete. Document:", documentId, "Chunks:", chunks.length);
+    console.info("[COMPLETE] Upload finished. docId:", documentId, "chunks:", chunks.length);
 
     return okResp({
       success: true,
@@ -347,7 +437,7 @@ Deno.serve(async (req) => {
       chunks_created: chunks.length,
     });
   } catch (e) {
-    console.error("Unexpected error:", (e as Error).message);
-    return errorResp(`Unexpected error: ${(e as Error).message}`, 500);
+    console.error("[FATAL] Unexpected error:", (e as Error).message, (e as Error).stack);
+    return errorResp({ step: "unknown", message: (e as Error).message }, 500);
   }
 });
