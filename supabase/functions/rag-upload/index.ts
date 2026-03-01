@@ -63,6 +63,8 @@ async function extractTextWithGemini(filename: string, fileBytes: Uint8Array): P
   }
   base64File = btoa(base64File);
 
+  console.info("[STEP 9] Calling Gemini model: gemini-2.0-flash");
+
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
@@ -81,11 +83,15 @@ async function extractTextWithGemini(filename: string, fileBytes: Uint8Array): P
 
   if (!response.ok) {
     const errBody = await response.text();
-    throw new Error(`Gemini API error ${response.status}: ${errBody.slice(0, 200)}`);
+    console.error(`[STEP 9] Gemini API error: ${response.status}`);
+    console.error(`[STEP 9] Gemini API error body (first 300 chars): ${errBody.substring(0, 300)}`);
+    throw new Error(`Gemini API error: ${response.status} - ${errBody.substring(0, 300)}`);
   }
 
   const geminiJson = await response.json();
-  return geminiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  const rawText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  console.info("[STEP 9] Gemini extraction chars:", rawText.length);
+  return rawText;
 }
 
 // ── Chunking ────────────────────────────────────────────────────────────────
