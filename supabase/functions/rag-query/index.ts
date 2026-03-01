@@ -284,22 +284,17 @@ Deno.serve(async (req) => {
     console.info("[STEP Q1] Auth validation — userId:", userId);
     console.info("[CHECKPOINT 1] Auth passed");
 
-    // [HEALTH CHECK] Validate Gemini API key and log available models
+    // [HEALTH CHECK] List ALL models from Gemini API
     debugStep = "api_health_check";
     const healthCheck = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`
+      `https://generativelanguage.googleapis.com/v1/models?key=${GEMINI_API_KEY}`
     );
-    console.info("[MODEL HEALTH STATUS]", healthCheck.status);
+    console.info("[MODEL LIST STATUS]", healthCheck.status);
+    const healthBody = await healthCheck.text();
+    console.info("[MODEL LIST FULL RESPONSE]", healthBody);
     if (healthCheck.status !== 200) {
-      const healthBody = await healthCheck.text();
-      console.error("[HEALTH CHECK FAILED]", healthBody.substring(0, 500));
       throw new Error("Gemini API key not valid or API not enabled");
     }
-    const healthData = await healthCheck.json();
-    const embeddingModels = (healthData.models || [])
-      .filter((m: any) => m.name?.includes("embedding"))
-      .map((m: any) => m.name);
-    console.info("[AVAILABLE EMBEDDING MODELS]", JSON.stringify(embeddingModels));
 
     // Parse body
     debugStep = "parse_request";
