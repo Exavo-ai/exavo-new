@@ -44,7 +44,7 @@ async function embedText(
   taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_QUERY"
 ): Promise<number[]> {
   console.info("[STEP Q4] Embedding model:", EMBEDDING_MODEL);
-  const url = `https://generativelanguage.googleapis.com/v1/models/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
   console.info("[STEP Q4] Embedding request URL:", url);
   const resp = await fetch(url, {
     method: "POST",
@@ -100,36 +100,42 @@ async function generateAnswer(
   console.info("[STEP Q6] Answer model:", GEMINI_MODEL);
   const url = `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
   console.info("[STEP Q6] Answer request URL:", url);
+  const reqBody = JSON.stringify({
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: systemPrompt + "\n\n" + userMessage }],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.1,
+      topP: 0.9,
+      maxOutputTokens: 2048,
+    },
+  });
+  console.info("[GEMINI REQUEST BODY]", reqBody.slice(0, 1000));
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: systemPrompt + "\n\n" + userMessage }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.1,
-        topP: 0.9,
-        maxOutputTokens: 2048,
-      },
-    }),
+    body: reqBody,
   });
-  console.info("[STEP Q6] Answer response status:", resp.status);
+  console.info("[GEMINI STATUS]", resp.status);
   if (!resp.ok) {
     const errBody = await resp.text();
     console.error(`[STEP Q6] Gemini API error: ${resp.status}`);
-    console.error(`[STEP Q6] Gemini API error body: ${errBody.substring(0, 500)}`);
+    console.error(`[STEP Q6] Gemini API error body: ${errBody.substring(0, 1000)}`);
     throw Object.assign(new Error(`Gemini API error: ${resp.status}`), {
       step: "gemini_answer",
       status: resp.status,
-      body: errBody.substring(0, 500),
+      body: errBody.substring(0, 1000),
     });
   }
   const data = await resp.json();
-  const answer = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+  console.info("[GEMINI RESPONSE STRUCTURE]", Object.keys(data));
+  const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+  if (!answer) {
+    console.warn("[GEMINI EMPTY RESPONSE]");
+  }
   console.info("[STEP Q6] Gemini answer chars:", answer.length);
   return answer;
 }
@@ -425,10 +431,34 @@ Deno.serve(async (req) => {
 
     // [STEP Q5] Similarity search
     debugStep = "similarity_search";
+
+    // VECTOR DEBUG
+    console.info("[VECTOR DEBUG]", {
+      queryVectorLength: queryVector?.length,
+      firstChunkEmbeddingLength: chunks?.[0]?.embedding_json
+        ? (() => { try { return JSON.parse(chunks[0].embedding_json).length; } catch { return "PARSE_ERROR"; } })()
+        : null,
+      chunksCount: chunks?.length,
+    });
+    if (queryVector?.length && chunks?.[0]?.embedding_json) {
+      try {
+        const firstLen = JSON.parse(chunks[0].embedding_json).length;
+        if (queryVector.length !== firstLen) {
+          console.error("[VECTOR ERROR] Dimension mismatch detected:", queryVector.length, "vs", firstLen);
+        }
+      } catch { /* already logged */ }
+    }
+
     console.info("[STEP Q5] Running similarity search, TOP_K:", TOP_K);
     const topChunks = topKChunks(queryVector, chunks, TOP_K);
     console.info("[STEP Q5] Top chunks found:", topChunks.length, "best similarity:", topChunks[0]?.similarity ?? 0);
     console.info("[CHECKPOINT 5] Similarity results count:", topChunks.length);
+
+    if (topChunks.length > 0) {
+      console.info("[SIMILARITY TEST] Passed");
+    } else {
+      console.warn("[SIMILARITY TEST] No chunks returned");
+    }
 
     if (topChunks.length === 0) {
       console.info("[STEP Q5] No relevant chunks found");
