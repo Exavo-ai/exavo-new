@@ -248,16 +248,15 @@ const PlaygroundRAG = () => {
 
       const result = await fetchResp.json();
 
-      if (result?.error) {
+      if (!fetchResp.ok || result?.error) {
         const aiMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: `Error: ${result.error}`,
+          content: `Error: ${result?.error || "Unknown error"}`,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, aiMsg]);
-
-        if (result.questions_used !== undefined) {
+        if (result?.questions_used !== undefined) {
           setQuestionsUsed(result.questions_used);
         }
       } else {
@@ -271,10 +270,11 @@ const PlaygroundRAG = () => {
         setQuestionsUsed(result.questions_used);
       }
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "Network error";
       const aiMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: "An error occurred while processing your question. Please try again.",
+        content: `Error: ${errMsg}`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, aiMsg]);
