@@ -232,15 +232,25 @@ const PlaygroundRAG = () => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      if (!token) {
+        throw new Error("You are not authenticated. Please sign in again.");
+      }
+
+      if (!supabaseUrl || !apiKey) {
+        throw new Error("Missing backend configuration (URL or API key).");
+      }
 
       const fetchResp = await fetch(
-        `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/rag-query`,
+        `${supabaseUrl}/functions/v1/rag-query`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`,
-            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "apikey": apiKey,
           },
           body: JSON.stringify({ question: userMsg.content }),
         }
