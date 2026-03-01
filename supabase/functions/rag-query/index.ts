@@ -138,10 +138,13 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
-    console.error("[RAG ERROR]", err.message);
-    return errorResp("An error occurred processing your question. Please try again.", 500, {
-      questions_used: 0,
-      questions_remaining: DAILY_LIMIT,
-    });
+    console.error("GEMINI ERROR FULL:", err);
+    return new Response(
+      JSON.stringify({ error: err.message }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });
