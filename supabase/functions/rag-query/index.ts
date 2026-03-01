@@ -334,6 +334,8 @@ Deno.serve(async (req) => {
         answer: "DEBUG MODE: Failure occurred.",
         debug_step: "question_embedding",
         error_message: err.message,
+        questions_used: Number(newUsed) - 1,
+        questions_remaining: Math.max(0, DAILY_LIMIT - (Number(newUsed) - 1)),
       });
     }
 
@@ -412,6 +414,8 @@ Deno.serve(async (req) => {
           answer: "DEBUG MODE: Failure occurred.",
           debug_step: "lazy_embedding",
           error_message: err.message,
+          questions_used: Number(newUsed) - 1,
+          questions_remaining: Math.max(0, DAILY_LIMIT - (Number(newUsed) - 1)),
         });
       }
     } else {
@@ -472,6 +476,8 @@ Deno.serve(async (req) => {
         answer: "DEBUG MODE: Failure occurred.",
         debug_step: "gemini_answer_generation",
         error_message: err.message,
+        questions_used: Number(newUsed),
+        questions_remaining: Math.max(0, DAILY_LIMIT - Number(newUsed)),
       });
     }
 
@@ -505,6 +511,8 @@ Deno.serve(async (req) => {
       answer: "DEBUG MODE: Failure occurred.",
       debug_step: debugStep,
       error_message: err.message,
+      questions_used: typeof newUsed !== "undefined" ? Number(newUsed) : 0,
+      questions_remaining: typeof newUsed !== "undefined" ? Math.max(0, DAILY_LIMIT - Number(newUsed)) : DAILY_LIMIT,
     });
   }
 });
