@@ -43,42 +43,48 @@ async function embedText(
   text: string,
   taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_QUERY"
 ): Promise<number[]> {
+  const models = ["text-embedding-004", "embedding-001"];
   const bases = [
     "https://generativelanguage.googleapis.com/v1",
     "https://generativelanguage.googleapis.com/v1beta",
   ];
 
-  for (const base of bases) {
-    const url = `${base}/models/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
-    console.info("[EMBED TRY]", url);
+  for (const model of models) {
+    for (const base of bases) {
+      const url = `${base}/models/${model}:embedContent?key=${GEMINI_API_KEY}`;
+      console.info("[EMBED TRY]", model, base);
 
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: { parts: [{ text: text.slice(0, 8000) }] },
-        taskType,
-      }),
-    });
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: { parts: [{ text: text.slice(0, 8000) }] },
+          taskType,
+        }),
+      });
 
-    if (resp.ok) {
-      console.info("[EMBED SUCCESS USING]", base);
-      const data = await resp.json();
-      return data.embedding.values;
+      if (resp.ok) {
+        console.info("[EMBED SUCCESS]", model, base);
+        const data = await resp.json();
+        if (data?.embedding?.values) {
+          return data.embedding.values;
+        }
+        console.warn("[EMBED] Unexpected response structure");
+        continue;
+      }
+
+      if (resp.status === 404) {
+        console.warn(`[EMBED 404] ${model} on ${base} — trying next`);
+        await resp.text();
+        continue;
+      }
+
+      const errBody = await resp.text();
+      throw new Error(`Embedding failed (${resp.status}): ${errBody.substring(0, 500)}`);
     }
-
-    if (resp.status === 404) {
-      console.warn("[EMBED 404 — RETRYING NEXT VERSION]");
-      await resp.text();
-      continue;
-    }
-
-    // Non-404 error — fatal
-    const errBody = await resp.text();
-    throw new Error(`Embedding failed (${resp.status}): ${errBody.substring(0, 500)}`);
   }
 
-  throw new Error("Embedding model not available on v1 or v1beta");
+  throw new Error("No embedding model available (tried text-embedding-004, embedding-001 on v1 and v1beta)");
 }
 
 async function embedTextsInBatches(
@@ -278,10 +284,10 @@ Deno.serve(async (req) => {
     console.info("[STEP Q1] Auth validation — userId:", userId);
     console.info("[CHECKPOINT 1] Auth passed");
 
-    // [HEALTH CHECK] Validate Gemini API key before processing
+    // [HEALTH CHECK] Validate Gemini API key and log available models
     debugStep = "api_health_check";
     const healthCheck = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${GEMINI_API_KEY}`
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`
     );
     console.info("[MODEL HEALTH STATUS]", healthCheck.status);
     if (healthCheck.status !== 200) {
@@ -289,7 +295,11 @@ Deno.serve(async (req) => {
       console.error("[HEALTH CHECK FAILED]", healthBody.substring(0, 500));
       throw new Error("Gemini API key not valid or API not enabled");
     }
-    await healthCheck.text(); // consume body
+    const healthData = await healthCheck.json();
+    const embeddingModels = (healthData.models || [])
+      .filter((m: any) => m.name?.includes("embedding"))
+      .map((m: any) => m.name);
+    console.info("[AVAILABLE EMBEDDING MODELS]", JSON.stringify(embeddingModels));
 
     // Parse body
     debugStep = "parse_request";
