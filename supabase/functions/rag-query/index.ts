@@ -12,7 +12,7 @@ const MAX_QUESTION_LENGTH = 2000;
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 const EMBEDDING_MODEL = "models/text-embedding-004";
-const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-2.0-flash";
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -53,7 +53,11 @@ async function embedText(
       taskType,
     }),
   });
-  if (!resp.ok) throw new Error(`Embedding error: ${await resp.text()}`);
+  if (!resp.ok) {
+    const errBody = await resp.text();
+    console.error(`[STEP Q4] Embedding API error: ${resp.status} body: ${errBody.substring(0, 300)}`);
+    throw new Error(`Embedding error: ${resp.status} - ${errBody.substring(0, 200)}`);
+  }
   const data = await resp.json();
   return data.embedding.values;
 }
@@ -62,13 +66,13 @@ async function embedTextsInBatches(
   texts: string[],
   taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_DOCUMENT"
 ): Promise<number[][]> {
-  console.log("Embedding started, chunks:", texts.length);
+  console.info("[STEP Q4] Embedding started, chunks:", texts.length);
   const results: number[][] = new Array(texts.length);
   const totalBatches = Math.ceil(texts.length / EMBED_CONCURRENCY);
 
   for (let i = 0; i < texts.length; i += EMBED_CONCURRENCY) {
     const batchNum = Math.floor(i / EMBED_CONCURRENCY) + 1;
-    console.log(`Embedding batch ${batchNum}/${totalBatches}`);
+    console.info(`[STEP Q4] Embedding batch ${batchNum}/${totalBatches}`);
     const batch = texts.slice(i, i + EMBED_CONCURRENCY);
     const batchResults = await Promise.all(
       batch.map((t) => embedText(t, taskType))
@@ -77,7 +81,7 @@ async function embedTextsInBatches(
       results[i + j] = batchResults[j];
     }
   }
-  console.log("Embedding finished");
+  console.info("[STEP Q4] Embedding finished");
   return results;
 }
 
@@ -85,6 +89,7 @@ async function generateAnswer(
   systemPrompt: string,
   userMessage: string
 ): Promise<string> {
+  console.info("[STEP Q6] Calling Gemini for answer, model:", GEMINI_MODEL);
   const url = `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
   const resp = await fetch(url, {
     method: "POST",
@@ -99,9 +104,16 @@ async function generateAnswer(
       },
     }),
   });
-  if (!resp.ok) throw new Error(`Generation error: ${await resp.text()}`);
+  if (!resp.ok) {
+    const errBody = await resp.text();
+    console.error(`[STEP Q6] Gemini API error: ${resp.status}`);
+    console.error(`[STEP Q6] Gemini API error body (first 300 chars): ${errBody.substring(0, 300)}`);
+    throw new Error(JSON.stringify({ step: "gemini_answer", message: `Gemini API error: ${resp.status} - ${errBody.substring(0, 300)}` }));
+  }
   const data = await resp.json();
-  return data.candidates[0].content.parts[0].text.trim();
+  const answer = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+  console.info("[STEP Q6] Gemini answer chars:", answer.length);
+  return answer;
 }
 
 // ── Similarity ──────────────────────────────────────────────────────────────
@@ -197,9 +209,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth
+    // [STEP Q1] Auth validation
+    console.info("[STEP Q1] Auth validation — start");
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      console.error("[STEP Q1] Auth validation — no Bearer token");
       return errorResp("Unauthorized", 401);
     }
 
@@ -213,9 +227,11 @@ Deno.serve(async (req) => {
     const { data: userData, error: authErr } =
       await supabase.auth.getUser(token);
     if (authErr || !userData.user) {
+      console.error("[STEP Q1] Auth validation — failed:", authErr?.message);
       return errorResp("Unauthorized", 401);
     }
     const userId = userData.user.id;
+    console.info("[STEP Q1] Auth validation — userId:", userId);
 
     // Parse body
     const body = await req.json();
@@ -224,6 +240,7 @@ Deno.serve(async (req) => {
     if (question.length > MAX_QUESTION_LENGTH) {
       return errorResp(`Question too long (max ${MAX_QUESTION_LENGTH} chars)`);
     }
+    console.info("[STEP Q1] Question length:", question.length);
 
     // Check usage
     const today = new Date().toISOString().split("T")[0];
@@ -236,6 +253,7 @@ Deno.serve(async (req) => {
 
     const currentUsed = usageRow?.questions_used ?? 0;
     if (currentUsed >= DAILY_LIMIT) {
+      console.info("[STEP Q1] Daily limit reached:", currentUsed);
       return errorResp("Daily question limit reached. Resets tomorrow.", 429, {
         questions_used: DAILY_LIMIT,
         questions_remaining: 0,
@@ -256,11 +274,14 @@ Deno.serve(async (req) => {
         .insert({ user_id: userId, date: today, questions_used: 1 });
     }
 
-    // Embed question
+    // [STEP Q2] Fetch user documents / embed question
+    console.info("[STEP Q2] Embedding question");
     let queryVector: number[];
     try {
       queryVector = await embedText(question);
+      console.info("[STEP Q2] Question embedded, vector length:", queryVector.length);
     } catch (e) {
+      console.error("[STEP Q2] Embedding failed:", (e as Error).message);
       // Refund
       await supabase
         .from("rag_usage")
@@ -270,7 +291,8 @@ Deno.serve(async (req) => {
       return errorResp(`Embedding error: ${(e as Error).message}`, 502);
     }
 
-    // Fetch chunks
+    // [STEP Q3] Fetch chunks
+    console.info("[STEP Q3] Fetching chunks for user:", userId);
     const { data: chunks, error: chunkErr } = await supabase
       .from("rag_chunks")
       .select("id, document_id, chunk_text, embedding_json")
@@ -278,6 +300,7 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: true });
 
     if (chunkErr) {
+      console.error("[STEP Q3] Chunk fetch error:", chunkErr.message);
       await supabase
         .from("rag_usage")
         .update({ questions_used: Math.max(0, newUsed - 1) })
@@ -285,6 +308,8 @@ Deno.serve(async (req) => {
         .eq("date", today);
       return errorResp(`Database error: ${chunkErr.message}`, 500);
     }
+
+    console.info("[STEP Q3] Chunks fetched:", chunks?.length ?? 0);
 
     if (!chunks || chunks.length === 0) {
       return okResp({
@@ -296,13 +321,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // PHASE 2: Lazy embedding — generate embeddings for chunks that don't have them yet
+    // [STEP Q4] Lazy embedding — generate embeddings for chunks that don't have them yet
     const unembeddedChunks = chunks.filter(
       (c) => !c.embedding_json || c.embedding_json === "" || c.embedding_json === "null"
     );
 
     if (unembeddedChunks.length > 0) {
-      console.log(`Lazy embedding: ${unembeddedChunks.length} chunks need embeddings`);
+      console.info(`[STEP Q4] Lazy embedding: ${unembeddedChunks.length} chunks need embeddings`);
       try {
         const texts = unembeddedChunks.map((c) => c.chunk_text);
         const embeddings = await embedTextsInBatches(texts, "RETRIEVAL_DOCUMENT");
@@ -324,7 +349,9 @@ Deno.serve(async (req) => {
         for (let i = 0; i < unembeddedChunks.length; i++) {
           unembeddedChunks[i].embedding_json = JSON.stringify(embeddings[i]);
         }
+        console.info("[STEP Q4] Lazy embedding complete");
       } catch (e) {
+        console.error("[STEP Q4] Lazy embedding failed:", (e as Error).message);
         // Refund usage on embedding failure
         await supabase
           .from("rag_usage")
@@ -333,29 +360,42 @@ Deno.serve(async (req) => {
           .eq("date", today);
         return errorResp(`Embedding error during lazy processing: ${(e as Error).message}`, 502);
       }
+    } else {
+      console.info("[STEP Q4] All chunks already embedded");
     }
 
-    // Cosine similarity
+    // [STEP Q5] Similarity search
+    console.info("[STEP Q5] Running similarity search, TOP_K:", TOP_K);
     const topChunks = topKChunks(queryVector, chunks, TOP_K);
+    console.info("[STEP Q5] Top chunks found:", topChunks.length, "best similarity:", topChunks[0]?.similarity ?? 0);
 
     if (topChunks.length === 0) {
+      console.info("[STEP Q5] No relevant chunks found");
       return okResp({
+        success: false,
         answer:
           "The requested information is not found in the provided documents.",
+        message: "No relevant context found",
         sources: [],
         questions_used: newUsed,
         questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
       });
     }
 
-    // Generate answer
+    // [STEP Q6] Generate answer
     let answer: string;
     try {
       const userMessage = buildUserMessage(question, topChunks);
       answer = await generateAnswer(SYSTEM_PROMPT, userMessage);
     } catch (e) {
-      return errorResp(`LLM generation error: ${(e as Error).message}`, 502);
+      console.error("[STEP Q6] Generation failed:", (e as Error).message);
+      return errorResp(`LLM generation error: ${(e as Error).message}`, 502, {
+        step: "gemini_answer",
+      });
     }
+
+    // [STEP Q7] Return response
+    console.info("[STEP Q7] Building response, answer chars:", answer.length);
 
     // Build sources
     const seenDocs = new Set<string>();
@@ -375,6 +415,7 @@ Deno.serve(async (req) => {
       }
     }
 
+    console.info("[STEP Q7] Response ready, sources:", sources.length);
     return okResp({
       answer,
       sources,
@@ -382,6 +423,7 @@ Deno.serve(async (req) => {
       questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
     });
   } catch (e) {
+    console.error("[RAG-QUERY] Unexpected error:", (e as Error).message);
     return errorResp(`Unexpected error: ${(e as Error).message}`, 500);
   }
 });
