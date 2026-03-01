@@ -179,14 +179,28 @@ async function embedText(
   return data.embedding.values;
 }
 
+const EMBED_CONCURRENCY = 5;
+
 async function embedTexts(
   texts: string[],
   taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_DOCUMENT"
 ): Promise<number[][]> {
-  const results: number[][] = [];
-  for (const t of texts) {
-    results.push(await embedText(t, taskType));
+  console.log("Chunks count:", texts.length);
+  const results: number[][] = new Array(texts.length);
+  const totalBatches = Math.ceil(texts.length / EMBED_CONCURRENCY);
+
+  for (let i = 0; i < texts.length; i += EMBED_CONCURRENCY) {
+    const batchNum = Math.floor(i / EMBED_CONCURRENCY) + 1;
+    console.log(`Embedding batch ${batchNum}/${totalBatches}`);
+    const batch = texts.slice(i, i + EMBED_CONCURRENCY);
+    const batchResults = await Promise.all(
+      batch.map((t) => embedText(t, taskType))
+    );
+    for (let j = 0; j < batchResults.length; j++) {
+      results[i + j] = batchResults[j];
+    }
   }
+
   return results;
 }
 
