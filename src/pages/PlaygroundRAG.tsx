@@ -230,11 +230,22 @@ const PlaygroundRAG = () => {
     setIsSending(true);
 
     try {
-      const resp = await supabase.functions.invoke("rag-query", {
-        body: { question: userMsg.content },
-      });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
 
-      const result = resp.data;
+      const fetchResp = await fetch(
+        `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/rag-query`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ question: userMsg.content }),
+        }
+      );
+
+      const result = await fetchResp.json();
 
       if (result?.error) {
         const aiMsg: ChatMessage = {
