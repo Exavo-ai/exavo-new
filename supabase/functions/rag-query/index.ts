@@ -44,7 +44,8 @@ async function embedText(
   taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY" = "RETRIEVAL_QUERY"
 ): Promise<number[]> {
   console.info("[STEP Q4] Embedding model:", EMBEDDING_MODEL);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
+  const EMBEDDING_BASE = "https://generativelanguage.googleapis.com/v1";
+  const url = `${EMBEDDING_BASE}/models/${EMBEDDING_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
   console.info("[STEP Q4] Embedding request URL:", url);
   const resp = await fetch(url, {
     method: "POST",
