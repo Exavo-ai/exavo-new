@@ -85,8 +85,8 @@ const Hero = () => {
             <Link to="/playground">
               <Button 
                 size="lg"
-                variant="outline"
-                className="text-base sm:text-lg px-8 h-14 font-semibold gap-2"
+                variant="hero"
+                className="text-base sm:text-lg px-8 h-14 font-semibold gap-2 opacity-85 shadow-md hover:opacity-95"
               >
                 <Sparkles className="w-5 h-5" />
                 {language === 'ar' ? 'جرّب عروضنا' : 'Try Our Demos'}
