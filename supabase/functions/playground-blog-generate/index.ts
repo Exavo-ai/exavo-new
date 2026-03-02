@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { corsHeaders, handleCors } from "../_shared/response.ts";
+import { generateBlogContent } from "../_shared/blog-webhook.ts";
 
-const MAKE_WEBHOOK_URL = "https://hook.eu1.make.com/jbt8dq78argmvlpe3gj3kojgb34v83wp";
 const DAILY_LIMIT = 3;
 
 Deno.serve(async (req) => {
@@ -65,10 +65,9 @@ Deno.serve(async (req) => {
 
     const sanitizedTitle = title.trim().slice(0, 200);
 
-    // Rate limit check with atomic upsert
+    // Rate limit check
     const today = new Date().toISOString().split("T")[0];
 
-    // Try to get existing usage
     const { data: existing } = await serviceClient
       .from("user_daily_blog_usage")
       .select("id, generation_count")
@@ -78,101 +77,19 @@ Deno.serve(async (req) => {
 
     if (existing && existing.generation_count >= DAILY_LIMIT) {
       return new Response(
-        JSON.stringify({
-          error: "Daily limit reached",
-          remaining: 0,
-          limit: DAILY_LIMIT,
-        }),
-        {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: "Daily limit reached", remaining: 0, limit: DAILY_LIMIT }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Call Make webhook (same as admin ai-generate-blog)
+    // Generate content using shared webhook module
     console.log(`[playground-blog-generate] Generating for user ${userId}: "${sanitizedTitle}"`);
+    const result = await generateBlogContent(sanitizedTitle);
 
-    let webhookRes: Response;
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 120000); // 2 min timeout
-      webhookRes = await fetch(MAKE_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: sanitizedTitle }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-    } catch (fetchErr) {
-      console.error("[playground-blog-generate] Webhook fetch failed:", fetchErr);
+    if ("error" in result) {
       return new Response(
         JSON.stringify({ error: "Content generation failed. Please try again." }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    if (!webhookRes.ok) {
-      console.error(`[playground-blog-generate] Webhook returned ${webhookRes.status}`);
-      return new Response(
-        JSON.stringify({ error: "Content generation failed. Please try again." }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Parse response (same multi-format handling as ai-generate-blog)
-    let content: string | undefined;
-    try {
-      const rawText = await webhookRes.text();
-
-      let data: unknown;
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        if (rawText && rawText.trim().length > 50) {
-          content = rawText.trim();
-        }
-      }
-
-      if (!content && data) {
-        if (typeof (data as Record<string, unknown>).content === "string" && ((data as Record<string, unknown>).content as string).trim()) {
-          content = ((data as Record<string, unknown>).content as string).trim();
-        } else if (typeof data === "string") {
-          try {
-            const nested = JSON.parse(data);
-            if (typeof nested.content === "string" && nested.content.trim()) {
-              content = nested.content.trim();
-            }
-          } catch { /* not nested */ }
-          if (!content && data.trim().length > 50) {
-            content = data.trim();
-          }
-        }
-      }
-    } catch (parseErr) {
-      console.error("[playground-blog-generate] Parse failed:", parseErr);
-      return new Response(
-        JSON.stringify({ error: "Content generation failed. Please try again." }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    if (!content) {
-      return new Response(
-        JSON.stringify({ error: "AI returned no content. Please try again." }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -193,20 +110,14 @@ Deno.serve(async (req) => {
       : DAILY_LIMIT - 1;
 
     return new Response(
-      JSON.stringify({ content, remaining, limit: DAILY_LIMIT }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ content: result.content, remaining, limit: DAILY_LIMIT }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("[playground-blog-generate] Unhandled error:", err);
     return new Response(
       JSON.stringify({ error: "An unexpected error occurred. Please try again." }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
