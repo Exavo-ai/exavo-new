@@ -101,13 +101,7 @@ const Playground = () => {
               <p className="text-base sm:text-lg md:text-xl text-muted-foreground px-4 mb-8">
                 Test our AI infrastructure live. Upload documents and interact with them using enterprise-grade retrieval systems.
               </p>
-              <Link to="/playground/rag">
-                <Button variant="hero" size="lg">
-                  Start Free Demo
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </Link>
-              <p className="text-xs text-muted-foreground mt-3">
+              <p className="text-sm text-muted-foreground mt-2">
                 Available for registered users only.
               </p>
             </motion.div>
