@@ -1,12 +1,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { corsHeaders, handleCors } from "../_shared/response.ts";
 import { generateBlogContent } from "../_shared/blog-webhook.ts";
 
 const DAILY_LIMIT = 3;
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
 Deno.serve(async (req) => {
-  const corsResponse = handleCors(req);
-  if (corsResponse) return corsResponse;
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -16,18 +22,35 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log("[playground-blog-generate] Request received");
+
     // Auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      console.log("[playground-blog-generate] No auth header");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const sbUrl = Deno.env.get("SUPABASE_URL")!;
-    const sbAnon = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const sbService = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const sbUrl = Deno.env.get("SUPABASE_URL");
+    const sbAnon = Deno.env.get("SUPABASE_ANON_KEY");
+    const sbService = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    console.log("[playground-blog-generate] Env vars present:", {
+      sbUrl: !!sbUrl,
+      sbAnon: !!sbAnon,
+      sbService: !!sbService,
+    });
+
+    if (!sbUrl || !sbAnon || !sbService) {
+      console.error("[playground-blog-generate] Missing env vars");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const userClient = createClient(sbUrl, sbAnon, {
       global: { headers: { Authorization: authHeader } },
@@ -37,12 +60,14 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: authErr } = await userClient.auth.getUser(token);
     if (authErr || !userData.user) {
+      console.log("[playground-blog-generate] Auth failed:", authErr?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const userId = userData.user.id;
+    console.log("[playground-blog-generate] Authenticated user:", userId);
 
     // Parse & validate input
     let title: string;
@@ -68,12 +93,14 @@ Deno.serve(async (req) => {
     // Rate limit check
     const today = new Date().toISOString().split("T")[0];
 
-    const { data: existing } = await serviceClient
+    const { data: existing, error: usageErr } = await serviceClient
       .from("user_daily_blog_usage")
       .select("id, generation_count")
       .eq("user_id", userId)
       .eq("usage_date", today)
       .maybeSingle();
+
+    console.log("[playground-blog-generate] Usage check:", { existing, usageErr: usageErr?.message });
 
     if (existing && existing.generation_count >= DAILY_LIMIT) {
       return new Response(
@@ -83,15 +110,18 @@ Deno.serve(async (req) => {
     }
 
     // Generate content using shared webhook module
-    console.log(`[playground-blog-generate] Generating for user ${userId}: "${sanitizedTitle}"`);
+    console.log(`[playground-blog-generate] Calling webhook for: "${sanitizedTitle}"`);
     const result = await generateBlogContent(sanitizedTitle);
 
     if ("error" in result) {
+      console.error("[playground-blog-generate] Webhook failed:", result.error);
       return new Response(
         JSON.stringify({ error: "Content generation failed. Please try again." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log("[playground-blog-generate] Webhook success, content length:", result.content.length);
 
     // Increment usage AFTER successful generation
     if (existing) {
