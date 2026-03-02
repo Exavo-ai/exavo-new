@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Zap, DollarSign, Package, MessageSquare } from "lucide-react";
+import { Zap, DollarSign, Package, MessageSquare, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ConsultationRequestDialog } from "@/components/ConsultationRequestDialog";
 
@@ -68,7 +69,7 @@ const Hero = () => {
           </div>
 
           {/* CTA */}
-          <div className="flex justify-center">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <ConsultationRequestDialog
               trigger={
                 <Button 
@@ -81,6 +82,16 @@ const Hero = () => {
                 </Button>
               }
             />
+            <Link to="/playground">
+              <Button 
+                size="lg"
+                variant="outline"
+                className="text-base sm:text-lg px-8 h-14 font-semibold gap-2"
+              >
+                <Sparkles className="w-5 h-5" />
+                {language === 'ar' ? 'جرّب عروضنا' : 'Try Our Demos'}
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
