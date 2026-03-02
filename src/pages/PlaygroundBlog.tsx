@@ -70,23 +70,18 @@ const PlaygroundBlog = () => {
         return;
       }
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const { data: result, error: fnError } = await supabase.functions.invoke(
+        "playground-blog-generate",
+        { body: { title: title.trim() } }
+      );
 
-      const resp = await fetch(`${supabaseUrl}/functions/v1/playground-blog-generate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-          apikey: apiKey,
-        },
-        body: JSON.stringify({ title: title.trim() }),
-      });
+      if (fnError) {
+        setError("Content generation failed. Please try again.");
+        return;
+      }
 
-      const result = await resp.json();
-
-      if (!resp.ok || result.error) {
-        setError(result.error || "Content generation failed. Please try again.");
+      if (result?.error) {
+        setError(result.error);
         return;
       }
 
