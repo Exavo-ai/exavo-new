@@ -145,7 +145,7 @@ function chunkText(
 // ── SHA-256 ─────────────────────────────────────────────────────────────────
 
 async function sha256(data: Uint8Array): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data as ArrayBuffer);
   return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
@@ -304,8 +304,8 @@ Deno.serve(async (req) => {
       fileHash = await sha256(fileBytes);
       console.info("[STEP 8] DUPLICATE_CHECK — hash:", fileHash.slice(0, 12) + "...");
 
-      const { data: existing } = await userClient
-        .from("rag_documents")
+      const { data: existing } = await (userClient
+        .from("rag_documents") as any)
         .select("id")
         .eq("user_id", userId)
         .eq("file_hash", fileHash)
@@ -367,8 +367,8 @@ Deno.serve(async (req) => {
       const safeName = sanitizeFilename(fileName);
       console.info("[STEP 11] DOC_INSERT — safeName:", safeName, "hash:", fileHash!.slice(0, 12));
 
-      const { data: docRow, error: docErr } = await serviceClient
-        .from("rag_documents")
+      const { data: docRow, error: docErr } = await (serviceClient
+        .from("rag_documents") as any)
         .insert({ user_id: userId, file_name: safeName, file_hash: fileHash! })
         .select("id")
         .single();
@@ -396,8 +396,8 @@ Deno.serve(async (req) => {
         embedding_json: "",
       }));
 
-      const { error: chunkErr } = await serviceClient
-        .from("rag_chunks")
+      const { error: chunkErr } = await (serviceClient
+        .from("rag_chunks") as any)
         .insert(chunkRows);
 
       if (chunkErr) {

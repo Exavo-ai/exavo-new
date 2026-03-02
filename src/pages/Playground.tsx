@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Bot, Workflow, ArrowRight, Sparkles } from "lucide-react";
+import { FileText, Bot, Workflow, ArrowRight, Sparkles, PenTool } from "lucide-react";
 import { motion } from "framer-motion";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -24,6 +24,23 @@ const playgroundCards = [
       "No re-embedding unless files change",
     ],
     href: "/playground/rag",
+    enabled: true,
+  },
+  {
+    id: "blog",
+    tag: "Live Demo",
+    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: PenTool,
+    title: "AI Blog Generator",
+    description:
+      "Generate up to 3 AI-powered blog posts per day from a simple title.",
+    features: [
+      "3 free generations per day",
+      "AI-powered content creation",
+      "Formatted markdown output",
+      "Instant results",
+    ],
+    href: "/playground/blog",
     enabled: true,
   },
   {
