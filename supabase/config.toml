@@ -122,3 +122,9 @@ verify_jwt = false
 
 [functions.rag-query]
 verify_jwt = false
+
+[functions.playground-blog-generate]
+verify_jwt = false
+
+[functions.blog-webhook-post]
+verify_jwt = false
