@@ -3,7 +3,7 @@ import Hero from "@/components/Hero";
 import OperationalBottlenecks from "@/components/OperationalBottlenecks";
 import AISystemsWeBuild from "@/components/AISystemsWeBuild";
 import HowItWorks from "@/components/HowItWorks";
-import TrustBanner from "@/components/TrustBanner";
+
 import HowWeHelp from "@/components/HowWeHelp";
 import { RealWorkSection } from "@/components/RealWorkSection";
 import FlagshipCaseStudy from "@/components/FlagshipCaseStudy";
@@ -31,7 +31,7 @@ const Index = () => {
         <OperationalBottlenecks />
         <AISystemsWeBuild />
         <HowItWorks />
-        <TrustBanner />
+        
         <HowWeHelp />
         <ValueLadder />
         <ImplementationStructure />
