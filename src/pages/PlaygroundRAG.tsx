@@ -232,15 +232,13 @@ const PlaygroundRAG = () => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const supabaseUrl = "https://ihxrkmnieckgvscfqgwb.supabase.co";
+      const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloeHJrbW5pZWNrZ3ZzY2ZxZ3diIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwNDEwODAsImV4cCI6MjA3ODYxNzA4MH0.I_TVEMnRLB0Ru4rNMEx9XQasrIS6ySn6gZS2gRWG1bU";
+
+      console.log("Calling RAG:", supabaseUrl);
 
       if (!token) {
         throw new Error("You are not authenticated. Please sign in again.");
-      }
-
-      if (!supabaseUrl || !apiKey) {
-        throw new Error("Missing backend configuration (URL or API key).");
       }
 
       const fetchResp = await fetch(
