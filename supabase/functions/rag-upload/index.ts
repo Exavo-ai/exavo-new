@@ -63,10 +63,10 @@ async function extractTextWithGemini(filename: string, fileBytes: Uint8Array): P
   }
   base64File = btoa(base64File);
 
-  console.info("[STEP 9] Calling Gemini model: gemini-2.0-flash");
+  console.info("[STEP 9] Calling Gemini model: gemini-2.5-flash");
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -11,7 +11,7 @@ const MAX_QUESTION_LENGTH = 2000;
 const MAX_CONTEXT_CHARS = 12000;
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
-const GENERATE_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+const GENERATE_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 function errorResp(message: string, status = 400, extra: Record<string, unknown> = {}) {
   return new Response(JSON.stringify({ error: message, ...extra }), {
