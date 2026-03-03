@@ -19,14 +19,14 @@ const Hero = () => {
         <div className="max-w-4xl mx-auto text-center space-y-6 animate-fade-in">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-foreground">
             {language === 'ar'
-              ? 'وكلاء ذكاء اصطناعي لكل عمل'
-              : 'AI Agents for Every Business'}
+              ? 'تنفيذ وبنية تحتية للذكاء الاصطناعي للشركات النامية'
+              : 'AI Implementation & Infrastructure for Growth-Stage Companies'}
           </h1>
 
           <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             {language === 'ar'
-              ? 'أتمتة سير العمل، تعزيز الإنتاجية، وتوسيع نطاق أعمالك بحلول ذكاء اصطناعي جاهزة للاستخدام.'
-              : 'Automate workflows, boost productivity, and scale your business with ready-to-deploy AI solutions.'}
+              ? 'نصمم وننشر وندير أنظمة الذكاء الاصطناعي عبر العمليات والإيرادات وسير عمل العملاء — لتحويل الشركات النامية إلى مؤسسات قابلة للتوسع.'
+              : 'We design, deploy, and manage AI systems across operations, revenue, and customer workflows — turning growing companies into scalable organizations.'}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
@@ -36,7 +36,7 @@ const Hero = () => {
               className="text-base sm:text-lg px-10 h-14 font-semibold shadow-glow"
               onClick={() => setDemoDialogOpen(true)}
             >
-              {language === 'ar' ? 'احجز جلسة استراتيجية' : 'Book a Strategy Session'}
+              {language === 'ar' ? 'قدّم طلب جلسة استراتيجية' : 'Apply for AI Strategy Session'}
               <ArrowRight className="w-5 h-5" />
             </Button>
 
