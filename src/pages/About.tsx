@@ -170,14 +170,13 @@ const About = () => {
                     </div>
                   </div>
                 </div>
-                <div className="relative h-96 rounded-2xl overflow-hidden shadow-card animate-fade-in-up">
-                  <div className="absolute inset-0 bg-gradient-card"></div>
-                  <img 
-                     src={aboutHeroImage}
-                     alt={language === "ar" ? "فريق Exavo" : "Exavo AI - End-to-end AI Solutions"}
-                     className="absolute inset-0 w-full h-full object-cover opacity-80"
-                  />
-                </div>
+                <div className="flex items-center justify-center rounded-2xl shadow-card animate-fade-in-up bg-gradient-card">
+                   <img 
+                      src={aboutHeroImage}
+                      alt={language === "ar" ? "فريق Exavo" : "Exavo AI - End-to-end AI Solutions"}
+                      className="w-full h-auto object-contain rounded-2xl"
+                   />
+                 </div>
               </div>
             </div>
           </div>
