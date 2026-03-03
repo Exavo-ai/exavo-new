@@ -9,13 +9,8 @@ const CTA = () => {
   const [demoDialogOpen, setDemoDialogOpen] = useState(false);
   return (
     <section className="py-16 lg:py-20 relative overflow-hidden bg-muted/30">
-      {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-background via-muted/50 to-primary/5"></div>
-      
-      {/* Subtle pattern overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border))_1px,transparent_1px)] bg-[size:3rem_3rem] opacity-20"></div>
-      
-      {/* Ambient glow */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] animate-pulse"></div>
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
       
@@ -28,8 +23,8 @@ const CTA = () => {
           </h2>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {language === 'ar'
-              ? 'احجز استشارة مجانية لتحديد أفضل فرص الذكاء الاصطناعي لأعمالك'
-              : 'Schedule a free consultation to identify your highest-impact AI opportunities'}
+              ? 'قدّم طلباً لجلسة استراتيجية لتحديد أفضل فرص الذكاء الاصطناعي لأعمالك'
+              : 'Apply for an AI Strategy Session to identify your highest-impact AI opportunities'}
           </p>
           <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <Button 
@@ -38,7 +33,7 @@ const CTA = () => {
               className="text-base sm:text-lg px-10 h-14 font-semibold"
               onClick={() => setDemoDialogOpen(true)}
             >
-              {language === 'ar' ? 'احجز استشارة مجانية' : 'Book a Free Consultation'}
+              {language === 'ar' ? 'قدّم طلب جلسة استراتيجية' : 'Apply for AI Strategy Session'}
               <ArrowRight className="w-5 h-5" />
             </Button>
           </div>
