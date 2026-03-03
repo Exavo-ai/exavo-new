@@ -1,4 +1,5 @@
 import Navigation from "@/components/Navigation";
+import aboutHeroImage from "@/assets/about-hero.jpeg";
 import Footer from "@/components/Footer";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { 
@@ -172,9 +173,9 @@ const About = () => {
                 <div className="relative h-96 rounded-2xl overflow-hidden shadow-card animate-fade-in-up">
                   <div className="absolute inset-0 bg-gradient-card"></div>
                   <img 
-                    src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&h=600&fit=crop" 
-                    alt={language === "ar" ? "فريق Exavo" : "Exavo team collaboration"}
-                    className="absolute inset-0 w-full h-full object-cover opacity-80"
+                     src={aboutHeroImage}
+                     alt={language === "ar" ? "فريق Exavo" : "Exavo AI - End-to-end AI Solutions"}
+                     className="absolute inset-0 w-full h-full object-cover opacity-80"
                   />
                 </div>
               </div>
