@@ -62,33 +62,84 @@ serve(async (req) => {
       );
     }
 
-    // Call external API
-    const apiResponse = await fetch("https://agentic-content-engine.vercel.app/api/generate", {
+    // Use Lovable AI Gateway with multi-agent prompt
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "AI service not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const systemPrompt = `You are a LinkedIn post generation system that simulates a multi-agent workflow. For the given topic, execute these three steps internally and return ONLY the final polished LinkedIn post:
+
+STEP 1 - Writer Agent: Draft a LinkedIn post about the topic. Use a professional but engaging tone. Include relevant insights, a hook opening, and a call-to-action.
+
+STEP 2 - Improvement Agent: Take the draft and improve clarity, engagement, and flow. Add relevant emojis sparingly. Ensure the post follows LinkedIn best practices (short paragraphs, line breaks for readability, hashtags at the end).
+
+STEP 3 - Reviewer Agent: Do a final review. Polish the language, ensure professional tone, verify the post is between 150-300 words, and make final improvements.
+
+Return ONLY the final polished LinkedIn post text. No explanations, no step labels, no meta-commentary. Just the ready-to-post LinkedIn content.`;
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ topic: topic.trim() }),
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Generate a LinkedIn post about: ${topic.trim()}` },
+        ],
+      }),
     });
 
-    if (!apiResponse.ok) {
-      const errText = await apiResponse.text();
-      console.error("External API error:", apiResponse.status, errText);
+    if (!aiResponse.ok) {
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ error: "AI service is busy. Please try again in a moment." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ error: "AI service quota exceeded. Please try again later." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const errText = await aiResponse.text();
+      console.error("AI gateway error:", aiResponse.status, errText);
       return new Response(JSON.stringify({ error: "Generation failed. Please try again." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const result = await apiResponse.json();
-    const content = result.post || result.content || result.output || result.result || JSON.stringify(result, null, 2);
+    const aiResult = await aiResponse.json();
+    const content = aiResult.choices?.[0]?.message?.content;
+
+    if (!content) {
+      return new Response(JSON.stringify({ error: "No content generated. Please try again." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Increment usage only after success
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
     if (usage) {
-      await supabase
+      await serviceClient
         .from("user_daily_linkedin_usage")
         .update({ generation_count: currentCount + 1, updated_at: new Date().toISOString() })
         .eq("id", usage.id);
     } else {
-      await supabase
+      await serviceClient
         .from("user_daily_linkedin_usage")
         .insert({ user_id: user.id, usage_date: today, generation_count: 1 });
     }

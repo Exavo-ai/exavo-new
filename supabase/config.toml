@@ -128,3 +128,6 @@ verify_jwt = false
 
 [functions.blog-webhook-post]
 verify_jwt = false
+
+[functions.linkedin-generate]
+verify_jwt = false
