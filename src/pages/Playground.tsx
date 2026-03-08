@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Bot, Workflow, ArrowRight, Sparkles, PenTool } from "lucide-react";
+import { FileText, Bot, Workflow, ArrowRight, Sparkles, PenTool, Linkedin } from "lucide-react";
 import { motion } from "framer-motion";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -41,6 +41,24 @@ const playgroundCards = [
       "Instant results",
     ],
     href: "/playground/blog",
+    enabled: true,
+  },
+  {
+    id: "linkedin",
+    tag: "Live Demo",
+    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: Linkedin,
+    title: "AI LinkedIn Post Generator",
+    description:
+      "Generate professional LinkedIn posts from a topic using our multi-agent AI system that writes, improves, and reviews the content automatically.",
+    features: [
+      "Multi-Agent AI Workflow",
+      "Topic → LinkedIn Post",
+      "AI Quality Review",
+      "Professional LinkedIn formatting",
+      "Instant generation",
+    ],
+    href: "/playground/linkedin-generator",
     enabled: true,
   },
   {

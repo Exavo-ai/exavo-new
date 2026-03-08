@@ -46,6 +46,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Playground from "./pages/Playground";
 import PlaygroundRAG from "./pages/PlaygroundRAG";
 import PlaygroundBlog from "./pages/PlaygroundBlog";
+import PlaygroundLinkedIn from "./pages/PlaygroundLinkedIn";
 import NotFound from "./pages/NotFound";
 import ChatWidget from "./components/ChatWidget";
 import SEO from "./components/SEO";
@@ -74,6 +75,7 @@ const App = () => (
         <Route path="/playground" element={<Playground />} />
         <Route path="/playground/rag" element={<PlaygroundRAG />} />
         <Route path="/playground/blog" element={<PlaygroundBlog />} />
+        <Route path="/playground/linkedin-generator" element={<PlaygroundLinkedIn />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/client/invite/accept" element={<AcceptInvitation />} />
