@@ -53,29 +53,6 @@ const PlaygroundLinkedIn = () => {
     }
   };
 
-  const incrementUsage = async () => {
-    const today = new Date().toISOString().split("T")[0];
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-
-    const { data: existing } = await supabase
-      .from("user_daily_linkedin_usage")
-      .select("id, generation_count")
-      .eq("usage_date", today)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase
-        .from("user_daily_linkedin_usage")
-        .update({ generation_count: existing.generation_count + 1, updated_at: new Date().toISOString() })
-        .eq("id", existing.id);
-    } else {
-      await supabase
-        .from("user_daily_linkedin_usage")
-        .insert({ user_id: session.user.id, usage_date: today, generation_count: 1 });
-    }
-  };
-
   const handleGenerate = useCallback(async () => {
     if (loading || !topic.trim() || remaining === 0) return;
 
@@ -90,29 +67,27 @@ const PlaygroundLinkedIn = () => {
         return;
       }
 
-      const response = await fetch("https://agentic-content-engine.vercel.app/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: topic.trim() }),
-      });
+      const { data: result, error: fnError } = await supabase.functions.invoke(
+        "linkedin-generate",
+        { body: { topic: topic.trim() } }
+      );
 
-      if (!response.ok) {
+      if (fnError) {
         setError("Generation failed. Please try again.");
         return;
       }
 
-      const result = await response.json();
-
-      if (!result || (!result.post && !result.content && !result.output)) {
-        setError("Unexpected response. Please try again.");
+      if (result?.error) {
+        setError(result.error);
         return;
       }
 
-      const generatedContent = result.post || result.content || result.output || JSON.stringify(result, null, 2);
-      setContent(generatedContent);
-
-      await incrementUsage();
-      await fetchUsage();
+      setContent(result.content);
+      if (typeof result.remaining === "number") {
+        setRemaining(result.remaining);
+      } else {
+        await fetchUsage();
+      }
     } catch {
       setError("Generation failed. Please try again.");
     } finally {
