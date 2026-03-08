@@ -44,6 +44,24 @@ const playgroundCards = [
     enabled: true,
   },
   {
+    id: "linkedin",
+    tag: "Live Demo",
+    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: Linkedin,
+    title: "AI LinkedIn Post Generator",
+    description:
+      "Generate professional LinkedIn posts from a topic using our multi-agent AI system that writes, improves, and reviews the content automatically.",
+    features: [
+      "Multi-Agent AI Workflow",
+      "Topic → LinkedIn Post",
+      "AI Quality Review",
+      "Professional LinkedIn formatting",
+      "Instant generation",
+    ],
+    href: "/playground/linkedin-generator",
+    enabled: true,
+  },
+  {
     id: "agent",
     tag: "Coming Soon",
     tagClass: "bg-orange-500/10 text-orange-600 border-orange-500/20",
