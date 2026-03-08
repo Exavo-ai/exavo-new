@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Bot, Workflow, ArrowRight, Sparkles, PenTool, Linkedin } from "lucide-react";
+import { FileText, ArrowRight, Sparkles, PenTool, Linkedin } from "lucide-react";
 import { motion } from "framer-motion";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -60,30 +60,6 @@ const playgroundCards = [
     ],
     href: "/playground/linkedin-generator",
     enabled: true,
-  },
-  {
-    id: "agent",
-    tag: "Coming Soon",
-    tagClass: "bg-orange-500/10 text-orange-600 border-orange-500/20",
-    icon: Bot,
-    title: "AI Agent",
-    description:
-      "Interact with structured AI agents connected to tools and workflows.",
-    features: [],
-    href: "",
-    enabled: false,
-  },
-  {
-    id: "automation",
-    tag: "Coming Soon",
-    tagClass: "bg-orange-500/10 text-orange-600 border-orange-500/20",
-    icon: Workflow,
-    title: "AI Automation Demo",
-    description:
-      "Test automated AI workflows for document processing and structured outputs.",
-    features: [],
-    href: "",
-    enabled: false,
   },
 ];
 
