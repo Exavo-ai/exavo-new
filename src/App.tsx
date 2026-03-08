@@ -75,6 +75,7 @@ const App = () => (
         <Route path="/playground" element={<Playground />} />
         <Route path="/playground/rag" element={<PlaygroundRAG />} />
         <Route path="/playground/blog" element={<PlaygroundBlog />} />
+        <Route path="/playground/linkedin-generator" element={<PlaygroundLinkedIn />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/client/invite/accept" element={<AcceptInvitation />} />
