@@ -36,17 +36,39 @@ Deno.serve(async (req) => {
       apiVersion: "2025-08-27.basil",
     });
 
+    console.log(`[GET-INVOICES] Fetching invoices for user ${user.id} (${user.email})`);
+
     const customers = await stripe.customers.list({
       email: user.email,
       limit: 1,
     });
 
     if (customers.data.length === 0) {
+      console.log(`[GET-INVOICES] No Stripe customer found for ${user.email}`);
       return successResponse({ invoices: [] });
     }
 
+    const stripeCustomer = customers.data[0];
+
+    // SECURITY: Verify the Stripe customer email matches the authenticated user
+    if (
+      !stripeCustomer.email ||
+      stripeCustomer.email.toLowerCase() !== user.email!.toLowerCase()
+    ) {
+      console.log(`[GET-INVOICES] SECURITY: Email mismatch! Stripe=${stripeCustomer.email}, Auth=${user.email}. Creating new customer.`);
+      const newCustomer = await stripe.customers.create({
+        email: user.email,
+        metadata: { lovable_user_id: user.id },
+      });
+      console.log(`[GET-INVOICES] Created corrected customer ${newCustomer.id} for ${user.email}`);
+      // New customer has no invoices yet
+      return successResponse({ invoices: [] });
+    }
+
+    console.log(`[GET-INVOICES] Using verified Stripe customer ${stripeCustomer.id} for ${user.email}`);
+
     const invoices = await stripe.invoices.list({
-      customer: customers.data[0].id,
+      customer: stripeCustomer.id,
       limit: 50,
     });
 

@@ -83,30 +83,45 @@ serve(async (req) => {
       );
     }
 
-    // Get user from metadata or try to authenticate
-    let userId = session.metadata?.lovable_user_id;
-    
-    if (!userId) {
-      // Try to get from auth header
-      const authHeader = req.headers.get("Authorization");
-      if (authHeader) {
-        const supabaseClient = createClient(
-          Deno.env.get("SUPABASE_URL") ?? "",
-          Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-        );
-        const token = authHeader.replace("Bearer ", "");
-        const { data: userData } = await supabaseClient.auth.getUser(token);
-        userId = userData.user?.id;
-      }
-    }
-
-    if (!userId) {
-      logStep("No user ID available");
+    // SECURITY: Always require authenticated user — no metadata fallback
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      logStep("SECURITY: No Authorization header — rejecting request");
       return new Response(
-        JSON.stringify({ success: false, error: "User not identified" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: authError } = await supabaseClient.auth.getUser(token);
+    const userId = userData.user?.id;
+
+    if (authError || !userId) {
+      logStep("SECURITY: Invalid auth token", { error: authError?.message });
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid or expired token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify metadata user matches authenticated user (if metadata exists)
+    if (session.metadata?.lovable_user_id && session.metadata.lovable_user_id !== userId) {
+      logStep("SECURITY: Session user mismatch", {
+        metadataUserId: session.metadata.lovable_user_id,
+        authenticatedUserId: userId,
+      });
+      return new Response(
+        JSON.stringify({ success: false, error: "Session does not belong to authenticated user" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    logStep("User authenticated", { userId, email: userData.user?.email });
 
     // Check if payment already recorded in our database
     const { data: existingPayment } = await supabaseAdmin

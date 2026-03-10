@@ -98,11 +98,31 @@ serve(async (req) => {
       apiVersion: "2025-08-27.basil",
     });
 
-    console.log(`Creating ${mode} checkout for user ${user.email}`);
+    console.log(`[CREATE-CHECKOUT] Creating ${mode} checkout for user ${user.id} (${user.email})`);
 
-    // Check for existing customer
+    // Check for existing customer with email verification
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    const customerId = customers.data.length > 0 ? customers.data[0].id : undefined;
+    let customerId: string | undefined = undefined;
+
+    if (customers.data.length > 0) {
+      const stripeCustomer = customers.data[0];
+      // SECURITY: Verify the Stripe customer email matches the authenticated user
+      if (
+        stripeCustomer.email &&
+        stripeCustomer.email.toLowerCase() === user.email!.toLowerCase()
+      ) {
+        customerId = stripeCustomer.id;
+        console.log(`[CREATE-CHECKOUT] Using verified Stripe customer ${customerId}`);
+      } else {
+        console.log(`[CREATE-CHECKOUT] SECURITY: Email mismatch! Stripe=${stripeCustomer.email}, Auth=${user.email}. Creating new customer.`);
+        const newCustomer = await stripe.customers.create({
+          email: user.email,
+          metadata: { lovable_user_id: user.id },
+        });
+        customerId = newCustomer.id;
+        console.log(`[CREATE-CHECKOUT] Created corrected customer ${customerId}`);
+      }
+    }
 
     if (mode === "subscription") {
       const { priceId } = validation.data as z.infer<typeof subscriptionSchema>;
