@@ -99,8 +99,23 @@ serve(async (req) => {
     if (email) {
       const customers = await stripe.customers.list({ email, limit: 1 });
       if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-        logStep("Found existing customer", { customerId });
+        const stripeCustomer = customers.data[0];
+        if (stripeCustomer.email?.toLowerCase() === user.email!.toLowerCase()) {
+          customerId = stripeCustomer.id;
+          logStep("Found existing customer (email verified)", { customerId });
+        } else {
+          // SECURITY: Email mismatch — create a new customer for this user
+          logStep("SECURITY: Stripe customer email mismatch, creating new customer", {
+            stripeEmail: stripeCustomer.email,
+            userEmail: user.email,
+          });
+          const newCustomer = await stripe.customers.create({
+            email: user.email!,
+            metadata: { lovable_user_id: userId },
+          });
+          customerId = newCustomer.id;
+          logStep("Created new Stripe customer after mismatch", { customerId });
+        }
       }
     }
 

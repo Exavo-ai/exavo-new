@@ -63,12 +63,27 @@ serve(async (req) => {
       apiVersion: "2025-08-27.basil",
     });
 
-    // Check for existing customer
+    // Check for existing customer with email verification
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId: string | undefined;
     if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      logStep("Found existing customer", { customerId });
+      const stripeCustomer = customers.data[0];
+      if (stripeCustomer.email?.toLowerCase() === user.email!.toLowerCase()) {
+        customerId = stripeCustomer.id;
+        logStep("Found existing customer (email verified)", { customerId });
+      } else {
+        // SECURITY: Email mismatch — create a new customer for this user
+        logStep("SECURITY: Stripe customer email mismatch, creating new customer", {
+          stripeEmail: stripeCustomer.email,
+          userEmail: user.email,
+        });
+        const newCustomer = await stripe.customers.create({
+          email: user.email!,
+          metadata: { lovable_user_id: user.id },
+        });
+        customerId = newCustomer.id;
+        logStep("Created new Stripe customer after mismatch", { customerId });
+      }
     }
 
     const origin = req.headers.get("origin") || "https://exavo.ai";
