@@ -2,6 +2,10 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { corsHeaders, handleCors } from "../_shared/response.ts";
 
+const logStep = (step: string, details?: unknown) => {
+  console.log(`[CREATE-BILLING-PORTAL] ${step}`, details ? JSON.stringify(details) : "");
+};
+
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
@@ -48,25 +52,40 @@ Deno.serve(async (req) => {
       });
     }
 
+    logStep("User authenticated", { userId: user.id, email: user.email });
+
     const stripe = new Stripe(stripeSecretKey, {
       apiVersion: "2025-08-27.basil",
     });
 
     let customerId: string | null = null;
 
-    // 1. Try project_subscriptions first
-    const { data: subData } = await supabaseClient
-      .from("project_subscriptions")
-      .select("stripe_customer_id")
-      .not("stripe_customer_id", "is", null)
-      .limit(1);
-    
-    if (subData && subData.length > 0 && subData[0].stripe_customer_id) {
-      customerId = subData[0].stripe_customer_id;
-      console.log(`[CREATE-BILLING-PORTAL] Found customer in project_subscriptions: ${customerId}`);
+    // ============================================
+    // SECURITY: All lookups MUST be scoped to the authenticated user
+    // ============================================
+
+    // 1. Try project_subscriptions — scoped to user's projects
+    const { data: userProjects } = await supabaseClient
+      .from("projects")
+      .select("id")
+      .or(`user_id.eq.${user.id},client_id.eq.${user.id}`);
+
+    if (userProjects && userProjects.length > 0) {
+      const projectIds = userProjects.map((p: { id: string }) => p.id);
+      const { data: subData } = await supabaseClient
+        .from("project_subscriptions")
+        .select("stripe_customer_id")
+        .in("project_id", projectIds)
+        .not("stripe_customer_id", "is", null)
+        .limit(1);
+
+      if (subData && subData.length > 0 && subData[0].stripe_customer_id) {
+        customerId = subData[0].stripe_customer_id;
+        logStep("Found customer in user's project_subscriptions", { customerId });
+      }
     }
 
-    // 2. Try workspaces table
+    // 2. Try workspaces table — scoped to user's workspace
     if (!customerId) {
       const { data: wsData } = await supabaseClient
         .from("workspaces")
@@ -76,11 +95,11 @@ Deno.serve(async (req) => {
       
       if (wsData?.stripe_customer_id) {
         customerId = wsData.stripe_customer_id;
-        console.log(`[CREATE-BILLING-PORTAL] Found customer in workspaces: ${customerId}`);
+        logStep("Found customer in workspaces", { customerId });
       }
     }
 
-    // 3. Try subscriptions table
+    // 3. Try subscriptions table — scoped to user
     if (!customerId) {
       const { data: subTableData } = await supabaseClient
         .from("subscriptions")
@@ -90,34 +109,66 @@ Deno.serve(async (req) => {
       
       if (subTableData && subTableData.length > 0 && subTableData[0].stripe_customer_id) {
         customerId = subTableData[0].stripe_customer_id;
-        console.log(`[CREATE-BILLING-PORTAL] Found customer in subscriptions: ${customerId}`);
+        logStep("Found customer in subscriptions", { customerId });
       }
     }
 
-    // 4. Search Stripe by email
+    // 4. Search Stripe by authenticated user's email
     if (!customerId) {
       const customers = await stripe.customers.list({ email: user.email, limit: 1 });
       if (customers.data.length > 0) {
         customerId = customers.data[0].id;
-        console.log(`[CREATE-BILLING-PORTAL] Found customer in Stripe by email: ${customerId}`);
+        logStep("Found customer in Stripe by email", { customerId });
       }
     }
 
     // 5. Create new Stripe customer if none found
     if (!customerId) {
-      console.log(`[CREATE-BILLING-PORTAL] No customer found, creating new for: ${user.email}`);
+      logStep("No customer found, creating new", { email: user.email });
       const newCustomer = await stripe.customers.create({
         email: user.email,
         metadata: { lovable_user_id: user.id },
       });
       customerId = newCustomer.id;
-      console.log(`[CREATE-BILLING-PORTAL] Created new customer: ${customerId}`);
+      logStep("Created new customer", { customerId });
 
       // Save to workspaces if exists
       await supabaseClient
         .from("workspaces")
         .update({ stripe_customer_id: customerId })
         .eq("owner_id", user.id);
+    }
+
+    // ============================================
+    // SECURITY: Verify the Stripe customer email matches the authenticated user
+    // This prevents any edge case where a wrong customer ID was stored
+    // ============================================
+    try {
+      const stripeCustomer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+      if (stripeCustomer && !stripeCustomer.deleted && stripeCustomer.email) {
+        if (stripeCustomer.email.toLowerCase() !== user.email!.toLowerCase()) {
+          logStep("SECURITY: Stripe customer email mismatch!", {
+            stripeEmail: stripeCustomer.email,
+            userEmail: user.email,
+            customerId,
+          });
+          // Do NOT use this customer — fall back to creating a new one for this user
+          const newCustomer = await stripe.customers.create({
+            email: user.email,
+            metadata: { lovable_user_id: user.id },
+          });
+          customerId = newCustomer.id;
+          logStep("SECURITY: Created corrected customer", { customerId, email: user.email });
+
+          // Update workspace with corrected customer ID
+          await supabaseClient
+            .from("workspaces")
+            .update({ stripe_customer_id: customerId })
+            .eq("owner_id", user.id);
+        }
+      }
+    } catch (verifyError) {
+      logStep("Could not verify customer email (non-blocking)", { error: verifyError });
     }
 
     const origin = req.headers.get("origin") || "https://exavo.ai";
@@ -129,7 +180,7 @@ Deno.serve(async (req) => {
         return_url: `${origin}/portal/projects`,
       });
 
-      console.log(`[CREATE-BILLING-PORTAL] Portal session created for user: ${user.id}`);
+      logStep("Portal session created", { userId: user.id, customerId, email: user.email });
 
       return new Response(JSON.stringify({ url: session.url }), {
         status: 200,
@@ -138,7 +189,6 @@ Deno.serve(async (req) => {
     } catch (portalError) {
       console.error("[CREATE-BILLING-PORTAL] Portal creation error:", portalError);
       
-      // Check if it's a portal not configured error
       const stripeError = portalError as Stripe.errors.StripeError;
       if (stripeError.code === "resource_missing" || 
           stripeError.message?.includes("portal") ||
