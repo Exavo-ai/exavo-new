@@ -33,8 +33,6 @@ interface ChatMessage {
 }
 
 const MAX_DOCS = 3;
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const DAILY_LIMIT = 7;
 const ALLOWED_EXTENSIONS = ["pdf", "txt", "docx"];
 
 const RAG_BUCKET = "rag-files";
