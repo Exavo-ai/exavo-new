@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { checkRateLimit, createRateLimitKey } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,9 +7,11 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const DAILY_LIMIT = 7;
 const MAX_QUESTION_LENGTH = 2000;
 const MAX_CONTEXT_CHARS = 12000;
+
+// Soft rate limit: 15 questions per minute per user (invisible to user)
+const QUERY_RATE_LIMIT = { maxRequests: 15, windowMs: 60 * 1000, prefix: "rag-query" };
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 const GENERATE_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -28,7 +31,6 @@ function okResp(data: Record<string, unknown>) {
 }
 
 Deno.serve(async (req) => {
-  console.log("RAG REQUEST RECEIVED");
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -48,35 +50,18 @@ Deno.serve(async (req) => {
     if (authErr || !userData.user) return errorResp("Unauthorized", 401);
     const userId = userData.user.id;
 
+    // Soft rate limiting per user (invisible — returns generic error)
+    const rateLimitKey = createRateLimitKey(req, userId);
+    const rateCheck = checkRateLimit(rateLimitKey, QUERY_RATE_LIMIT);
+    if (!rateCheck.allowed) {
+      console.warn(`[RAG-QUERY] Rate limit hit for user ${userId}`);
+      return errorResp("Please wait a moment before asking another question.", 429);
+    }
+
     const body = await req.json();
     const question = (body.question || "").trim();
     if (!question) return errorResp("Missing or empty question");
     if (question.length > MAX_QUESTION_LENGTH) return errorResp(`Question too long (max ${MAX_QUESTION_LENGTH} chars)`);
-
-    // Check usage
-    const today = new Date().toISOString().split("T")[0];
-    const { data: usageRow } = await supabase
-      .from("rag_usage")
-      .select("questions_used")
-      .eq("user_id", userId)
-      .eq("date", today)
-      .maybeSingle();
-
-    const currentUsed = Number(usageRow?.questions_used ?? 0);
-    if (currentUsed >= DAILY_LIMIT) {
-      return errorResp("Daily question limit reached. Resets tomorrow.", 429, {
-        questions_used: DAILY_LIMIT,
-        questions_remaining: 0,
-      });
-    }
-
-    // Increment usage
-    const newUsed = currentUsed + 1;
-    if (usageRow) {
-      await supabase.from("rag_usage").update({ questions_used: newUsed }).eq("user_id", userId).eq("date", today);
-    } else {
-      await supabase.from("rag_usage").insert({ user_id: userId, date: today, questions_used: 1 });
-    }
 
     // Fetch all chunks for this user
     const { data: chunks, error: chunkErr } = await supabase
@@ -91,8 +76,6 @@ Deno.serve(async (req) => {
       return okResp({
         answer: "You have not uploaded any documents yet. Please upload a document before asking questions.",
         sources: [],
-        questions_used: newUsed,
-        questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
       });
     }
 
@@ -133,12 +116,10 @@ Deno.serve(async (req) => {
     return okResp({
       answer: answer || "The requested information is not found in the provided documents.",
       sources,
-      questions_used: newUsed,
-      questions_remaining: Math.max(0, DAILY_LIMIT - newUsed),
     });
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
-    console.error("GEMINI ERROR FULL:", err);
+    console.error("RAG QUERY ERROR:", err);
     return new Response(
       JSON.stringify({ error: err.message }),
       {

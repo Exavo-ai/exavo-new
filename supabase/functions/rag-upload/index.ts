@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const MAX_FILES_PER_USER = 3;
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100MB internal safeguard (not shown to users)
 const ALLOWED_EXTENSIONS = new Set(["pdf", "txt", "docx"]);
 const CHUNK_SIZE = 800;
 const CHUNK_OVERLAP = 150;
@@ -270,7 +270,7 @@ Deno.serve(async (req) => {
     console.info("[STEP 6] FILE_SIZE_CHECK — bytes:", fileBytes.length, "max:", MAX_FILE_SIZE_BYTES);
     if (fileBytes.length > MAX_FILE_SIZE_BYTES) {
       await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
-      return errorResp({ step: "file_size_check", message: "File too large (max 5MB)" }, 413);
+      return errorResp({ step: "file_size_check", message: "File is too large to process" }, 413);
     }
     console.info("[STEP 6] FILE_SIZE_CHECK — passed");
 

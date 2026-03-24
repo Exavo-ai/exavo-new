@@ -33,8 +33,6 @@ interface ChatMessage {
 }
 
 const MAX_DOCS = 3;
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const DAILY_LIMIT = 7;
 const ALLOWED_EXTENSIONS = ["pdf", "txt", "docx"];
 
 const RAG_BUCKET = "rag-files";
@@ -45,14 +43,12 @@ const PlaygroundRAG = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [questionsUsed, setQuestionsUsed] = useState(0);
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const questionsRemaining = DAILY_LIMIT - questionsUsed;
   const hasReadyDocs = documents.some((d) => d.status === "ready");
-  const canSend = hasReadyDocs && questionsRemaining > 0 && !isSending && input.trim().length > 0;
+  const canSend = hasReadyDocs && !isSending && input.trim().length > 0;
 
   // Load existing documents and usage on mount
   useEffect(() => {
@@ -79,18 +75,6 @@ const PlaygroundRAG = () => {
           );
         }
 
-        // Load today's usage
-        const today = new Date().toISOString().split("T")[0];
-        const { data: usage } = await supabase
-          .from("rag_usage")
-          .select("questions_used")
-          .eq("user_id", user.id)
-          .eq("date", today)
-          .maybeSingle();
-
-        if (usage) {
-          setQuestionsUsed(usage.questions_used);
-        }
       } catch (err) {
         console.error("Failed to load playground data:", err);
       } finally {
@@ -124,12 +108,6 @@ const PlaygroundRAG = () => {
     const ext = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "";
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
       toast.error("Unsupported file type. Allowed: PDF, TXT, DOCX");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error("File too large. Maximum size is 5MB.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -264,9 +242,6 @@ const PlaygroundRAG = () => {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, aiMsg]);
-        if (result?.questions_used !== undefined) {
-          setQuestionsUsed(result.questions_used);
-        }
       } else {
         const aiMsg: ChatMessage = {
           id: crypto.randomUUID(),
@@ -275,7 +250,6 @@ const PlaygroundRAG = () => {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, aiMsg]);
-        setQuestionsUsed(result.questions_used);
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Network error";
@@ -336,7 +310,7 @@ const PlaygroundRAG = () => {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Documents</CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    Upload up to {MAX_DOCS} documents (max 5 MB each). PDF, TXT, DOCX only.
+                    Upload up to {MAX_DOCS} documents. PDF, TXT, DOCX only.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -426,26 +400,7 @@ const PlaygroundRAG = () => {
               <CardHeader className="pb-3 border-b border-border">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Chat</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      Questions remaining today:
-                    </span>
-                    <Badge
-                      variant={questionsRemaining > 0 ? "secondary" : "destructive"}
-                      className="text-xs"
-                    >
-                      {questionsRemaining} / {DAILY_LIMIT}
-                    </Badge>
-                  </div>
                 </div>
-                {questionsRemaining <= 0 && (
-                  <div className="mt-2 p-2 rounded-md bg-destructive/10 border border-destructive/20 flex items-center justify-between">
-                    <span className="text-xs text-destructive">Daily limit reached.</span>
-                    <Button variant="outline" size="sm" className="h-6 text-xs">
-                      Upgrade
-                    </Button>
-                  </div>
-                )}
               </CardHeader>
 
               <CardContent className="flex-1 flex flex-col p-0">
@@ -517,13 +472,11 @@ const PlaygroundRAG = () => {
                       placeholder={
                         !hasReadyDocs
                           ? "Upload a document first..."
-                          : questionsRemaining <= 0
-                          ? "Daily limit reached"
                           : "Ask a question about your documents..."
                       }
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      disabled={!hasReadyDocs || questionsRemaining <= 0 || isSending}
+                      disabled={!hasReadyDocs || isSending}
                       className="flex-1"
                     />
                     <Button type="submit" size="icon" disabled={!canSend}>
