@@ -310,7 +310,7 @@ const PlaygroundRAG = () => {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Documents</CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    Upload up to {MAX_DOCS} documents (max 5 MB each). PDF, TXT, DOCX only.
+                    Upload up to {MAX_DOCS} documents. PDF, TXT, DOCX only.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-3">
