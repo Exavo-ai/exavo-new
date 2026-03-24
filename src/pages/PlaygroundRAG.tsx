@@ -400,26 +400,7 @@ const PlaygroundRAG = () => {
               <CardHeader className="pb-3 border-b border-border">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Chat</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      Questions remaining today:
-                    </span>
-                    <Badge
-                      variant={questionsRemaining > 0 ? "secondary" : "destructive"}
-                      className="text-xs"
-                    >
-                      {questionsRemaining} / {DAILY_LIMIT}
-                    </Badge>
-                  </div>
                 </div>
-                {questionsRemaining <= 0 && (
-                  <div className="mt-2 p-2 rounded-md bg-destructive/10 border border-destructive/20 flex items-center justify-between">
-                    <span className="text-xs text-destructive">Daily limit reached.</span>
-                    <Button variant="outline" size="sm" className="h-6 text-xs">
-                      Upgrade
-                    </Button>
-                  </div>
-                )}
               </CardHeader>
 
               <CardContent className="flex-1 flex flex-col p-0">
