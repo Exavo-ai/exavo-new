@@ -75,18 +75,6 @@ const PlaygroundRAG = () => {
           );
         }
 
-        // Load today's usage
-        const today = new Date().toISOString().split("T")[0];
-        const { data: usage } = await supabase
-          .from("rag_usage")
-          .select("questions_used")
-          .eq("user_id", user.id)
-          .eq("date", today)
-          .maybeSingle();
-
-        if (usage) {
-          setQuestionsUsed(usage.questions_used);
-        }
       } catch (err) {
         console.error("Failed to load playground data:", err);
       } finally {
