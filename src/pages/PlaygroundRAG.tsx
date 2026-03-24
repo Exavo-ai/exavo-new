@@ -47,9 +47,8 @@ const PlaygroundRAG = () => {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const questionsRemaining = DAILY_LIMIT - questionsUsed;
   const hasReadyDocs = documents.some((d) => d.status === "ready");
-  const canSend = hasReadyDocs && questionsRemaining > 0 && !isSending && input.trim().length > 0;
+  const canSend = hasReadyDocs && !isSending && input.trim().length > 0;
 
   // Load existing documents and usage on mount
   useEffect(() => {
