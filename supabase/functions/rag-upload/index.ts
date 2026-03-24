@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const MAX_FILES_PER_USER = 3;
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100MB internal safeguard (not shown to users)
 const ALLOWED_EXTENSIONS = new Set(["pdf", "txt", "docx"]);
 const CHUNK_SIZE = 800;
 const CHUNK_OVERLAP = 150;
