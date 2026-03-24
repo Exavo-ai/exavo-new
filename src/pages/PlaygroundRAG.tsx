@@ -242,9 +242,6 @@ const PlaygroundRAG = () => {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, aiMsg]);
-        if (result?.questions_used !== undefined) {
-          setQuestionsUsed(result.questions_used);
-        }
       } else {
         const aiMsg: ChatMessage = {
           id: crypto.randomUUID(),
@@ -253,7 +250,6 @@ const PlaygroundRAG = () => {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, aiMsg]);
-        setQuestionsUsed(result.questions_used);
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Network error";
