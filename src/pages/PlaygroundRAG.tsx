@@ -472,13 +472,11 @@ const PlaygroundRAG = () => {
                       placeholder={
                         !hasReadyDocs
                           ? "Upload a document first..."
-                          : questionsRemaining <= 0
-                          ? "Daily limit reached"
                           : "Ask a question about your documents..."
                       }
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      disabled={!hasReadyDocs || questionsRemaining <= 0 || isSending}
+                      disabled={!hasReadyDocs || isSending}
                       className="flex-1"
                     />
                     <Button type="submit" size="icon" disabled={!canSend}>
