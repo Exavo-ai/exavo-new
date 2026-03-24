@@ -43,7 +43,6 @@ const PlaygroundRAG = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [questionsUsed, setQuestionsUsed] = useState(0);
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
