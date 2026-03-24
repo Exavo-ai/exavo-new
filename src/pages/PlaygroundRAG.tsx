@@ -112,12 +112,6 @@ const PlaygroundRAG = () => {
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error("File too large. Maximum size is 5MB.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-
     if (documents.length >= MAX_DOCS) {
       toast.error(`Maximum ${MAX_DOCS} documents reached.`);
       return;
