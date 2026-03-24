@@ -270,7 +270,7 @@ Deno.serve(async (req) => {
     console.info("[STEP 6] FILE_SIZE_CHECK — bytes:", fileBytes.length, "max:", MAX_FILE_SIZE_BYTES);
     if (fileBytes.length > MAX_FILE_SIZE_BYTES) {
       await serviceClient.storage.from(RAG_BUCKET).remove([filePath]);
-      return errorResp({ step: "file_size_check", message: "File too large (max 5MB)" }, 413);
+      return errorResp({ step: "file_size_check", message: "File is too large to process" }, 413);
     }
     console.info("[STEP 6] FILE_SIZE_CHECK — passed");
 
