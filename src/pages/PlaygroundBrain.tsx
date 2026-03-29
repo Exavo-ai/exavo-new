@@ -10,6 +10,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ChatMessage {
   id: string;
@@ -17,8 +18,6 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
 }
-
-const WEBHOOK_URL = "https://hook.eu1.make.com/1vt6i76tin9t20d18hrz9xkri9ixwqqb";
 
 const PlaygroundBrain = () => {
   const { user, loading: authLoading } = useAuth();
