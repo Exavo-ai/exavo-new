@@ -58,6 +58,7 @@ const PlaygroundBrain = () => {
     setIsSending(true);
 
     try {
+      console.log("Sending to webhook:", trimmed);
       const res = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
