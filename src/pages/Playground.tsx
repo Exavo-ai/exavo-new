@@ -203,8 +203,8 @@ const Playground = () => {
                               variant="outline"
                               className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                             >
-                              {card.id === "brain" ? "Ask Exavo Brain →" : card.id === "viralforge" ? "Generate Content →" : "Try Now"}
-                              {card.id !== "brain" && card.id !== "viralforge" && <ArrowRight className="h-4 w-4 ml-2" />}
+                              {card.id === "brain" ? "Ask Exavo Brain →" : card.id === "viralforge" ? "Generate Content →" : card.id === "revenue" ? "Build Strategy →" : "Try Now"}
+                              {!["brain", "viralforge", "revenue"].includes(card.id) && <ArrowRight className="h-4 w-4 ml-2" />}
                             </Button>
                           </Link>
                         ) : (
