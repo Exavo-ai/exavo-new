@@ -132,7 +132,7 @@ const Playground = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
-                    <Card className="h-full hover:shadow-lg transition-all duration-300 group border-border/50 hover:border-primary/20">
+                    <Card className={`h-full hover:shadow-lg transition-all duration-300 group border-border/50 hover:border-primary/20 ${(card as any).glow ? "ring-1 ring-primary/20 shadow-[0_0_20px_-6px_hsl(var(--primary)/0.25)]" : ""}`}>
                       <CardContent className="p-4 sm:p-6 flex flex-col h-full">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-2">
