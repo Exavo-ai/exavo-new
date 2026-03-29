@@ -148,50 +148,33 @@ const PlaygroundBrain = () => {
             </div>
           </div>
 
-          <Card className="border-border/50">
+          <Card className="border-border/50 shadow-sm overflow-hidden">
             <CardContent className="p-0">
               {/* Chat area */}
-              <div className="h-[450px] overflow-y-auto p-4 space-y-4">
+              <div className="h-[500px] overflow-y-auto p-5 space-y-5 bg-gradient-to-b from-background to-muted/20">
                 {messages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground gap-3">
-                    <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
+                  <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground gap-4">
+                    <motion.div
+                      animate={{ scale: [1, 1.05, 1] }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                      className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center"
+                    >
                       <Brain className="h-8 w-8 text-primary" />
+                    </motion.div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-foreground">How can I help you?</p>
+                      <p className="text-xs max-w-xs text-muted-foreground">
+                        Ask anything about Exavo — services, case studies, capabilities, and more.
+                      </p>
                     </div>
-                    <p className="text-sm max-w-xs">
-                      Ask anything about Exavo — services, case studies, capabilities, and more.
-                    </p>
                   </div>
                 )}
 
                 {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-                        msg.role === "user"
-                          ? "bg-primary text-primary-foreground whitespace-pre-wrap"
-                          : "bg-muted text-foreground prose prose-sm dark:prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5"
-                      }`}
-                    >
-                      {msg.role === "assistant" ? (
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      ) : (
-                        msg.content
-                      )}
-                    </div>
-                  </div>
+                  <BrainChatMessage key={msg.id} role={msg.role} content={msg.content} />
                 ))}
 
-                {isSending && (
-                  <div className="flex justify-start">
-                    <div className="bg-muted rounded-2xl px-4 py-2.5 text-sm text-muted-foreground flex items-center gap-2">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Thinking...
-                    </div>
-                  </div>
-                )}
+                {isSending && <BrainTypingIndicator />}
 
                 <div ref={chatEndRef} />
               </div>
