@@ -18,7 +18,7 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-const WEBHOOK_URL = "https://hook.eu1.make.com/tgfa6gxniyg82dc8h8a8bi9p8coqdkes";
+const WEBHOOK_URL = "https://hook.eu1.make.com/1vt6i76tin9t20d18hrz9xkri9ixwqqb";
 
 const PlaygroundBrain = () => {
   const { user, loading: authLoading } = useAuth();
