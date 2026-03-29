@@ -11,6 +11,7 @@ import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import ReactMarkdown from "react-markdown";
 
 interface ChatMessage {
   id: string;
