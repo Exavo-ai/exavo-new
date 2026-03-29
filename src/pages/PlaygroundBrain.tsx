@@ -59,29 +59,36 @@ const PlaygroundBrain = () => {
     setIsSending(true);
 
     try {
-      console.log("Sending message:", trimmed);
-      const { data, error } = await supabase.functions.invoke("brain-proxy", {
+      const { data: raw, error } = await supabase.functions.invoke("brain-proxy", {
         body: { message: trimmed },
       });
 
-      console.log("Response data:", data);
-
       if (error) throw new Error(error.message || "Request failed");
 
-      // Extract the actual message text from potentially nested responses
-      let reply = data?.reply ?? data?.message ?? data?.response ?? data?.output ?? data?.text;
-      
-      // If reply is still JSON-like, try to parse and extract message
-      if (typeof reply === "string") {
-        try {
-          const parsed = JSON.parse(reply);
-          reply = parsed?.message ?? parsed?.reply ?? parsed?.response ?? parsed?.text ?? reply;
-        } catch {
-          // It's plain text, use as-is
+      // Normalise: raw may be a string, object, or nested JSON-in-string
+      const deepExtract = (val: unknown): string | null => {
+        if (!val) return null;
+        if (typeof val === "string") {
+          const trimmedVal = val.trim();
+          // Try to parse stringified JSON
+          if (trimmedVal.startsWith("{") || trimmedVal.startsWith("[")) {
+            try { return deepExtract(JSON.parse(trimmedVal)); } catch { /* plain text */ }
+          }
+          return trimmedVal.length > 0 ? trimmedVal : null;
         }
-      }
-      
-      if (!reply || (typeof reply === "string" && reply.trim().length === 0)) {
+        if (typeof val === "object") {
+          const obj = val as Record<string, unknown>;
+          for (const key of ["message", "reply", "response", "output", "text", "content"]) {
+            const found = deepExtract(obj[key]);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const reply = deepExtract(raw);
+
+      if (!reply) {
         throw new Error("Empty response from server");
       }
 
