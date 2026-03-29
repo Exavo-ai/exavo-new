@@ -68,6 +68,7 @@ const PlaygroundBrain = () => {
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);
 
       const text = await res.text();
+      console.log("Webhook response:", text);
       let reply: string;
       try {
         const json = JSON.parse(text);
