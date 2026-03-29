@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, ArrowRight, Sparkles, PenTool, Linkedin } from "lucide-react";
+import { FileText, ArrowRight, Sparkles, PenTool, Linkedin, Brain } from "lucide-react";
 import { motion } from "framer-motion";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -61,6 +61,23 @@ const playgroundCards = [
     href: "/playground/linkedin-generator",
     enabled: true,
   },
+  {
+    id: "brain",
+    tag: "Live Demo",
+    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: Brain,
+    title: "Knowledge Support AI",
+    description:
+      "Ask anything about Exavo — services, case studies, and capabilities.",
+    features: [
+      "Instant company insights",
+      "Accurate & contextual answers",
+      "Powered by internal knowledge base",
+    ],
+    href: "/playground/brain",
+    enabled: true,
+    glow: true,
+  },
 ];
 
 const Playground = () => {
@@ -115,7 +132,7 @@ const Playground = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
-                    <Card className="h-full hover:shadow-lg transition-all duration-300 group border-border/50 hover:border-primary/20">
+                    <Card className={`h-full hover:shadow-lg transition-all duration-300 group border-border/50 hover:border-primary/20 ${(card as any).glow ? "ring-1 ring-primary/20 shadow-[0_0_20px_-6px_hsl(var(--primary)/0.25)]" : ""}`}>
                       <CardContent className="p-4 sm:p-6 flex flex-col h-full">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-2">
@@ -150,8 +167,8 @@ const Playground = () => {
                               variant="outline"
                               className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                             >
-                              Try Now
-                              <ArrowRight className="h-4 w-4 ml-2" />
+                              {card.id === "brain" ? "Ask Exavo Brain →" : "Try Now"}
+                              {card.id !== "brain" && <ArrowRight className="h-4 w-4 ml-2" />}
                             </Button>
                           </Link>
                         ) : (
