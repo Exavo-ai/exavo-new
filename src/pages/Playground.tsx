@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, ArrowRight, Sparkles, PenTool, Linkedin, Brain } from "lucide-react";
+import { FileText, ArrowRight, Sparkles, PenTool, Linkedin, Brain, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -75,6 +75,24 @@ const playgroundCards = [
       "Powered by internal knowledge base",
     ],
     href: "/playground/brain",
+    enabled: true,
+    glow: true,
+  },
+  {
+    id: "viralforge",
+    tag: "Live Demo",
+    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: Zap,
+    title: "AI Social Media Strategist",
+    description:
+      "Generate high-performing social media content using multi-agent AI workflows.",
+    features: [
+      "Multi-agent content generation",
+      "Platform-optimized posts",
+      "High engagement writing style",
+      "Instant output",
+    ],
+    href: "/playground/viralforge",
     enabled: true,
     glow: true,
   },
@@ -167,8 +185,8 @@ const Playground = () => {
                               variant="outline"
                               className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                             >
-                              {card.id === "brain" ? "Ask Exavo Brain →" : "Try Now"}
-                              {card.id !== "brain" && <ArrowRight className="h-4 w-4 ml-2" />}
+                              {card.id === "brain" ? "Ask Exavo Brain →" : card.id === "viralforge" ? "Generate Content →" : "Try Now"}
+                              {card.id !== "brain" && card.id !== "viralforge" && <ArrowRight className="h-4 w-4 ml-2" />}
                             </Button>
                           </Link>
                         ) : (
