@@ -65,32 +65,54 @@ const PlaygroundBrain = () => {
 
       if (error) throw new Error(error.message || "Request failed");
 
-      // Normalise: raw may be a string, object, or nested JSON-in-string
+      const extractMessageFromString = (value: string): string | null => {
+        const trimmedValue = value.trim();
+        if (!trimmedValue) return null;
+
+        if (trimmedValue.startsWith("{") || trimmedValue.startsWith("[")) {
+          try {
+            return deepExtract(JSON.parse(trimmedValue));
+          } catch {
+            const messageMatch = trimmedValue.match(/"message"\s*:\s*([\s\S]*?)\s*}\s*$/);
+            if (messageMatch?.[1]) {
+              return messageMatch[1]
+                .trim()
+                .replace(/^"|"$/g, "")
+                .replace(/\\r/g, "")
+                .replace(/\\n/g, "\n")
+                .replace(/\\"/g, '"')
+                .trim();
+            }
+          }
+        }
+
+        return trimmedValue;
+      };
+
       const deepExtract = (val: unknown): string | null => {
         if (!val) return null;
+
         if (typeof val === "string") {
-          const trimmedVal = val.trim();
-          // Try to parse stringified JSON
-          if (trimmedVal.startsWith("{") || trimmedVal.startsWith("[")) {
-            try { return deepExtract(JSON.parse(trimmedVal)); } catch { /* plain text */ }
-          }
-          return trimmedVal.length > 0 ? trimmedVal : null;
+          return extractMessageFromString(val);
         }
+
         if (typeof val === "object") {
           const obj = val as Record<string, unknown>;
-          for (const key of ["message", "reply", "response", "output", "text", "content"]) {
+          const message = obj.message;
+          if (typeof message === "string") {
+            return extractMessageFromString(message);
+          }
+
+          for (const key of ["reply", "response", "output", "text", "content", "result"]) {
             const found = deepExtract(obj[key]);
             if (found) return found;
           }
         }
+
         return null;
       };
 
-      const reply = deepExtract(raw);
-
-      if (!reply) {
-        throw new Error("Empty response from server");
-      }
+      const reply = deepExtract(raw) ?? "Something went wrong";
 
       setMessages((prev) => [
         ...prev,
