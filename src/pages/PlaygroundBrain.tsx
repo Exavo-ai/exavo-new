@@ -67,12 +67,20 @@ const PlaygroundBrain = () => {
 
       if (error) throw new Error(error.message || "Request failed");
 
-      const reply = data?.reply;
-      if (!reply || (typeof reply === "string" && reply.trim().length === 0)) {
-        throw new Error("Empty response from server");
+      // Extract the actual message text from potentially nested responses
+      let reply = data?.reply ?? data?.message ?? data?.response ?? data?.output ?? data?.text;
+      
+      // If reply is still JSON-like, try to parse and extract message
+      if (typeof reply === "string") {
+        try {
+          const parsed = JSON.parse(reply);
+          reply = parsed?.message ?? parsed?.reply ?? parsed?.response ?? parsed?.text ?? reply;
+        } catch {
+          // It's plain text, use as-is
+        }
       }
-
-      if (!reply || reply.trim().length === 0) {
+      
+      if (!reply || (typeof reply === "string" && reply.trim().length === 0)) {
         throw new Error("Empty response from server");
       }
 
