@@ -10,6 +10,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ChatMessage {
   id: string;
@@ -17,8 +18,6 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
 }
-
-const WEBHOOK_URL = "https://hook.eu1.make.com/1vt6i76tin9t20d18hrz9xkri9ixwqqb";
 
 const PlaygroundBrain = () => {
   const { user, loading: authLoading } = useAuth();
@@ -58,23 +57,18 @@ const PlaygroundBrain = () => {
     setIsSending(true);
 
     try {
-      console.log("Sending to webhook:", trimmed);
-      const res = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed }),
+      console.log("Sending message:", trimmed);
+      const { data, error } = await supabase.functions.invoke("brain-proxy", {
+        body: { message: trimmed },
       });
 
-      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+      console.log("Response data:", data);
 
-      const text = await res.text();
-      console.log("Webhook response:", text);
-      let reply: string;
-      try {
-        const json = JSON.parse(text);
-        reply = json.reply || json.response || json.message || json.output || text;
-      } catch {
-        reply = text;
+      if (error) throw new Error(error.message || "Request failed");
+
+      const reply = data?.reply;
+      if (!reply || (typeof reply === "string" && reply.trim().length === 0)) {
+        throw new Error("Empty response from server");
       }
 
       if (!reply || reply.trim().length === 0) {
