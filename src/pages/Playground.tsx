@@ -96,6 +96,24 @@ const playgroundCards = [
     enabled: true,
     glow: true,
   },
+  {
+    id: "revenue",
+    tag: "Live Demo",
+    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: TrendingUp,
+    title: "Revenue Growth AI",
+    description:
+      "Get data-driven strategies to scale your business using AI and CRO frameworks.",
+    features: [
+      "AI-powered growth plans",
+      "CRO-driven insights",
+      "Actionable recommendations",
+      "Business-focused outputs",
+    ],
+    href: "/playground/revenue-architect",
+    enabled: true,
+    glow: true,
+  },
 ];
 
 const Playground = () => {
