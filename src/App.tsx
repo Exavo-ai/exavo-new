@@ -48,6 +48,7 @@ import PlaygroundRAG from "./pages/PlaygroundRAG";
 import PlaygroundBlog from "./pages/PlaygroundBlog";
 import PlaygroundLinkedIn from "./pages/PlaygroundLinkedIn";
 import PlaygroundBrain from "./pages/PlaygroundBrain";
+import PlaygroundViralForge from "./pages/PlaygroundViralForge";
 import NotFound from "./pages/NotFound";
 import ChatWidget from "./components/ChatWidget";
 import SEO from "./components/SEO";
