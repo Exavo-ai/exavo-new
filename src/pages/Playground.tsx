@@ -167,8 +167,8 @@ const Playground = () => {
                               variant="outline"
                               className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                             >
-                              Try Now
-                              <ArrowRight className="h-4 w-4 ml-2" />
+                              {card.id === "brain" ? "Ask Exavo Brain →" : "Try Now"}
+                              {card.id !== "brain" && <ArrowRight className="h-4 w-4 ml-2" />}
                             </Button>
                           </Link>
                         ) : (
