@@ -11,6 +11,7 @@ import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import ReactMarkdown from "react-markdown";
 
 interface ChatMessage {
   id: string;
@@ -66,12 +67,20 @@ const PlaygroundBrain = () => {
 
       if (error) throw new Error(error.message || "Request failed");
 
-      const reply = data?.reply;
-      if (!reply || (typeof reply === "string" && reply.trim().length === 0)) {
-        throw new Error("Empty response from server");
+      // Extract the actual message text from potentially nested responses
+      let reply = data?.reply ?? data?.message ?? data?.response ?? data?.output ?? data?.text;
+      
+      // If reply is still JSON-like, try to parse and extract message
+      if (typeof reply === "string") {
+        try {
+          const parsed = JSON.parse(reply);
+          reply = parsed?.message ?? parsed?.reply ?? parsed?.response ?? parsed?.text ?? reply;
+        } catch {
+          // It's plain text, use as-is
+        }
       }
-
-      if (!reply || reply.trim().length === 0) {
+      
+      if (!reply || (typeof reply === "string" && reply.trim().length === 0)) {
         throw new Error("Empty response from server");
       }
 
@@ -159,13 +168,17 @@ const PlaygroundBrain = () => {
                     className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
+                      className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
                         msg.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground"
+                          ? "bg-primary text-primary-foreground whitespace-pre-wrap"
+                          : "bg-muted text-foreground prose prose-sm dark:prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5"
                       }`}
                     >
-                      {msg.content}
+                      {msg.role === "assistant" ? (
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      ) : (
+                        msg.content
+                      )}
                     </div>
                   </div>
                 ))}
