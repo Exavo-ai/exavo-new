@@ -78,6 +78,24 @@ const playgroundCards = [
     enabled: true,
     glow: true,
   },
+  {
+    id: "viralforge",
+    tag: "Live Demo",
+    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: Zap,
+    title: "AI Social Media Strategist",
+    description:
+      "Generate high-performing social media content using multi-agent AI workflows.",
+    features: [
+      "Multi-agent content generation",
+      "Platform-optimized posts",
+      "High engagement writing style",
+      "Instant output",
+    ],
+    href: "/playground/viralforge",
+    enabled: true,
+    glow: true,
+  },
 ];
 
 const Playground = () => {
