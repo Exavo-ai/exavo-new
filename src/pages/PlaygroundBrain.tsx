@@ -18,7 +18,7 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-const WEBHOOK_URL = "https://hook.eu1.make.com/tgfa6gxniyg82dc8h8a8bi9p8coqdkes";
+const WEBHOOK_URL = "https://hook.eu1.make.com/1vt6i76tin9t20d18hrz9xkri9ixwqqb";
 
 const PlaygroundBrain = () => {
   const { user, loading: authLoading } = useAuth();
@@ -58,6 +58,7 @@ const PlaygroundBrain = () => {
     setIsSending(true);
 
     try {
+      console.log("Sending to webhook:", trimmed);
       const res = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -67,6 +68,7 @@ const PlaygroundBrain = () => {
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);
 
       const text = await res.text();
+      console.log("Webhook response:", text);
       let reply: string;
       try {
         const json = JSON.parse(text);
