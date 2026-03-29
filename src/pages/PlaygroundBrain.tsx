@@ -168,13 +168,17 @@ const PlaygroundBrain = () => {
                     className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
+                      className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
                         msg.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground"
+                          ? "bg-primary text-primary-foreground whitespace-pre-wrap"
+                          : "bg-muted text-foreground prose prose-sm dark:prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5"
                       }`}
                     >
-                      {msg.content}
+                      {msg.role === "assistant" ? (
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      ) : (
+                        msg.content
+                      )}
                     </div>
                   </div>
                 ))}
