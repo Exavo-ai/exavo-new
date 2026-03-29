@@ -11,7 +11,8 @@ import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import ReactMarkdown from "react-markdown";
+import BrainChatMessage from "@/components/brain/BrainChatMessage";
+import BrainTypingIndicator from "@/components/brain/BrainTypingIndicator";
 
 interface ChatMessage {
   id: string;
