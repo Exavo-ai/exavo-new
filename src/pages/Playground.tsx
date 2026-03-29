@@ -61,6 +61,23 @@ const playgroundCards = [
     href: "/playground/linkedin-generator",
     enabled: true,
   },
+  {
+    id: "brain",
+    tag: "Live Demo",
+    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: Brain,
+    title: "Knowledge Support AI",
+    description:
+      "Ask anything about Exavo — services, case studies, and capabilities.",
+    features: [
+      "Instant company insights",
+      "Accurate & contextual answers",
+      "Powered by internal knowledge base",
+    ],
+    href: "/playground/brain",
+    enabled: true,
+    glow: true,
+  },
 ];
 
 const Playground = () => {
