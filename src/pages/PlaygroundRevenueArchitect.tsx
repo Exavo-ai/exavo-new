@@ -13,9 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
 import BrainTypingIndicator from "@/components/brain/BrainTypingIndicator";
-
-const WEBHOOK_URL =
-  "https://n8n.exavo.app/webhook-test/245c2879-4f14-402f-93be-5dd8a61e2318";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ChatMessage {
   role: "user" | "assistant";
