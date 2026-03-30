@@ -57,6 +57,7 @@ const PlaygroundRevenueArchitect = () => {
     setIsLoading(true);
 
     try {
+      console.log("Webhook URL:", WEBHOOK_URL);
       const res = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
