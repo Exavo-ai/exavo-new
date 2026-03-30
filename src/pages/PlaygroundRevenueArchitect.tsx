@@ -1,17 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Loader2, ArrowLeft, Copy, Check, TrendingUp } from "lucide-react";
+import { Loader2, ArrowLeft, TrendingUp, Send } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,45 +9,32 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { toast } from "sonner";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import ReactMarkdown from "react-markdown";
+import BrainTypingIndicator from "@/components/brain/BrainTypingIndicator";
 
 const WEBHOOK_URL =
   "https://n8n.exavo.app/webhook-test/245c2879-4f14-402f-93be-5dd8a61e2318";
 
-const BUSINESS_TYPES = [
-  "SaaS / Software",
-  "E-commerce",
-  "Agency / Consulting",
-  "Local Business",
-  "Marketplace",
-  "B2B Services",
-  "Other",
-];
-
-const GOALS = [
-  "Increase revenue",
-  "Reduce churn",
-  "Improve conversions",
-  "Scale operations",
-  "Enter new market",
-  "Launch new product",
-];
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
 
 const PlaygroundRevenueArchitect = () => {
   const { user, loading: authLoading } = useAuth();
-  const [businessType, setBusinessType] = useState("");
-  const [goal, setGoal] = useState("");
-  const [audience, setAudience] = useState("");
-  const [context, setContext] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [result, setResult] = useState("");
-  const [copied, setCopied] = useState(false);
-  const resultRef = useRef<HTMLDivElement>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (result && resultRef.current) {
-      resultRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [result]);
+  }, [messages, isLoading]);
 
   if (authLoading) {
     return (
@@ -71,86 +48,68 @@ const PlaygroundRevenueArchitect = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const canSubmit =
-    businessType.trim() && goal.trim() && audience.trim() && !isGenerating;
+  const handleSend = async () => {
+    const userMessage = input.trim();
+    if (!userMessage || isLoading) return;
 
-  const handleGenerate = async () => {
-    if (!canSubmit) return;
-
-    const prompt = [
-      `Business Type: ${businessType}`,
-      `Goal: ${goal}`,
-      `Target Audience: ${audience}`,
-      context.trim() ? `Additional Context: ${context.trim()}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    setIsGenerating(true);
-    setResult("");
-    setCopied(false);
+    setInput("");
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setIsLoading(true);
 
     try {
       const res = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: prompt }),
+        body: JSON.stringify({ input: userMessage }),
       });
 
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);
 
-      const text = await res.text();
-      let content: string;
-      try {
-        const json = JSON.parse(text);
-        content =
-          json.output ||
-          json.content ||
-          json.reply ||
-          json.response ||
-          json.message ||
-          json.strategy ||
-          text;
-      } catch {
-        content = text;
-      }
+      const aiResponse = await res.text();
 
-      if (!content || content.trim().length === 0) {
+      if (!aiResponse || aiResponse.trim().length === 0) {
         throw new Error("Empty response");
       }
 
-      setResult(content);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: aiResponse },
+      ]);
     } catch (err: any) {
       console.error("Revenue Architect error:", err);
-      toast.error("Failed to generate strategy. Please try again.");
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Sorry, I couldn't process your request right now. Please try again.",
+        },
+      ]);
+      toast.error("Failed to get response. Please try again.");
     } finally {
-      setIsGenerating(false);
+      setIsLoading(false);
+      inputRef.current?.focus();
     }
   };
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(result);
-      setCopied(true);
-      toast.success("Strategy copied to clipboard!");
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("Failed to copy.");
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <SEO
-        title="Revenue Architect – AI Growth Strategy Generator | Exavo AI"
-        description="Get data-driven strategies to scale your business using AI and CRO frameworks."
+        title="Revenue Architect – AI Growth Strategy Chat | Exavo AI"
+        description="Chat with an AI-powered growth strategist to get data-driven strategies for scaling your business."
       />
       <Navigation />
 
-      <main className="container mx-auto px-4 py-10 max-w-3xl">
+      <main className="flex-1 container mx-auto px-4 py-6 max-w-3xl flex flex-col min-h-0">
         <Link
           to="/playground"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Playground
@@ -160,9 +119,10 @@ const PlaygroundRevenueArchitect = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
+          className="flex flex-col flex-1 min-h-0"
         >
           {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-4">
             <div className="relative">
               <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center border border-primary/20">
                 <TrendingUp className="h-5 w-5 text-primary" />
@@ -177,154 +137,153 @@ const PlaygroundRevenueArchitect = () => {
             </div>
           </div>
 
-          {/* Input Form */}
-          <Card className="border-border/50 mb-6">
-            <CardContent className="p-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-1.5 block">
-                    Business Type
-                  </label>
-                  <Select value={businessType} onValueChange={setBusinessType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BUSINESS_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-1.5 block">
-                    Primary Goal
-                  </label>
-                  <Select value={goal} onValueChange={setGoal}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select goal" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GOALS.map((g) => (
-                        <SelectItem key={g} value={g}>
-                          {g}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">
-                  Target Audience
-                </label>
-                <Input
-                  placeholder="e.g. SMB founders in the SaaS space"
-                  value={audience}
-                  onChange={(e) => setAudience(e.target.value)}
-                  disabled={isGenerating}
-                  maxLength={200}
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">
-                  Additional Context{" "}
-                  <span className="text-muted-foreground font-normal">
-                    (optional)
-                  </span>
-                </label>
-                <Textarea
-                  placeholder="Current challenges, monthly revenue, team size..."
-                  value={context}
-                  onChange={(e) => setContext(e.target.value)}
-                  disabled={isGenerating}
-                  maxLength={500}
-                  rows={3}
-                />
-              </div>
-
-              <Button
-                onClick={handleGenerate}
-                disabled={!canSubmit}
-                className="w-full"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Building Strategy...
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    Build Strategy →
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Loading */}
-          {isGenerating && (
-            <Card className="border-border/50 mb-6">
-              <CardContent className="p-6 flex flex-col items-center gap-3 text-center">
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
-                  <TrendingUp className="h-6 w-6 text-primary" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Analyzing your business context and generating strategy...
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Result */}
-          {result && !isGenerating && (
-            <motion.div
-              ref={resultRef}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
+          {/* Chat Area */}
+          <div className="flex-1 min-h-0 border border-border/50 rounded-2xl bg-muted/20 flex flex-col overflow-hidden">
+            {/* Messages */}
+            <div
+              ref={scrollRef}
+              className="flex-1 overflow-y-auto p-4 space-y-4"
+              style={{ minHeight: "400px", maxHeight: "calc(100vh - 340px)" }}
             >
-              <Card className="border-border/50 ring-1 ring-primary/10">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <Badge
-                      variant="outline"
-                      className="bg-primary/10 text-primary border-primary/20"
+              {messages.length === 0 && !isLoading && (
+                <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                    <TrendingUp className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Start a Conversation</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm">
+                    Ask about growth strategies, revenue optimization, CRO insights, or any business scaling question.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-4 justify-center">
+                    {[
+                      "How can I reduce churn for my SaaS?",
+                      "Best strategies to scale e-commerce revenue",
+                      "How to improve my landing page conversions",
+                    ].map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        onClick={() => {
+                          setInput(suggestion);
+                          inputRef.current?.focus();
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-full border border-border/60 bg-background hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {messages.map((msg, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className={`flex gap-3 ${msg.role === "assistant" ? "justify-start" : "justify-end"}`}
+                >
+                  {msg.role === "assistant" && (
+                    <div className="relative shrink-0 mt-0.5">
+                      <motion.div
+                        className="absolute -inset-1 rounded-full bg-primary/20 blur-sm"
+                        animate={{ opacity: [0.4, 0.8, 0.4], scale: [0.95, 1.05, 0.95] }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                      />
+                      <Avatar className="h-9 w-9 relative ring-2 ring-primary/30">
+                        <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
+                          <TrendingUp className="h-4 w-4" />
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                  )}
+
+                  <div className={`flex flex-col ${msg.role === "assistant" ? "items-start" : "items-end"} max-w-[75%]`}>
+                    {msg.role === "assistant" && (
+                      <span className="text-[11px] font-medium text-muted-foreground mb-1 ml-1">
+                        Revenue Architect
+                      </span>
+                    )}
+                    <div
+                      className={`rounded-2xl text-[14px] leading-[1.7] px-4 py-3 ${
+                        msg.role === "assistant"
+                          ? "bg-muted/70 border border-border/40 text-foreground"
+                          : "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground"
+                      }`}
                     >
-                      Growth Strategy
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleCopy}
-                      className="gap-1.5 text-xs"
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="h-3.5 w-3.5" />
-                          Copied
-                        </>
+                      {msg.role === "assistant" ? (
+                        <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:my-1.5 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-1 [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1 [&_h3]:text-sm [&_h3]:font-medium [&_h3]:mt-2 [&_h3]:mb-1 [&_strong]:text-foreground [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline [&_code]:bg-background/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_p:first-child]:mt-0 [&_p:last-child]:mb-0">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
                       ) : (
-                        <>
-                          <Copy className="h-3.5 w-3.5" />
-                          Copy
-                        </>
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
                       )}
-                    </Button>
+                    </div>
                   </div>
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                    {result}
+
+                  {msg.role === "user" && (
+                    <Avatar className="h-9 w-9 shrink-0 mt-0.5">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+                        You
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                </motion.div>
+              ))}
+
+              {isLoading && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex gap-3 justify-start"
+                >
+                  <div className="relative shrink-0 mt-0.5">
+                    <Avatar className="h-9 w-9 relative ring-2 ring-primary/30">
+                      <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
+                        <TrendingUp className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+                  <div className="flex flex-col items-start">
+                    <span className="text-[11px] font-medium text-muted-foreground mb-1 ml-1">
+                      Revenue Architect
+                    </span>
+                    <div className="rounded-2xl bg-muted/70 border border-border/40 px-4 py-3">
+                      <BrainTypingIndicator />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Input Bar */}
+            <div className="border-t border-border/50 p-3 bg-background/80 backdrop-blur-sm">
+              <div className="flex gap-2 items-center">
+                <Input
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask about growth strategies, revenue optimization..."
+                  disabled={isLoading}
+                  className="flex-1"
+                  maxLength={1000}
+                />
+                <Button
+                  onClick={handleSend}
+                  disabled={!input.trim() || isLoading}
+                  size="icon"
+                  className="shrink-0"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
         </motion.div>
       </main>
 
