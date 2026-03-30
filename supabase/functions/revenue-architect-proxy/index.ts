@@ -55,12 +55,12 @@ Deno.serve(async (req) => {
     let hasSuccessfulResponse = false;
 
     for (const webhook of N8N_WEBHOOK_URLS) {
-      console.log("Webhook URL:", webhook);
+      const url = `${webhook}?input=${encodeURIComponent(input.trim())}`;
+      console.log("Webhook URL:", url);
 
-      const n8nRes = await fetch(webhook, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: input.trim() }),
+      // n8n webhook is configured for GET, not POST
+      const n8nRes = await fetch(url, {
+        method: "GET",
       });
 
       if (!n8nRes.ok) {
