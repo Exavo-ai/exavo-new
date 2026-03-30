@@ -6,8 +6,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const N8N_WEBHOOK_URL =
-  "https://n8n.exavo.app/webhook/245c2879-4f14-402f-93be-5dd8a61e2318";
+const N8N_WEBHOOK_URLS = [
+  "https://n8n.exavo.app/webhook-test/245c2879-4f14-402f-93be-5dd8a61e2318",
+  "https://n8n.exavo.app/webhook/245c2879-4f14-402f-93be-5dd8a61e2318",
+];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -48,15 +50,36 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Forward to n8n
-    const n8nRes = await fetch(N8N_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input: input.trim() }),
-    });
+    // Forward to n8n (try test webhook first, then production)
+    let aiResponse = "";
+    let hasSuccessfulResponse = false;
 
-    if (!n8nRes.ok) {
-      console.error("n8n responded with:", n8nRes.status);
+    for (const webhook of N8N_WEBHOOK_URLS) {
+      console.log("Webhook URL:", webhook);
+
+      const n8nRes = await fetch(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: input.trim() }),
+      });
+
+      if (!n8nRes.ok) {
+        console.error(`n8n responded with: ${n8nRes.status} for ${webhook}`);
+        continue;
+      }
+
+      const text = await n8nRes.text();
+      if (!text || text.trim().length === 0) {
+        console.error(`n8n returned empty response for ${webhook}`);
+        continue;
+      }
+
+      aiResponse = text;
+      hasSuccessfulResponse = true;
+      break;
+    }
+
+    if (!hasSuccessfulResponse) {
       return new Response(
         JSON.stringify({ error: "AI service unavailable" }),
         {
@@ -65,8 +88,6 @@ Deno.serve(async (req) => {
         }
       );
     }
-
-    const aiResponse = await n8nRes.text();
 
     return new Response(aiResponse, {
       status: 200,
