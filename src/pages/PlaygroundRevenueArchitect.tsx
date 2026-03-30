@@ -55,14 +55,20 @@ const PlaygroundRevenueArchitect = () => {
     setIsLoading(true);
 
     try {
-      console.log("Webhook URL:", WEBHOOK_URL);
-      const res = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: userMessage }),
-      });
-
-      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/revenue-architect-proxy`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ input: userMessage }),
+        }
+      );
 
       const aiResponse = await res.text();
 
