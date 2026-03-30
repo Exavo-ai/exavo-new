@@ -70,6 +70,8 @@ const PlaygroundRevenueArchitect = () => {
         }
       );
 
+      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+
       const aiResponse = await res.text();
 
       if (!aiResponse || aiResponse.trim().length === 0) {
