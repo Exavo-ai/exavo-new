@@ -13,9 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
 import BrainTypingIndicator from "@/components/brain/BrainTypingIndicator";
-
-const WEBHOOK_URL =
-  "https://n8n.exavo.app/webhook-test/245c2879-4f14-402f-93be-5dd8a61e2318";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -57,12 +55,20 @@ const PlaygroundRevenueArchitect = () => {
     setIsLoading(true);
 
     try {
-      console.log("Webhook URL:", WEBHOOK_URL);
-      const res = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: userMessage }),
-      });
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/revenue-architect-proxy`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ input: userMessage }),
+        }
+      );
 
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);
 
