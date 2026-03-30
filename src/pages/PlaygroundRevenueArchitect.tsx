@@ -9,7 +9,6 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { toast } from "sonner";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
 import BrainTypingIndicator from "@/components/brain/BrainTypingIndicator";
@@ -19,6 +18,19 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
+
+const extractAssistantText = (payload: unknown): string => {
+  if (typeof payload === "string") return payload;
+
+  if (payload && typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    const candidate = obj.output ?? obj.text ?? obj.response ?? obj.message ?? obj.result;
+    if (typeof candidate === "string") return candidate;
+    return JSON.stringify(obj);
+  }
+
+  return "";
+};
 
 const PlaygroundRevenueArchitect = () => {
   const { user, loading: authLoading } = useAuth();
@@ -55,24 +67,15 @@ const PlaygroundRevenueArchitect = () => {
     setIsLoading(true);
 
     try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/revenue-architect-proxy`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({ input: userMessage }),
-        }
-      );
+      const { data, error } = await supabase.functions.invoke("revenue-architect-proxy", {
+        body: { input: userMessage },
+      });
 
-      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+      if (error) {
+        throw new Error(error.message || "Backend function invocation failed");
+      }
 
-      const aiResponse = await res.text();
+      const aiResponse = extractAssistantText(data);
 
       if (!aiResponse || aiResponse.trim().length === 0) {
         throw new Error("Empty response");
