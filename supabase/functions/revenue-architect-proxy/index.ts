@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const N8N_WEBHOOK_URL =
-  "https://n8n.exavo.app/webhook-test/245c2879-4f14-402f-93be-5dd8a61e2318";
+  "https://n8n.exavo.app/webhook/245c2879-4f14-402f-93be-5dd8a61e2318";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
