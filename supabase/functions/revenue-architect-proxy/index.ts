@@ -68,13 +68,24 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const text = await n8nRes.text();
-      if (!text || text.trim().length === 0) {
+      const rawText = await n8nRes.text();
+      console.log("n8n raw response:", rawText?.substring(0, 500));
+
+      if (!rawText || rawText.trim().length === 0) {
         console.error(`n8n returned empty response for ${webhook}`);
         continue;
       }
 
-      aiResponse = text;
+      // n8n returns "First Entry JSON" — extract text content
+      try {
+        const json = JSON.parse(rawText);
+        // Try common n8n output field names
+        aiResponse = json.output || json.text || json.response || json.message || json.result || JSON.stringify(json);
+      } catch {
+        // If not JSON, use raw text
+        aiResponse = rawText;
+      }
+
       hasSuccessfulResponse = true;
       break;
     }
