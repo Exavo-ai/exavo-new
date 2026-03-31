@@ -85,6 +85,7 @@ const App = () => (
         <Route path="/playground/viralforge" element={<PlaygroundViralForge />} />
         <Route path="/playground/revenue-architect" element={<PlaygroundRevenueArchitect />} />
         <Route path="/playground/cso-assistant" element={<PlaygroundCSOAssistant />} />
+        <Route path="/playground/social-growth" element={<PlaygroundSocialGrowth />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/client/invite/accept" element={<AcceptInvitation />} />
