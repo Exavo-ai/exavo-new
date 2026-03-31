@@ -75,35 +75,50 @@ Deno.serve(async (req) => {
     };
 
     const attemptWebhook = async (label: "test" | "production", webhookURL: string) => {
-      const url = `${webhookURL}?input=${encodeURIComponent(trimmedInput)}`;
-      try {
-        console.log(`Trying ${label} webhook...`);
-        console.log("Using webhook:", url);
+      const queryVariants = [
+        { key: "input", value: trimmedInput },
+        { key: "message", value: trimmedInput },
+      ] as const;
 
-        const response = await fetch(url, { method: "GET" });
-        const rawText = await response.text();
+      let lastFailure: { method: string; status?: number; body: string; url?: string } | null = null;
 
-        console.log("Status:", response.status);
-        console.log("Response:", rawText);
+      for (const variant of queryVariants) {
+        const url = `${webhookURL}?${variant.key}=${encodeURIComponent(variant.value)}`;
 
-        if (response.status === 200 && rawText && rawText.trim().length > 0) {
-          const displayText = extractDisplayText(rawText);
-          if (displayText && displayText.trim().length > 0) {
-            return { success: true as const, text: displayText };
+        try {
+          console.log(`Trying ${label} webhook...`);
+          console.log("Using webhook:", url);
+
+          const response = await fetch(url, { method: "GET" });
+          const rawText = await response.text();
+
+          console.log("Status:", response.status);
+          console.log("Response:", rawText);
+
+          if (response.status === 200 && rawText && rawText.trim().length > 0) {
+            const displayText = extractDisplayText(rawText);
+            if (displayText && displayText.trim().length > 0) {
+              return { success: true as const, text: displayText };
+            }
           }
-        }
 
-        return {
-          success: false as const,
-          failure: { method: "GET", status: response.status, body: rawText || "<empty>" },
-        };
-      } catch (error) {
-        console.error(`${label} GET webhook error:`, error);
-        return {
-          success: false as const,
-          failure: { method: "GET", body: error instanceof Error ? error.message : String(error) },
-        };
+          lastFailure = {
+            method: "GET",
+            status: response.status,
+            body: rawText || "<empty>",
+            url,
+          };
+        } catch (error) {
+          console.error(`${label} GET webhook error:`, error);
+          lastFailure = {
+            method: "GET",
+            body: error instanceof Error ? error.message : String(error),
+            url,
+          };
+        }
       }
+
+      return { success: false as const, failure: lastFailure };
     };
 
     const testResult = await attemptWebhook("test", TEST_WEBHOOK);
@@ -130,7 +145,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        error: "Sales assistant is temporarily unavailable. Please try again.",
+        error: "System is processing your request. Please try again.",
         debug: {
           test: testResult.failure,
           production: productionResult.failure,
