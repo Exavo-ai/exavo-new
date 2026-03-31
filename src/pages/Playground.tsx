@@ -239,8 +239,8 @@ const Playground = () => {
                               variant="outline"
                               className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                             >
-                              {card.id === "brain" ? "Ask Exavo Brain →" : card.id === "viralforge" ? "Generate Content →" : card.id === "revenue" ? "Build Strategy →" : card.id === "cso" ? "Talk to CSO →" : "Try Now"}
-                              {!["brain", "viralforge", "revenue", "cso"].includes(card.id) && <ArrowRight className="h-4 w-4 ml-2" />}
+                              {card.id === "brain" ? "Ask Exavo Brain →" : card.id === "viralforge" ? "Generate Content →" : card.id === "revenue" ? "Build Strategy →" : card.id === "cso" ? "Talk to CSO →" : card.id === "social-growth" ? "Grow Social →" : "Try Now"}
+                              {!["brain", "viralforge", "revenue", "cso", "social-growth"].includes(card.id) && <ArrowRight className="h-4 w-4 ml-2" />}
                             </Button>
                           </Link>
                         ) : (
