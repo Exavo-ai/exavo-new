@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, ArrowRight, Sparkles, PenTool, Linkedin, Brain, Zap, TrendingUp, Briefcase } from "lucide-react";
+import { FileText, ArrowRight, Sparkles, PenTool, Linkedin, Brain, Zap, TrendingUp, Briefcase, Megaphone } from "lucide-react";
 import { motion } from "framer-motion";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
