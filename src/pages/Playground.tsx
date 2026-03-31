@@ -132,6 +132,24 @@ const playgroundCards = [
     enabled: true,
     glow: true,
   },
+  {
+    id: "social-growth",
+    tag: "Live Demo",
+    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: Megaphone,
+    title: "Social Growth AI",
+    description:
+      "AI-powered social media strategist for content ideas, audience growth, and engagement optimization.",
+    features: [
+      "Social media strategy insights",
+      "Content idea generation",
+      "Audience growth tactics",
+      "Real-time AI chat",
+    ],
+    href: "/playground/social-growth",
+    enabled: true,
+    glow: true,
+  },
 ];
 
 const Playground = () => {
