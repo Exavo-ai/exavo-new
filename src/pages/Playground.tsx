@@ -114,6 +114,24 @@ const playgroundCards = [
     enabled: true,
     glow: true,
   },
+  {
+    id: "cso",
+    tag: "Live Demo",
+    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: Briefcase,
+    title: "CSO Assistant",
+    description:
+      "AI-powered sales strategist for pipelines, closing strategies, and sales performance optimization.",
+    features: [
+      "Sales strategy insights",
+      "Pipeline optimization",
+      "Closing technique advice",
+      "Real-time AI chat",
+    ],
+    href: "/playground/cso-assistant",
+    enabled: true,
+    glow: true,
+  },
 ];
 
 const Playground = () => {
