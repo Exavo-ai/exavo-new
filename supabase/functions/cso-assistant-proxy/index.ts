@@ -52,75 +52,118 @@ Deno.serve(async (req) => {
     }
 
     const trimmedInput = input.trim();
-    let aiResponse = "";
 
-    for (const [label, webhook] of [
-      ["test", TEST_WEBHOOK],
-      ["production", PROD_WEBHOOK],
-    ] as const) {
+    const extractDisplayText = (rawText: string): string => {
+      const text = rawText.trim();
+      if (!text) return "";
+
       try {
-        console.log(`Trying ${label} webhook...`);
-
-        // Try POST first (n8n default), then GET as fallback
-        let res = await fetch(webhook, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ input: trimmedInput }),
-        });
-
-        if (!res.ok) {
-          console.log(`${label} POST returned ${res.status}, trying GET...`);
-          const url = `${webhook}?input=${encodeURIComponent(trimmedInput)}`;
-          res = await fetch(url, { method: "GET" });
+        const parsed = JSON.parse(text);
+        if (typeof parsed === "string") return parsed.trim();
+        if (parsed && typeof parsed === "object") {
+          const record = parsed as Record<string, unknown>;
+          const candidate = record.output ?? record.text ?? record.response ?? record.message ?? record.result;
+          if (typeof candidate === "string" && candidate.trim()) {
+            return candidate.trim();
+          }
         }
-
-        if (!res.ok) {
-          console.error(`${label} webhook responded with: ${res.status}`);
-          continue;
-        }
-
-        const rawText = await res.text();
-        console.log(`${label} raw response:`, rawText?.substring(0, 500));
-
-        if (!rawText || rawText.trim().length === 0) {
-          console.error(`${label} webhook returned empty response`);
-          continue;
-        }
-
-        try {
-          const json = JSON.parse(rawText);
-          aiResponse =
-            json.output || json.text || json.response || json.message || json.result || JSON.stringify(json);
-        } catch {
-          aiResponse = rawText;
-        }
-
-        if (aiResponse.trim().length > 0) {
-          console.log(`${label} webhook success`);
-          break;
-        }
-      } catch (e) {
-        console.error(`${label} webhook error:`, e);
-        continue;
+      } catch {
+        // n8n may already return plain text; keep it as-is
       }
-    }
 
-    if (!aiResponse || aiResponse.trim().length === 0) {
-      return new Response(
-        JSON.stringify({
-          error: "Sales assistant is temporarily unavailable. Please try again.",
-        }),
+      return text;
+    };
+
+    const attemptWebhook = async (label: "test" | "production", webhookURL: string) => {
+      const attempts = [
         {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          method: "GET",
+          url: `${webhookURL}?input=${encodeURIComponent(trimmedInput)}`,
+          init: { method: "GET" },
+        },
+        {
+          method: "POST",
+          url: webhookURL,
+          init: {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ input: trimmedInput }),
+          },
+        },
+      ] as const;
+
+      let lastFailure: { method: string; status?: number; body: string } | null = null;
+
+      for (const attempt of attempts) {
+        try {
+          console.log(`Trying ${label} webhook...`);
+          console.log("Using webhook:", attempt.url);
+
+          const response = await fetch(attempt.url, attempt.init);
+          const rawText = await response.text();
+
+          console.log("Status:", response.status);
+          console.log("Response:", rawText);
+
+          const displayText = extractDisplayText(rawText);
+          const hasInvalidFormat = !displayText || !displayText.trim();
+
+          if (response.status === 200 && !hasInvalidFormat) {
+            return { success: true as const, text: displayText };
+          }
+
+          lastFailure = {
+            method: attempt.method,
+            status: response.status,
+            body: rawText || "<empty response>",
+          };
+        } catch (error) {
+          console.error(`${label} ${attempt.method} webhook error:`, error);
+          lastFailure = {
+            method: attempt.method,
+            body: error instanceof Error ? error.message : String(error),
+          };
         }
-      );
+      }
+
+      return { success: false as const, failure: lastFailure };
+    };
+
+    const testResult = await attemptWebhook("test", TEST_WEBHOOK);
+    if (testResult.success) {
+      return new Response(testResult.text, {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "text/plain" },
+      });
     }
 
-    return new Response(aiResponse, {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "text/plain" },
+    console.log("Fallback to production webhook...");
+    const productionResult = await attemptWebhook("production", PROD_WEBHOOK);
+    if (productionResult.success) {
+      return new Response(productionResult.text, {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "text/plain" },
+      });
+    }
+
+    console.error("Both webhooks failed", {
+      test: testResult.failure,
+      production: productionResult.failure,
     });
+
+    return new Response(
+      JSON.stringify({
+        error: "Sales assistant is temporarily unavailable. Please try again.",
+        debug: {
+          test: testResult.failure,
+          production: productionResult.failure,
+        },
+      }),
+      {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (err) {
     console.error("CSO assistant proxy error:", err);
     return new Response(
