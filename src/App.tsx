@@ -51,6 +51,7 @@ import PlaygroundBrain from "./pages/PlaygroundBrain";
 import PlaygroundViralForge from "./pages/PlaygroundViralForge";
 import PlaygroundRevenueArchitect from "./pages/PlaygroundRevenueArchitect";
 import PlaygroundCSOAssistant from "./pages/PlaygroundCSOAssistant";
+import PlaygroundSocialGrowth from "./pages/PlaygroundSocialGrowth";
 import NotFound from "./pages/NotFound";
 import ChatWidget from "./components/ChatWidget";
 import SEO from "./components/SEO";
