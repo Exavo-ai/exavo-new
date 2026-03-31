@@ -50,6 +50,7 @@ import PlaygroundLinkedIn from "./pages/PlaygroundLinkedIn";
 import PlaygroundBrain from "./pages/PlaygroundBrain";
 import PlaygroundViralForge from "./pages/PlaygroundViralForge";
 import PlaygroundRevenueArchitect from "./pages/PlaygroundRevenueArchitect";
+import PlaygroundCSOAssistant from "./pages/PlaygroundCSOAssistant";
 import NotFound from "./pages/NotFound";
 import ChatWidget from "./components/ChatWidget";
 import SEO from "./components/SEO";
@@ -82,6 +83,7 @@ const App = () => (
         <Route path="/playground/brain" element={<PlaygroundBrain />} />
         <Route path="/playground/viralforge" element={<PlaygroundViralForge />} />
         <Route path="/playground/revenue-architect" element={<PlaygroundRevenueArchitect />} />
+        <Route path="/playground/cso-assistant" element={<PlaygroundCSOAssistant />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/client/invite/accept" element={<AcceptInvitation />} />
