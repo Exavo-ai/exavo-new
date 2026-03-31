@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, ArrowRight, Sparkles, PenTool, Linkedin, Brain, Zap, TrendingUp } from "lucide-react";
+import { FileText, ArrowRight, Sparkles, PenTool, Linkedin, Brain, Zap, TrendingUp, Briefcase } from "lucide-react";
 import { motion } from "framer-motion";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -114,6 +114,24 @@ const playgroundCards = [
     enabled: true,
     glow: true,
   },
+  {
+    id: "cso",
+    tag: "Live Demo",
+    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: Briefcase,
+    title: "CSO Assistant",
+    description:
+      "AI-powered sales strategist for pipelines, closing strategies, and sales performance optimization.",
+    features: [
+      "Sales strategy insights",
+      "Pipeline optimization",
+      "Closing technique advice",
+      "Real-time AI chat",
+    ],
+    href: "/playground/cso-assistant",
+    enabled: true,
+    glow: true,
+  },
 ];
 
 const Playground = () => {
@@ -203,8 +221,8 @@ const Playground = () => {
                               variant="outline"
                               className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                             >
-                              {card.id === "brain" ? "Ask Exavo Brain →" : card.id === "viralforge" ? "Generate Content →" : card.id === "revenue" ? "Build Strategy →" : "Try Now"}
-                              {!["brain", "viralforge", "revenue"].includes(card.id) && <ArrowRight className="h-4 w-4 ml-2" />}
+                              {card.id === "brain" ? "Ask Exavo Brain →" : card.id === "viralforge" ? "Generate Content →" : card.id === "revenue" ? "Build Strategy →" : card.id === "cso" ? "Talk to CSO →" : "Try Now"}
+                              {!["brain", "viralforge", "revenue", "cso"].includes(card.id) && <ArrowRight className="h-4 w-4 ml-2" />}
                             </Button>
                           </Link>
                         ) : (
