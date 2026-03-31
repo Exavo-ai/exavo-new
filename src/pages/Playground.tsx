@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, ArrowRight, Sparkles, PenTool, Linkedin, Brain, Zap, TrendingUp, Briefcase } from "lucide-react";
+import { FileText, ArrowRight, Sparkles, PenTool, Linkedin, Brain, Zap, TrendingUp, Briefcase, Megaphone } from "lucide-react";
 import { motion } from "framer-motion";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -132,6 +132,24 @@ const playgroundCards = [
     enabled: true,
     glow: true,
   },
+  {
+    id: "social-growth",
+    tag: "Live Demo",
+    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
+    icon: Megaphone,
+    title: "Social Growth AI",
+    description:
+      "AI-powered social media strategist for content ideas, audience growth, and engagement optimization.",
+    features: [
+      "Social media strategy insights",
+      "Content idea generation",
+      "Audience growth tactics",
+      "Real-time AI chat",
+    ],
+    href: "/playground/social-growth",
+    enabled: true,
+    glow: true,
+  },
 ];
 
 const Playground = () => {
@@ -221,8 +239,8 @@ const Playground = () => {
                               variant="outline"
                               className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                             >
-                              {card.id === "brain" ? "Ask Exavo Brain →" : card.id === "viralforge" ? "Generate Content →" : card.id === "revenue" ? "Build Strategy →" : card.id === "cso" ? "Talk to CSO →" : "Try Now"}
-                              {!["brain", "viralforge", "revenue", "cso"].includes(card.id) && <ArrowRight className="h-4 w-4 ml-2" />}
+                              {card.id === "brain" ? "Ask Exavo Brain →" : card.id === "viralforge" ? "Generate Content →" : card.id === "revenue" ? "Build Strategy →" : card.id === "cso" ? "Talk to CSO →" : card.id === "social-growth" ? "Grow Social →" : "Try Now"}
+                              {!["brain", "viralforge", "revenue", "cso", "social-growth"].includes(card.id) && <ArrowRight className="h-4 w-4 ml-2" />}
                             </Button>
                           </Link>
                         ) : (
