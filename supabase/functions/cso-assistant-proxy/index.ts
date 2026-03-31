@@ -75,23 +75,7 @@ Deno.serve(async (req) => {
     };
 
     const attemptWebhook = async (label: "test" | "production", webhookURL: string) => {
-      const attempts = [
-        {
-          method: "GET",
-          url: `${webhookURL}?input=${encodeURIComponent(trimmedInput)}`,
-          init: { method: "GET" },
-        },
-        {
-          method: "POST",
-          url: webhookURL,
-          init: {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ input: trimmedInput }),
-          },
-        },
-      ] as const;
-
+      const url = `${webhookURL}?input=${encodeURIComponent(trimmedInput)}`;
       let lastFailure: { method: string; status?: number; body: string } | null = null;
 
       for (const attempt of attempts) {
