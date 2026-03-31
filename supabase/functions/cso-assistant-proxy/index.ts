@@ -54,15 +54,25 @@ Deno.serve(async (req) => {
     const trimmedInput = input.trim();
     let aiResponse = "";
 
-    // Try test webhook first
     for (const [label, webhook] of [
       ["test", TEST_WEBHOOK],
       ["production", PROD_WEBHOOK],
     ] as const) {
       try {
         console.log(`Trying ${label} webhook...`);
-        const url = `${webhook}?input=${encodeURIComponent(trimmedInput)}`;
-        const res = await fetch(url, { method: "GET" });
+
+        // Try POST first (n8n default), then GET as fallback
+        let res = await fetch(webhook, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input: trimmedInput }),
+        });
+
+        if (!res.ok) {
+          console.log(`${label} POST returned ${res.status}, trying GET...`);
+          const url = `${webhook}?input=${encodeURIComponent(trimmedInput)}`;
+          res = await fetch(url, { method: "GET" });
+        }
 
         if (!res.ok) {
           console.error(`${label} webhook responded with: ${res.status}`);
@@ -80,18 +90,13 @@ Deno.serve(async (req) => {
         try {
           const json = JSON.parse(rawText);
           aiResponse =
-            json.output ||
-            json.text ||
-            json.response ||
-            json.message ||
-            json.result ||
-            JSON.stringify(json);
+            json.output || json.text || json.response || json.message || json.result || JSON.stringify(json);
         } catch {
           aiResponse = rawText;
         }
 
         if (aiResponse.trim().length > 0) {
-          console.log(`Fallback to ${label} webhook... success`);
+          console.log(`${label} webhook success`);
           break;
         }
       } catch (e) {
