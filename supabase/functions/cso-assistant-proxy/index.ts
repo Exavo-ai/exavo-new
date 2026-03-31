@@ -76,41 +76,34 @@ Deno.serve(async (req) => {
 
     const attemptWebhook = async (label: "test" | "production", webhookURL: string) => {
       const url = `${webhookURL}?input=${encodeURIComponent(trimmedInput)}`;
-      let lastFailure: { method: string; status?: number; body: string } | null = null;
+      try {
+        console.log(`Trying ${label} webhook...`);
+        console.log("Using webhook:", url);
 
-      for (const attempt of attempts) {
-        try {
-          console.log(`Trying ${label} webhook...`);
-          console.log("Using webhook:", attempt.url);
+        const response = await fetch(url, { method: "GET" });
+        const rawText = await response.text();
 
-          const response = await fetch(attempt.url, attempt.init);
-          const rawText = await response.text();
+        console.log("Status:", response.status);
+        console.log("Response:", rawText);
 
-          console.log("Status:", response.status);
-          console.log("Response:", rawText);
-
+        if (response.status === 200 && rawText && rawText.trim().length > 0) {
           const displayText = extractDisplayText(rawText);
-          const hasInvalidFormat = !displayText || !displayText.trim();
-
-          if (response.status === 200 && !hasInvalidFormat) {
+          if (displayText && displayText.trim().length > 0) {
             return { success: true as const, text: displayText };
           }
-
-          lastFailure = {
-            method: attempt.method,
-            status: response.status,
-            body: rawText || "<empty response>",
-          };
-        } catch (error) {
-          console.error(`${label} ${attempt.method} webhook error:`, error);
-          lastFailure = {
-            method: attempt.method,
-            body: error instanceof Error ? error.message : String(error),
-          };
         }
-      }
 
-      return { success: false as const, failure: lastFailure };
+        return {
+          success: false as const,
+          failure: { method: "GET", status: response.status, body: rawText || "<empty>" },
+        };
+      } catch (error) {
+        console.error(`${label} GET webhook error:`, error);
+        return {
+          success: false as const,
+          failure: { method: "GET", body: error instanceof Error ? error.message : String(error) },
+        };
+      }
     };
 
     const testResult = await attemptWebhook("test", TEST_WEBHOOK);
