@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, ArrowRight, Sparkles, PenTool, Linkedin, Brain, Zap, TrendingUp, Briefcase, Megaphone } from "lucide-react";
+import { FileText, ArrowRight, Sparkles, PenTool, Linkedin, Brain, Zap, TrendingUp, Briefcase, BotMessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -136,14 +136,14 @@ const playgroundCards = [
     id: "social-growth",
     tag: "Live Demo",
     tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
-    icon: Megaphone,
-    title: "Social Growth AI",
+    icon: BotMessageSquare,
+    title: "ExavoAI Sales Assistant",
     description:
-      "AI-powered social media strategist for content ideas, audience growth, and engagement optimization.",
+      "AI-powered sales advisor that helps you understand how ExavoAI can automate your business and generate leads.",
     features: [
-      "Social media strategy insights",
-      "Content idea generation",
-      "Audience growth tactics",
+      "AI automation consulting",
+      "Lead generation strategies",
+      "Business workflow insights",
       "Real-time AI chat",
     ],
     href: "/playground/social-growth",
