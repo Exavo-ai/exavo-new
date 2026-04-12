@@ -6,38 +6,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const TEST_WEBHOOK =
-  "https://n8n.exavo.app/webhook-test/245c2879-4f14-402f-93be-5dd8a61e2318";
-const PROD_WEBHOOK =
-  "https://n8n.exavo.app/webhook/245c2879-4f14-402f-93be-5dd8a61e2318";
-
-const QUERY_KEYS = ["message", "input"] as const;
-
-const extractDisplayText = (rawText: string): string => {
-  const text = rawText.trim();
-  if (!text) return "";
-
-  try {
-    const parsed = JSON.parse(text);
-    if (typeof parsed === "string") return parsed.trim();
-    if (parsed && typeof parsed === "object") {
-      const record = parsed as Record<string, unknown>;
-      const candidate =
-        record.output ??
-        record.text ??
-        record.response ??
-        record.message ??
-        record.result;
-      if (typeof candidate === "string" && candidate.trim()) {
-        return candidate.trim();
-      }
-    }
-  } catch {
-    // plain text — use as-is
-  }
-
-  return text;
-};
+const FLOWISE_URL =
+  "https://cloud.flowiseai.com/api/v1/prediction/0f65f3df-3bf6-4e69-a20a-bc97ade11d0d";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -79,79 +49,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    const trimmedInput = input.trim();
+    console.log("Calling Flowise API...");
+    console.log("Question:", input.trim());
 
-    const attemptWebhook = async (
-      label: string,
-      webhookURL: string
-    ): Promise<
-      | { success: true; text: string }
-      | { success: false; failure: { status?: number; body: string } }
-    > => {
-      for (const key of QUERY_KEYS) {
-        const url = `${webhookURL}?${key}=${encodeURIComponent(trimmedInput)}`;
-        try {
-          console.log(`Trying ${label} webhook...`);
-          console.log("Method: GET");
-          console.log("Webhook:", url);
+    const flowiseRes = await fetch(FLOWISE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: input.trim() }),
+    });
 
-          const response = await fetch(url, { method: "GET" });
-          const rawText = await response.text();
+    const rawText = await flowiseRes.text();
+    console.log("Flowise status:", flowiseRes.status);
+    console.log("Flowise response:", rawText?.substring(0, 500));
 
-          console.log("Status:", response.status);
-          console.log("Response:", rawText);
-
-          if (rawText.includes("Error in workflow")) {
-            console.log(`${label} ?${key} returned workflow error, trying next key...`);
-            continue;
-          }
-
-          if (response.status === 200 && rawText.trim().length > 0) {
-            const displayText = extractDisplayText(rawText);
-            if (displayText.trim().length > 0) {
-              return { success: true, text: displayText };
-            }
-          }
-        } catch (error) {
-          console.error(`${label} GET ?${key} error:`, error);
+    if (!flowiseRes.ok) {
+      console.error("Flowise error:", rawText);
+      return new Response(
+        JSON.stringify({ error: "AI service unavailable" }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
-      }
-
-      return {
-        success: false,
-        failure: { body: `All query keys failed for ${label}` },
-      };
-    };
-
-    // Try test first (will 404 unless actively listening — skip fast)
-    const testResult = await attemptWebhook("test", TEST_WEBHOOK);
-    if (testResult.success) {
-      return new Response(testResult.text, {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "text/plain" },
-      });
+      );
     }
 
-    console.log("Fallback to production webhook...");
-    const prodResult = await attemptWebhook("production", PROD_WEBHOOK);
-    if (prodResult.success) {
-      return new Response(prodResult.text, {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "text/plain" },
-      });
+    let aiText = rawText;
+    try {
+      const json = JSON.parse(rawText);
+      aiText = json.text || json.output || json.response || json.message || rawText;
+    } catch {
+      // plain text response — use as-is
     }
 
-    console.error("Both webhooks failed");
-    return new Response(
-      JSON.stringify({
-        error:
-          "Content generation is temporarily unavailable. Please try again.",
-      }),
-      {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(aiText, {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "text/plain" },
+    });
   } catch (err) {
     console.error("Social growth proxy error:", err);
     return new Response(
