@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowLeft, Megaphone, Send } from "lucide-react";
+import { Loader2, ArrowLeft, BotMessageSquare, Send } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
