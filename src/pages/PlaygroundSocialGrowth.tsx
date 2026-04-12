@@ -21,7 +21,7 @@ interface ChatMessage {
 const INITIAL_MESSAGE: ChatMessage = {
   role: "assistant",
   content:
-    "Hi 👋 I'm your Social Growth AI. Ask me about social media strategies, content ideas, audience growth, or engagement optimization.",
+    "Hi 👋 I'm your ExavoAI Sales Assistant. I can help you understand how AI can automate your business, generate more leads, and save you time. What can I help you with today?",
 };
 
 const extractAssistantText = (payload: unknown): string => {
@@ -119,8 +119,8 @@ const PlaygroundSocialGrowth = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <SEO
-        title="Social Growth AI – Social Media Strategy Chat | Exavo AI"
-        description="Chat with an AI-powered social media strategist for content ideas, growth tactics, and engagement optimization."
+        title="ExavoAI Sales Assistant – AI-Powered Sales Chat | Exavo AI"
+        description="Chat with an AI sales assistant to learn how ExavoAI can automate your business, generate leads, and boost efficiency."
       />
       <Navigation />
 
@@ -143,14 +143,14 @@ const PlaygroundSocialGrowth = () => {
           <div className="flex items-center gap-3 mb-4">
             <div className="relative">
               <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center border border-primary/20">
-                <Megaphone className="h-5 w-5 text-primary" />
+                <BotMessageSquare className="h-5 w-5 text-primary" />
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Social Growth AI</h1>
+              <h1 className="text-2xl font-bold">ExavoAI Sales Assistant</h1>
               <p className="text-sm text-muted-foreground">
-                AI-powered social media strategies &amp; content ideas
+                AI-powered sales advisor for business automation &amp; growth
               </p>
             </div>
           </div>
@@ -188,7 +188,7 @@ const PlaygroundSocialGrowth = () => {
                       />
                       <Avatar className="h-9 w-9 relative ring-2 ring-primary/30">
                         <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
-                          <Megaphone className="h-4 w-4" />
+                          <BotMessageSquare className="h-4 w-4" />
                         </AvatarFallback>
                       </Avatar>
                     </div>
@@ -201,7 +201,7 @@ const PlaygroundSocialGrowth = () => {
                   >
                     {msg.role === "assistant" && (
                       <span className="text-[11px] font-medium text-muted-foreground mb-1 ml-1">
-                        Social Growth AI
+                        ExavoAI Assistant
                       </span>
                     )}
                     <div
@@ -237,17 +237,17 @@ const PlaygroundSocialGrowth = () => {
                   animate={{ opacity: 1, y: 0 }}
                   className="flex gap-3 justify-start"
                 >
-                  <div className="relative shrink-0 mt-0.5">
-                    <Avatar className="h-9 w-9 relative ring-2 ring-primary/30">
-                      <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
-                        <Megaphone className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <span className="text-[11px] font-medium text-muted-foreground mb-1 ml-1">
-                      Social Growth AI
-                    </span>
+                   <div className="relative shrink-0 mt-0.5">
+                     <Avatar className="h-9 w-9 relative ring-2 ring-primary/30">
+                       <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
+                         <BotMessageSquare className="h-4 w-4" />
+                       </AvatarFallback>
+                     </Avatar>
+                   </div>
+                   <div className="flex flex-col items-start">
+                     <span className="text-[11px] font-medium text-muted-foreground mb-1 ml-1">
+                       ExavoAI Assistant
+                     </span>
                     <div className="rounded-2xl bg-muted/70 border border-border/40 px-4 py-3 flex items-center gap-1.5">
                       {[0, 1, 2].map((i) => (
                         <motion.span
@@ -278,7 +278,7 @@ const PlaygroundSocialGrowth = () => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask about social media strategies, content ideas, growth tactics..."
+                  placeholder="Ask about AI automation, chatbots, lead generation, business growth..."
                   disabled={isLoading}
                   className="flex-1"
                   maxLength={1000}
