@@ -51,7 +51,7 @@ import PlaygroundBrain from "./pages/PlaygroundBrain";
 import PlaygroundViralForge from "./pages/PlaygroundViralForge";
 import PlaygroundRevenueArchitect from "./pages/PlaygroundRevenueArchitect";
 import PlaygroundCSOAssistant from "./pages/PlaygroundCSOAssistant";
-import PlaygroundSocialGrowth from "./pages/PlaygroundSocialGrowth";
+
 import NotFound from "./pages/NotFound";
 import ChatWidget from "./components/ChatWidget";
 import SEO from "./components/SEO";
@@ -85,7 +85,7 @@ const App = () => (
         <Route path="/playground/viralforge" element={<PlaygroundViralForge />} />
         <Route path="/playground/revenue-architect" element={<PlaygroundRevenueArchitect />} />
         <Route path="/playground/cso-assistant" element={<PlaygroundCSOAssistant />} />
-        <Route path="/playground/social-growth" element={<PlaygroundSocialGrowth />} />
+        
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/client/invite/accept" element={<AcceptInvitation />} />

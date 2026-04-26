@@ -132,24 +132,6 @@ const playgroundCards = [
     enabled: true,
     glow: true,
   },
-  {
-    id: "social-growth",
-    tag: "Live Demo",
-    tagClass: "bg-green-500/10 text-green-600 border-green-500/20",
-    icon: BotMessageSquare,
-    title: "ExavoAI Sales Assistant",
-    description:
-      "AI-powered sales advisor that helps you understand how ExavoAI can automate your business and generate leads.",
-    features: [
-      "AI automation consulting",
-      "Lead generation strategies",
-      "Business workflow insights",
-      "Real-time AI chat",
-    ],
-    href: "/playground/social-growth",
-    enabled: true,
-    glow: true,
-  },
 ];
 
 const Playground = () => {
@@ -239,8 +221,8 @@ const Playground = () => {
                               variant="outline"
                               className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                             >
-                              {card.id === "brain" ? "Ask Exavo Brain →" : card.id === "viralforge" ? "Generate Content →" : card.id === "revenue" ? "Build Strategy →" : card.id === "cso" ? "Talk to CSO →" : card.id === "social-growth" ? "Grow Social →" : "Try Now"}
-                              {!["brain", "viralforge", "revenue", "cso", "social-growth"].includes(card.id) && <ArrowRight className="h-4 w-4 ml-2" />}
+                              {card.id === "brain" ? "Ask Exavo Brain →" : card.id === "viralforge" ? "Generate Content →" : card.id === "revenue" ? "Build Strategy →" : card.id === "cso" ? "Talk to CSO →" : "Try Now"}
+                              {!["brain", "viralforge", "revenue", "cso"].includes(card.id) && <ArrowRight className="h-4 w-4 ml-2" />}
                             </Button>
                           </Link>
                         ) : (
