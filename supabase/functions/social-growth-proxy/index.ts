@@ -59,6 +59,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: bpHeaders,
         body: JSON.stringify({
+          integrationId: BOTPRESS_INTEGRATION_ID,
           channel: "channel",
           tags: { "user:id": user.id },
         }),
