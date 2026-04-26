@@ -6,13 +6,34 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const BOTPRESS_BASE = "https://api.botpress.cloud/v1/chat";
-
+// Botpress Chat API base. BOTPRESS_INTEGRATION_ID acts as the chat instance id.
+// Docs: https://botpress.com/docs/api-documentation/chat-api
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+async function bpFetch(
+  url: string,
+  init: RequestInit,
+  label: string,
+): Promise<{ ok: boolean; status: number; text: string; json: any | null }> {
+  const res = await fetch(url, init);
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    // ignore
+  }
+  if (!res.ok) {
+    console.error(`[Botpress] ${label} failed:`, res.status, text);
+  } else {
+    console.log(`[Botpress] ${label} ok:`, res.status);
+  }
+  return { ok: res.ok, status: res.status, text, json };
 }
 
 Deno.serve(async (req) => {
@@ -33,112 +54,131 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
 
-    const BOTPRESS_API_KEY = Deno.env.get("BOTPRESS_API_KEY");
     const BOTPRESS_INTEGRATION_ID = Deno.env.get("BOTPRESS_INTEGRATION_ID");
-    if (!BOTPRESS_API_KEY || !BOTPRESS_INTEGRATION_ID) {
-      console.error("Botpress env not configured");
+    if (!BOTPRESS_INTEGRATION_ID) {
+      console.error("BOTPRESS_INTEGRATION_ID not configured");
       return jsonResponse({ error: "AI service not configured" }, 500);
     }
+
+    // Chat API base: integration ID acts as the chat instance segment.
+    const BP_BASE = `https://chat.botpress.cloud/${BOTPRESS_INTEGRATION_ID}`;
 
     const body = await req.json().catch(() => ({}));
     const input: string | undefined = body?.input;
     let conversationId: string | undefined = body?.conversationId;
+    let userKey: string | undefined = body?.userKey;
 
     if (!input || typeof input !== "string" || input.trim().length === 0) {
       return jsonResponse({ error: "Input is required" }, 400);
     }
 
+    // 1. Create chat user (gets user key) if not provided
+    if (!userKey) {
+      const userRes = await bpFetch(
+        `${BP_BASE}/users`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: user.email ?? user.id }),
+        },
+        "create user",
+      );
+      if (!userRes.ok) {
+        return jsonResponse(
+          { error: "Failed to create chat user", details: userRes.text },
+          502,
+        );
+      }
+      userKey = userRes.json?.key ?? userRes.json?.user?.key;
+      if (!userKey) {
+        return jsonResponse({ error: "No user key returned from Botpress" }, 502);
+      }
+    }
+
     const bpHeaders = {
-      Authorization: `Bearer ${BOTPRESS_API_KEY}`,
+      "x-user-key": userKey,
       "Content-Type": "application/json",
     };
 
-    // 1. Create conversation if not provided
+    // 2. Create conversation if not provided
     if (!conversationId) {
-      const convRes = await fetch(`${BOTPRESS_BASE}/conversations`, {
-        method: "POST",
-        headers: bpHeaders,
-        body: JSON.stringify({
-          integrationId: BOTPRESS_INTEGRATION_ID,
-          channel: "channel",
-          tags: { "user:id": user.id },
-        }),
-      });
-      const convText = await convRes.text();
+      const convRes = await bpFetch(
+        `${BP_BASE}/conversations`,
+        {
+          method: "POST",
+          headers: bpHeaders,
+          body: JSON.stringify({}),
+        },
+        "create conversation",
+      );
       if (!convRes.ok) {
-        console.error("Botpress create conversation failed:", convRes.status, convText);
-        return jsonResponse({ error: "Failed to create conversation" }, 502);
+        return jsonResponse(
+          { error: "Failed to create conversation", details: convRes.text },
+          502,
+        );
       }
-      try {
-        const convJson = JSON.parse(convText);
-        conversationId = convJson?.conversation?.id ?? convJson?.id;
-      } catch {
-        console.error("Invalid conversation JSON:", convText);
-        return jsonResponse({ error: "Invalid Botpress response" }, 502);
-      }
+      conversationId = convRes.json?.conversation?.id ?? convRes.json?.id;
       if (!conversationId) {
         return jsonResponse({ error: "No conversation id returned" }, 502);
       }
     }
 
-    // 2. Send user message
-    const sendRes = await fetch(`${BOTPRESS_BASE}/messages`, {
-      method: "POST",
-      headers: bpHeaders,
-      body: JSON.stringify({
-        conversationId,
-        payload: { type: "text", text: input.trim() },
-      }),
-    });
-    const sendText = await sendRes.text();
+    // 3. Send user message
+    const sendRes = await bpFetch(
+      `${BP_BASE}/messages`,
+      {
+        method: "POST",
+        headers: bpHeaders,
+        body: JSON.stringify({
+          conversationId,
+          payload: { type: "text", text: input.trim() },
+        }),
+      },
+      "send message",
+    );
     if (!sendRes.ok) {
-      console.error("Botpress send message failed:", sendRes.status, sendText);
-      return jsonResponse({ error: "Failed to send message", conversationId }, 502);
+      return jsonResponse(
+        {
+          error: "Failed to send message",
+          conversationId,
+          userKey,
+          details: sendRes.text,
+        },
+        502,
+      );
     }
 
-    let sentMessageCreatedAt: string | null = null;
-    try {
-      const sentJson = JSON.parse(sendText);
-      sentMessageCreatedAt =
-        sentJson?.message?.createdAt ?? sentJson?.createdAt ?? null;
-    } catch {
-      // ignore
-    }
+    const sentMessage = sendRes.json?.message ?? sendRes.json;
+    const sentMessageId: string | null = sentMessage?.id ?? null;
+    const sentMessageCreatedAt: string | null =
+      sentMessage?.createdAt ?? null;
 
-    // 3. Poll for bot reply (up to ~10s)
-    const maxAttempts = 8;
+    // 4. Poll for bot reply (up to ~12s)
+    const maxAttempts = 10;
     const delayMs = 1200;
     let botReply = "";
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await new Promise((r) => setTimeout(r, delayMs));
 
-      const fetchRes = await fetch(
-        `${BOTPRESS_BASE}/conversations/${conversationId}/messages`,
+      const fetchRes = await bpFetch(
+        `${BP_BASE}/conversations/${conversationId}/messages`,
         { method: "GET", headers: bpHeaders },
+        `fetch messages (attempt ${attempt + 1})`,
       );
-      const fetchText = await fetchRes.text();
-      if (!fetchRes.ok) {
-        console.error("Botpress fetch messages failed:", fetchRes.status, fetchText);
-        continue;
-      }
+      if (!fetchRes.ok) continue;
 
-      let messages: any[] = [];
-      try {
-        const parsed = JSON.parse(fetchText);
-        messages = parsed?.messages ?? parsed?.data ?? (Array.isArray(parsed) ? parsed : []);
-      } catch {
-        continue;
-      }
+      const messages: any[] =
+        fetchRes.json?.messages ??
+        fetchRes.json?.data ??
+        (Array.isArray(fetchRes.json) ? fetchRes.json : []);
 
-      // Find latest bot/assistant message after our sent message
+      // Bot messages are those NOT sent by our user (different userId / id)
       const botMessages = messages.filter((m: any) => {
-        const isBot =
-          m?.direction === "outgoing" ||
-          m?.userId === undefined ||
-          m?.isBot === true ||
-          m?.author === "bot";
-        if (!isBot) return false;
+        if (m?.id && sentMessageId && m.id === sentMessageId) return false;
+        // Heuristic: outgoing/bot direction or no userId match
+        const sameUser = m?.userId && sentMessage?.userId && m.userId === sentMessage.userId;
+        if (sameUser) return false;
         if (sentMessageCreatedAt && m?.createdAt) {
           return new Date(m.createdAt).getTime() > new Date(sentMessageCreatedAt).getTime();
         }
@@ -146,6 +186,10 @@ Deno.serve(async (req) => {
       });
 
       if (botMessages.length > 0) {
+        // Sort by createdAt asc, take latest
+        botMessages.sort((a, b) =>
+          new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()
+        );
         const latest = botMessages[botMessages.length - 1];
         const text =
           latest?.payload?.text ??
@@ -163,15 +207,19 @@ Deno.serve(async (req) => {
       return jsonResponse(
         {
           conversationId,
+          userKey,
           output: "The assistant is taking longer than usual. Please try again.",
         },
         200,
       );
     }
 
-    return jsonResponse({ conversationId, output: botReply }, 200);
+    return jsonResponse({ conversationId, userKey, output: botReply }, 200);
   } catch (err) {
     console.error("Botpress proxy error:", err);
-    return jsonResponse({ error: "Internal server error" }, 500);
+    return jsonResponse(
+      { error: "Internal server error", details: String(err) },
+      500,
+    );
   }
 });
