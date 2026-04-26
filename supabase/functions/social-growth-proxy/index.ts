@@ -57,7 +57,10 @@ Deno.serve(async (req) => {
       const convRes = await fetch(`${BOTPRESS_BASE}/conversations`, {
         method: "POST",
         headers: bpHeaders,
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          channel: "channel",
+          tags: { "user:id": user.id },
+        }),
       });
       const convText = await convRes.text();
       if (!convRes.ok) {
