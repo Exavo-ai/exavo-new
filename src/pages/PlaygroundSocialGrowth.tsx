@@ -96,7 +96,7 @@ const PlaygroundSocialGrowth = () => {
     try {
       const { data, error } = await supabase.functions.invoke(
         "social-growth-proxy",
-        { body: { input: userMessage, conversationId } }
+        { body: { input: userMessage, conversationId, userKey } }
       );
 
       if (error) {
@@ -104,14 +104,25 @@ const PlaygroundSocialGrowth = () => {
         throw new Error(error.message || "Request failed");
       }
 
-      const returnedConvId =
+      const dataObj =
         data && typeof data === "object"
-          ? (data as Record<string, unknown>).conversationId
-          : undefined;
+          ? (data as Record<string, unknown>)
+          : {};
+      const returnedConvId = dataObj.conversationId;
+      const returnedUserKey = dataObj.userKey;
+
       if (typeof returnedConvId === "string" && returnedConvId !== conversationId) {
         setConversationId(returnedConvId);
         try {
           localStorage.setItem(conversationStorageKey, returnedConvId);
+        } catch {
+          // ignore
+        }
+      }
+      if (typeof returnedUserKey === "string" && returnedUserKey !== userKey) {
+        setUserKey(returnedUserKey);
+        try {
+          localStorage.setItem(userKeyStorageKey, returnedUserKey);
         } catch {
           // ignore
         }
