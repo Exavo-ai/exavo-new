@@ -54,29 +54,6 @@ const PlaygroundSocialGrowth = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const conversationStorageKey = user
-    ? `botpress_conversation_${user.id}`
-    : "botpress_conversation";
-  const userKeyStorageKey = user
-    ? `botpress_userkey_${user.id}`
-    : "botpress_userkey";
-  const [conversationId, setConversationId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      return localStorage.getItem(conversationStorageKey);
-    } catch {
-      return null;
-    }
-  });
-  const [userKey, setUserKey] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      return localStorage.getItem(userKeyStorageKey);
-    } catch {
-      return null;
-    }
-  });
-
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -117,7 +94,7 @@ const PlaygroundSocialGrowth = () => {
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ input: userMessage, conversationId, userKey }),
+          body: JSON.stringify({ input: userMessage }),
         }
       );
       const rawBody = await response.text();
@@ -135,30 +112,6 @@ const PlaygroundSocialGrowth = () => {
           body: data,
         });
         throw new Error(getBackendErrorMessage(data, response.status));
-      }
-
-      const dataObj =
-        data && typeof data === "object"
-          ? (data as Record<string, unknown>)
-          : {};
-      const returnedConvId = dataObj.conversationId;
-      const returnedUserKey = dataObj.userKey;
-
-      if (typeof returnedConvId === "string" && returnedConvId !== conversationId) {
-        setConversationId(returnedConvId);
-        try {
-          localStorage.setItem(conversationStorageKey, returnedConvId);
-        } catch {
-          // ignore
-        }
-      }
-      if (typeof returnedUserKey === "string" && returnedUserKey !== userKey) {
-        setUserKey(returnedUserKey);
-        try {
-          localStorage.setItem(userKeyStorageKey, returnedUserKey);
-        } catch {
-          // ignore
-        }
       }
 
       const aiResponse = extractAssistantText(data);
