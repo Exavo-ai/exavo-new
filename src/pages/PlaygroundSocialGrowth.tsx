@@ -47,10 +47,21 @@ const PlaygroundSocialGrowth = () => {
   const conversationStorageKey = user
     ? `botpress_conversation_${user.id}`
     : "botpress_conversation";
+  const userKeyStorageKey = user
+    ? `botpress_userkey_${user.id}`
+    : "botpress_userkey";
   const [conversationId, setConversationId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     try {
       return localStorage.getItem(conversationStorageKey);
+    } catch {
+      return null;
+    }
+  });
+  const [userKey, setUserKey] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem(userKeyStorageKey);
     } catch {
       return null;
     }
