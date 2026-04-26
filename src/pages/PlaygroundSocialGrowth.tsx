@@ -44,6 +44,18 @@ const PlaygroundSocialGrowth = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const conversationStorageKey = user
+    ? `botpress_conversation_${user.id}`
+    : "botpress_conversation";
+  const [conversationId, setConversationId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem(conversationStorageKey);
+    } catch {
+      return null;
+    }
+  });
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -73,12 +85,25 @@ const PlaygroundSocialGrowth = () => {
     try {
       const { data, error } = await supabase.functions.invoke(
         "social-growth-proxy",
-        { body: { input: userMessage } }
+        { body: { input: userMessage, conversationId } }
       );
 
       if (error) {
         console.error("Social Growth AI invoke error:", error);
         throw new Error(error.message || "Request failed");
+      }
+
+      const returnedConvId =
+        data && typeof data === "object"
+          ? (data as Record<string, unknown>).conversationId
+          : undefined;
+      if (typeof returnedConvId === "string" && returnedConvId !== conversationId) {
+        setConversationId(returnedConvId);
+        try {
+          localStorage.setItem(conversationStorageKey, returnedConvId);
+        } catch {
+          // ignore
+        }
       }
 
       const aiResponse = extractAssistantText(data);
