@@ -49,7 +49,8 @@ Deno.serve(async (req) => {
     }
 
     const bpHeaders = {
-      Authorization: `Bearer ${BOTPRESS_API_KEY}`,
+      "x-integration-id": BOTPRESS_INTEGRATION_ID,
+      "x-user-key": BOTPRESS_API_KEY,
       "Content-Type": "application/json",
     };
 
@@ -59,8 +60,6 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: bpHeaders,
         body: JSON.stringify({
-          integrationId: BOTPRESS_INTEGRATION_ID,
-          channel: "channel",
           tags: { "user:id": user.id },
         }),
       });
