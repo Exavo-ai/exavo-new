@@ -34,8 +34,9 @@ Deno.serve(async (req) => {
     if (authError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
 
     const BOTPRESS_API_KEY = Deno.env.get("BOTPRESS_API_KEY");
-    if (!BOTPRESS_API_KEY) {
-      console.error("BOTPRESS_API_KEY not configured");
+    const BOTPRESS_INTEGRATION_ID = Deno.env.get("BOTPRESS_INTEGRATION_ID");
+    if (!BOTPRESS_API_KEY || !BOTPRESS_INTEGRATION_ID) {
+      console.error("Botpress env not configured");
       return jsonResponse({ error: "AI service not configured" }, 500);
     }
 
@@ -58,6 +59,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: bpHeaders,
         body: JSON.stringify({
+          integrationId: BOTPRESS_INTEGRATION_ID,
           channel: "channel",
           tags: { "user:id": user.id },
         }),
