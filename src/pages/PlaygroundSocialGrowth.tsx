@@ -36,6 +36,16 @@ const extractAssistantText = (payload: unknown): string => {
   return "";
 };
 
+const getBackendErrorMessage = (payload: unknown, status: number): string => {
+  if (payload && typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    const candidate = obj.error ?? obj.message ?? obj.details;
+    if (typeof candidate === "string" && candidate.trim()) return candidate;
+  }
+  if (typeof payload === "string" && payload.trim()) return payload;
+  return `Assistant request failed (${status})`;
+};
+
 const PlaygroundSocialGrowth = () => {
   const { user, loading: authLoading } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
@@ -94,14 +104,37 @@ const PlaygroundSocialGrowth = () => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "social-growth-proxy",
-        { body: { input: userMessage, conversationId, userKey } }
-      );
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error("Please sign in again to use the assistant.");
 
-      if (error) {
-        console.error("Social Growth AI invoke error:", error);
-        throw new Error(error.message || "Request failed");
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/social-growth-proxy`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ input: userMessage, conversationId, userKey }),
+        }
+      );
+      const rawBody = await response.text();
+      let data: unknown = rawBody;
+      try {
+        data = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        // keep raw response text for logging
+      }
+
+      if (!response.ok) {
+        console.error("Social Growth AI backend error:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: data,
+        });
+        throw new Error(getBackendErrorMessage(data, response.status));
       }
 
       const dataObj =
@@ -130,7 +163,8 @@ const PlaygroundSocialGrowth = () => {
 
       const aiResponse = extractAssistantText(data);
       if (!aiResponse || aiResponse.trim().length === 0) {
-        throw new Error("Empty response");
+        console.error("Social Growth AI empty response:", data);
+        throw new Error("Botpress returned an empty response.");
       }
 
       setMessages((prev) => [
@@ -139,17 +173,18 @@ const PlaygroundSocialGrowth = () => {
       ]);
     } catch (error) {
       console.error("Social Growth AI error:", error);
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : "The assistant could not respond. Please try again.";
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content:
-            "Content generation is temporarily unavailable. Please try again.",
+          content: errorMessage,
         },
       ]);
-      toast.error(
-        "Content generation is temporarily unavailable. Please try again."
-      );
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
