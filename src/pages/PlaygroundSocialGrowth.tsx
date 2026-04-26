@@ -94,7 +94,7 @@ const PlaygroundSocialGrowth = () => {
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ input: userMessage, conversationId, userKey }),
+          body: JSON.stringify({ input: userMessage }),
         }
       );
       const rawBody = await response.text();
@@ -112,30 +112,6 @@ const PlaygroundSocialGrowth = () => {
           body: data,
         });
         throw new Error(getBackendErrorMessage(data, response.status));
-      }
-
-      const dataObj =
-        data && typeof data === "object"
-          ? (data as Record<string, unknown>)
-          : {};
-      const returnedConvId = dataObj.conversationId;
-      const returnedUserKey = dataObj.userKey;
-
-      if (typeof returnedConvId === "string" && returnedConvId !== conversationId) {
-        setConversationId(returnedConvId);
-        try {
-          localStorage.setItem(conversationStorageKey, returnedConvId);
-        } catch {
-          // ignore
-        }
-      }
-      if (typeof returnedUserKey === "string" && returnedUserKey !== userKey) {
-        setUserKey(returnedUserKey);
-        try {
-          localStorage.setItem(userKeyStorageKey, returnedUserKey);
-        } catch {
-          // ignore
-        }
       }
 
       const aiResponse = extractAssistantText(data);
